@@ -1,5 +1,5 @@
 import { RagController } from '@/api/rag/rag.controller';
-import { RagService } from '@/domains/rag/rag.service';
+import { RagService } from '@/modules/rag/rag.service';
 import { Document } from '@langchain/core/documents';
 import { Test, TestingModule } from '@nestjs/testing';
 

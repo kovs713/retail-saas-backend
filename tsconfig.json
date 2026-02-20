@@ -30,11 +30,11 @@
       "@/database/*": [
         "./src/database/*"
       ],
-      "@/domains/*": [
-        "./src/domains/*"
+      "@/modules/*": [
+        "./src/modules/*"
       ],
       "@/guards/*": [
-        "src/domains/auth/guards/*"
+        "src/modules/auth/guards/*"
       ]
     },
     "incremental": true,

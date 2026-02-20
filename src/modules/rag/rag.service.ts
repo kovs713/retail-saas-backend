@@ -1,6 +1,6 @@
 import { AppLogger } from '@/common/logger/app-logger.service';
-import { LLMService } from '@/domains/rag/llm/llm.service';
-import { VectorStoreService } from '@/domains/rag/vector-store/vector-store.service';
+import { LLMService } from '@/modules/rag/llm/llm.service';
+import { VectorStoreService } from '@/modules/rag/vector-store/vector-store.service';
 import { Document } from '@langchain/core/documents';
 import { Injectable } from '@nestjs/common';
 

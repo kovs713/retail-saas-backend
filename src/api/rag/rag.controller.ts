@@ -1,4 +1,4 @@
-import { RagService } from '@/domains/rag/rag.service';
+import { RagService } from '@/modules/rag/rag.service';
 import {
   Body,
   Controller,

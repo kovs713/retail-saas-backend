@@ -74,7 +74,7 @@
     "@/config": "./dist/config",
     "@/database": "./dist/database",
     "@/guards": "./dist/guards",
-    "@/domains": "./dist/domains"
+    "@/modules": "./dist/modules"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -103,7 +103,7 @@
       "^@/api/(.*)$": "<rootDir>/src/api/$1",
       "^@/common/(.*)$": "<rootDir>/src/common/$1",
       "^@/database/(.*)$": "<rootDir>/src/database/$1",
-      "^@/domains/(.*)$": "<rootDir>/src/domains/$1",
+      "^@/modules/(.*)$": "<rootDir>/src/modules/$1",
       "^@/guards/(.*)$": "<rootDir>/src/guards/$1",
       "^@xenova/transformers$": "<rootDir>/test/__mocks__/@xenova/transformers.js"
     }
