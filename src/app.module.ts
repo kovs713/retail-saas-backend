@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TypeOrmConfigService } from './database/typeorm-config.service';
 import { RagModule } from './modules';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { RagModule } from './modules';
       useClass: TypeOrmConfigService,
     }),
     RagModule,
+    AuthModule,
   ],
 })
 export class AppModule {}
