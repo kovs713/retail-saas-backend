@@ -3,11 +3,13 @@ import { MinioClient } from '@/common/types/providers.type';
 import { StorageService } from '@/modules/storage';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Client } from 'minio';
+import type { Client } from 'minio';
+import type { BucketStream, ObjectInfo } from 'minio';
 import { Readable } from 'stream';
 
+/* eslint-disable @typescript-eslint/unbound-method */
 jest.mock('@/common/logger/app-logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation((context?: string) => ({
+  AppLogger: jest.fn().mockImplementation(() => ({
     log: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
@@ -38,12 +40,12 @@ describe('StorageService', () => {
     } as unknown as jest.Mocked<Client>;
 
     mockConfigService = {
-      getOrThrow: jest.fn((key: string) => {
-        const config: Record<string, any> = {
+      getOrThrow: jest.fn(<T extends string>(key: string): T => {
+        const config: Record<string, string> = {
           S3_BUCKET: mockBucket,
           S3_REGION: 'us-east-1',
         };
-        return config[key];
+        return config[key] as T;
       }),
       get: jest.fn(),
     } as unknown as jest.Mocked<ConfigService>;
@@ -80,7 +82,7 @@ describe('StorageService', () => {
         lastModified: new Date(),
         metaData: { 'content-type': 'text/plain' },
         etag: 'test-etag',
-      } as any);
+      } as import('minio').BucketItemStat);
       mockMinioClient.presignedGetObject.mockResolvedValue(
         'http://test-bucket.localhost/test-file.txt',
       );
@@ -102,7 +104,7 @@ describe('StorageService', () => {
           key: mockKey,
           size: mockFileBuffer.length,
           mimeType: 'text/plain',
-        }),
+        }) as unknown,
       });
     });
 
@@ -115,7 +117,7 @@ describe('StorageService', () => {
         lastModified: new Date(),
         metaData: { 'content-type': 'text/plain' },
         etag: 'test-etag',
-      } as any);
+      } as import('minio').BucketItemStat);
       mockMinioClient.presignedGetObject.mockResolvedValue(
         'http://test-bucket.localhost/test-file.txt',
       );
@@ -136,7 +138,7 @@ describe('StorageService', () => {
         lastModified: new Date(),
         metaData: { 'content-type': 'text/plain' },
         etag: 'test-etag',
-      } as any);
+      } as import('minio').BucketItemStat);
       mockMinioClient.presignedGetObject.mockResolvedValue(
         'http://custom-bucket.localhost/test-file.txt',
       );
@@ -167,7 +169,7 @@ describe('StorageService', () => {
         lastModified: new Date(),
         metaData: { 'content-type': 'text/plain' },
         etag: 'test-etag',
-      } as any);
+      } as import('minio').BucketItemStat);
       mockMinioClient.getObject.mockResolvedValue(mockStream);
 
       const result = await service.downloadFile(mockKey);
@@ -225,19 +227,34 @@ describe('StorageService', () => {
           etag: 'etag1',
         },
       ];
-      mockMinioClient.listObjects.mockReturnValue({
-        [Symbol.asyncIterator]() {
-          let index = 0;
-          return {
-            async next() {
-              if (index < mockObjects.length) {
-                return { value: mockObjects[index++], done: false };
-              }
-              return { done: true, value: undefined };
-            },
-          };
+      let iterationIndex = 0;
+      const mockIterator: BucketStream<ObjectInfo> = {
+        [Symbol.asyncIterator]: function (this: BucketStream<ObjectInfo>) {
+          return this;
         },
-      } as any);
+        next: (): Promise<
+          IteratorResult<{
+            name: string;
+            size: number;
+            lastModified: Date;
+            contentType: string;
+            etag: string;
+          }>
+        > => {
+          return new Promise((resolve) => {
+            if (iterationIndex < mockObjects.length) {
+              resolve({
+                value: mockObjects[iterationIndex++],
+                done: false,
+              });
+            } else {
+              resolve({ done: true, value: undefined });
+            }
+          });
+        },
+      };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      mockMinioClient.listObjects.mockReturnValue(mockIterator);
 
       const result = await service.listFiles({ prefix: 'test/' });
 
@@ -253,15 +270,22 @@ describe('StorageService', () => {
     });
 
     it('should return empty list when no files', async () => {
-      mockMinioClient.listObjects.mockReturnValue({
-        [Symbol.asyncIterator]() {
-          return {
-            async next() {
-              return { done: true, value: undefined };
-            },
-          };
+      const mockEmptyIterator: BucketStream<ObjectInfo> = {
+        [Symbol.asyncIterator]: function (this: BucketStream<ObjectInfo>) {
+          return this;
         },
-      } as any);
+        next: (): Promise<
+          IteratorResult<{
+            name: string;
+            size: number;
+            lastModified: Date;
+            contentType: string;
+            etag: string;
+          }>
+        > => Promise.resolve({ done: true, value: undefined }),
+      };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      mockMinioClient.listObjects.mockReturnValue(mockEmptyIterator);
       const result = await service.listFiles({});
       expect(result.files).toHaveLength(0);
       expect(result.nextToken).toBeUndefined();
@@ -275,8 +299,8 @@ describe('StorageService', () => {
         lastModified: new Date('2024-01-01'),
         metaData: { 'content-type': 'text/plain' },
         etag: 'test-etag',
-      };
-      mockMinioClient.statObject.mockResolvedValue(mockStat as any);
+      } as import('minio').BucketItemStat;
+      mockMinioClient.statObject.mockResolvedValue(mockStat);
 
       const result = await service.getFileMetadata(mockKey);
 
@@ -300,7 +324,7 @@ describe('StorageService', () => {
         lastModified: new Date(),
         metaData: {},
         etag: 'test-etag',
-      } as any);
+      } as import('minio').BucketItemStat);
       const result = await service.getFileMetadata(mockKey);
       expect(result.mimeType).toBe('application/octet-stream');
     });

@@ -2,7 +2,7 @@ import { MinioClient } from '@/common/types/providers.type';
 import { AppLogger } from '@/common/logger/app-logger.service';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Client } from 'minio';
+import type { Client } from 'minio';
 import { Readable } from 'stream';
 import {
   DeleteFileRequest,
@@ -13,6 +13,14 @@ import {
   UploadFileRequest,
   UploadFileResponse,
 } from './types/storage.types';
+
+interface ListObjectItem {
+  name: string;
+  size: number;
+  lastModified: Date;
+  contentType?: string;
+  etag?: string;
+}
 
 @Injectable()
 export class StorageService {
@@ -26,7 +34,7 @@ export class StorageService {
   async uploadFile(request: UploadFileRequest): Promise<UploadFileResponse> {
     try {
       const bucket =
-        request.bucket || this.configService.getOrThrow('S3_BUCKET');
+        request.bucket || this.configService.getOrThrow<string>('S3_BUCKET');
       const file = request.file;
 
       await this.ensureBucketExists(bucket);
@@ -51,11 +59,13 @@ export class StorageService {
         file.originalname,
       );
 
-      this.appLogger.log(`File uploaded successfully: ${file.originalname}`);
+      this.logger.log(`File uploaded successfully: ${file.originalname}`);
 
       return { url, key: file.originalname, metadata };
     } catch (error) {
-      this.logger.error('Failed to upload file', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to upload file', errorMessage);
       throw error;
     }
   }
@@ -65,7 +75,8 @@ export class StorageService {
     bucket?: string,
   ): Promise<DownloadFileResponse> {
     try {
-      const fileBucket = bucket || this.configService.getOrThrow('S3_BUCKET');
+      const fileBucket =
+        bucket || this.configService.getOrThrow<string>('S3_BUCKET');
       const metadata = await this.getFileMetadata(key, fileBucket);
       const stream = await this.minioClient.getObject(fileBucket, key);
       const buffer = await this.streamToBuffer(stream);
@@ -74,7 +85,9 @@ export class StorageService {
 
       return { buffer, metadata };
     } catch (error) {
-      this.logger.error(`Failed to download file: ${key}`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to download file: ${key}`, errorMessage);
       throw error;
     }
   }
@@ -82,30 +95,33 @@ export class StorageService {
   async deleteFile(request: DeleteFileRequest): Promise<void> {
     try {
       const fileBucket =
-        request.bucket || this.configService.getOrThrow('S3_BUCKET');
+        request.bucket || this.configService.getOrThrow<string>('S3_BUCKET');
       await this.minioClient.removeObject(fileBucket, request.key);
       this.logger.log(`File deleted successfully: ${request.key}`);
     } catch (error) {
-      this.logger.error(`Failed to delete file: ${request.key}`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to delete file: ${request.key}`, errorMessage);
       throw error;
     }
   }
 
   async listFiles(request: ListFilesRequest): Promise<ListFilesResponse> {
     try {
-      const fileBucket = this.configService.getOrThrow('S3_BUCKET');
+      const fileBucket = this.configService.getOrThrow<string>('S3_BUCKET');
       const prefix = request.prefix || '';
       const objects = this.minioClient.listObjects(fileBucket, prefix, true);
       const files: FileMetadata[] = [];
 
       for await (const obj of objects) {
-        if (obj.name) {
+        const item = obj as unknown as ListObjectItem;
+        if (item.name) {
           files.push({
-            key: obj.name,
-            size: obj.size,
-            mimeType: obj.contentType || 'application/octet-stream',
-            uploadDate: obj.lastModified,
-            etag: obj.etag || '',
+            key: item.name,
+            size: Number(item.size),
+            mimeType: item.contentType || 'application/octet-stream',
+            uploadDate: item.lastModified,
+            etag: item.etag || '',
             bucket: fileBucket,
           });
         }
@@ -118,26 +134,36 @@ export class StorageService {
         nextToken: files.length > 0 ? files[files.length - 1].key : undefined,
       };
     } catch (error) {
-      this.logger.error('Failed to list files', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to list files', errorMessage);
       throw error;
     }
   }
 
   async getFileMetadata(key: string, bucket?: string): Promise<FileMetadata> {
     try {
-      const fileBucket = bucket || this.configService.getOrThrow('S3_BUCKET');
+      const fileBucket =
+        bucket || this.configService.getOrThrow<string>('S3_BUCKET');
       const stat = await this.minioClient.statObject(fileBucket, key);
 
       return {
         key,
-        size: stat.size,
-        mimeType: stat.metaData?.['content-type'] || 'application/octet-stream',
+        size: Number(stat.size),
+        mimeType:
+          (stat.metaData?.['content-type'] as string) ||
+          'application/octet-stream',
         uploadDate: stat.lastModified,
         etag: stat.etag || '',
         bucket: fileBucket,
       };
     } catch (error) {
-      this.logger.error(`Failed to get metadata for file: ${key}`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to get metadata for file: ${key}`,
+        errorMessage,
+      );
       throw error;
     }
   }
@@ -148,12 +174,17 @@ export class StorageService {
       if (!exists) {
         await this.minioClient.makeBucket(
           bucket,
-          this.configService.getOrThrow('S3_REGION') || 'us-east-1',
+          this.configService.getOrThrow<string>('S3_REGION') || 'us-east-1',
         );
         this.logger.log(`Created bucket: ${bucket}`);
       }
     } catch (error) {
-      this.logger.error(`Failed to ensure bucket exists: ${bucket}`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to ensure bucket exists: ${bucket}`,
+        errorMessage,
+      );
       throw error;
     }
   }
@@ -164,7 +195,8 @@ export class StorageService {
     expirySeconds = 3600,
   ): Promise<string> {
     try {
-      const fileBucket = bucket || this.configService.getOrThrow('S3_BUCKET');
+      const fileBucket =
+        bucket || this.configService.getOrThrow<string>('S3_BUCKET');
       const url = await this.minioClient.presignedGetObject(
         fileBucket,
         key,
@@ -173,7 +205,12 @@ export class StorageService {
       this.logger.log(`Generated presigned URL for: ${key}`);
       return url;
     } catch (error) {
-      this.logger.error(`Failed to generate presigned URL for: ${key}`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to generate presigned URL for: ${key}`,
+        errorMessage,
+      );
       throw error;
     }
   }
@@ -181,7 +218,7 @@ export class StorageService {
   private async streamToBuffer(stream: Readable): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
-      stream.on('data', (chunk) => chunks.push(chunk));
+      stream.on('data', (chunk: Buffer) => chunks.push(chunk));
       stream.on('end', () => resolve(Buffer.concat(chunks)));
       stream.on('error', reject);
     });
