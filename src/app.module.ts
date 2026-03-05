@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TypeOrmConfigService } from './database/typeorm-config.service';
-import { RagModule, StorageModule } from './modules';
+import { RagModule, StorageModule, ProductModule } from './modules';
 import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
@@ -12,6 +12,7 @@ import { AuthModule } from './modules/auth/auth.module';
     RagModule,
     AuthModule,
     StorageModule,
+    ProductModule,
   ],
 })
 export class AppModule {}
