@@ -1,5 +1,5 @@
-import { IsNumber, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { IsNumber, Min } from 'class-validator';
 
 export class UpdateStockDto {
   @ApiProperty({ description: 'New stock quantity', example: 150 })
