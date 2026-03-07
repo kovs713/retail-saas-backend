@@ -15,7 +15,7 @@ import request from 'supertest';
 import { ProductController } from '../../../src/api/product/product.controller';
 import { ProductService } from '../../../src/modules/product/product.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Product } from '../../../src/modules/product/entities/product.entity';
+import { Product } from '../../../src/modules/product/product.entity';
 import type { Response } from 'supertest';
 import { createProduct } from '../../fixtures/product.factory';
 

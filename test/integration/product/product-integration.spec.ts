@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProductService } from '@/modules/product/product.service';
-import { Product } from '@/modules/product/entities/product.entity';
+import { Product } from '@/app/modules/product/product.entity';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
 /**

@@ -1,6 +1,6 @@
-import { CreateProductDto } from '@/modules/product/dto/create-product.dto';
-import { UpdateProductDto } from '@/modules/product/dto/update-product.dto';
-import { Product } from '@/modules/product/entities/product.entity';
+import { CreateProductDto } from '@/app/api/product/dto/create-product.dto';
+import { UpdateProductDto } from '@/app/api/product/dto/update-product.dto';
+import { Product } from '@/app/modules/product/product.entity';
 
 /**
  * Product Test Fixtures and Factories
