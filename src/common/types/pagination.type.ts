@@ -1,13 +1,13 @@
-import {
-  IsOptional,
-  IsInt,
-  IsString,
-  IsNumber,
-  Min,
-  Max,
-} from 'class-validator';
-import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import {
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class PaginationQuery {
   @ApiPropertyOptional({ description: 'Page number', example: 1, default: 1 })
