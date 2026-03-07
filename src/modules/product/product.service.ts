@@ -1,3 +1,11 @@
+import { CreateProductDto } from '@/app/api/product/dto/create-product.dto';
+import { UpdateProductDto } from '@/app/api/product/dto/update-product.dto';
+import {
+  PaginatedResult,
+  PaginationQuery,
+} from '@/app/common/types/pagination.type';
+import { Product } from './product.entity';
+
 import {
   ConflictException,
   Injectable,
@@ -10,15 +18,11 @@ import {
   ILike,
   IsNull,
   LessThan,
-  MoreThanOrEqual,
   LessThanOrEqual,
-  Repository,
+  MoreThanOrEqual,
   QueryDeepPartialEntity,
+  Repository,
 } from 'typeorm';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { Product } from './entities/product.entity';
-import { PaginatedResult, PaginationQuery } from './product.types';
 
 @Injectable()
 export class ProductService {
@@ -38,6 +42,7 @@ export class ProductService {
     }
 
     const product = this.productRepository.create(createProductDto);
+
     return this.productRepository.save(product);
   }
 
@@ -48,7 +53,7 @@ export class ProductService {
 
     // Build base where clause
     const where: FindOptionsWhere<Product> = {
-      deletedAt: IsNull() as unknown as Date,
+      deletedAt: IsNull(),
     };
 
     // Apply category filter
@@ -58,10 +63,10 @@ export class ProductService {
 
     // Apply price filters using proper TypeORM operators
     if (query.minPrice !== undefined) {
-      where.price = MoreThanOrEqual(query.minPrice) as unknown as number;
+      where.price = MoreThanOrEqual(query.minPrice);
     }
     if (query.maxPrice !== undefined) {
-      where.price = LessThanOrEqual(query.maxPrice) as unknown as number;
+      where.price = LessThanOrEqual(query.maxPrice);
     }
 
     // Escape search term to prevent SQL injection via LIKE wildcards
@@ -108,7 +113,7 @@ export class ProductService {
     const product = await this.productRepository.findOne({
       where: {
         id,
-        deletedAt: IsNull() as unknown as Date,
+        deletedAt: IsNull(),
       } as FindOptionsWhere<Product>,
     });
 
@@ -123,7 +128,7 @@ export class ProductService {
     const product = await this.productRepository.findOne({
       where: {
         sku,
-        deletedAt: IsNull() as unknown as Date,
+        deletedAt: IsNull(),
       } as FindOptionsWhere<Product>,
     });
 
@@ -153,7 +158,6 @@ export class ProductService {
     }
 
     // Update product with DTO data (validation already done by DTO/class-validator)
-
     await this.productRepository.update(
       id,
       updateProductDto as QueryDeepPartialEntity<Product>,

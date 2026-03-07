@@ -1,9 +1,3 @@
-import { MinioClient } from '@/common/types/providers.type';
-import { AppLogger } from '@/common/logger/app-logger.service';
-import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { Client } from 'minio';
-import { Readable } from 'stream';
 import {
   DeleteFileRequest,
   DownloadFileResponse,
@@ -12,7 +6,14 @@ import {
   ListFilesResponse,
   UploadFileRequest,
   UploadFileResponse,
-} from './types/storage.types';
+} from '@/app/api/storage/types/storage.type';
+import { AppLogger } from '@/common/logger/app-logger.service';
+import { MinioClient } from '@/common/types/providers.type';
+
+import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Client } from 'minio';
+import { Readable } from 'stream';
 
 interface ListObjectItem {
   name: string;
