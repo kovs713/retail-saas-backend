@@ -1,4 +1,11 @@
 import { RagService } from '@/modules/rag/rag.service';
+import { AddDocumentsRequestDto } from './dto/add-documents-request.dto';
+import { AddDocumentsResponseDto } from './dto/add-documents-response.dto';
+import { AddTextsResponseDto } from './dto/add-texts-response.dto';
+import { ChatRequestDto } from './dto/chat-request.dto';
+import { ChatResponseDto } from './dto/chat-response.dto';
+import { ChatWithScoresResponseDto } from './dto/chat-with-scires-response.dto';
+
 import {
   Body,
   Controller,
@@ -9,21 +16,13 @@ import {
   Post,
 } from '@nestjs/common';
 import {
-  ApiTags,
+  ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiResponse,
-  ApiBody,
-  ApiBearerAuth,
+  ApiTags,
 } from '@nestjs/swagger';
-import {
-  AddDocumentsRequestDto,
-  AddDocumentsResponseDto,
-  AddTextsRequestDto,
-  AddTextsResponseDto,
-  ChatRequestDto,
-  ChatResponseDto,
-  ChatWithScoresResponseDto,
-} from './rag.dto';
+import { AddTextsRequestDto } from './dto/add-texts-request.dto';
 
 @ApiTags('RAG')
 @ApiBearerAuth('JWT')
@@ -70,6 +69,7 @@ export class RagController {
         timestamp: new Date().toISOString(),
       };
       this.logger.log(`Chat response: ${result.answer.substring(0, 100)}...`);
+
       return response;
     } catch (error) {
       this.logger.error(
@@ -122,6 +122,7 @@ export class RagController {
       this.logger.log(
         `Chat with scores response: ${result.answer.substring(0, 100)}...`,
       );
+
       return response;
     } catch (error) {
       this.logger.error(
@@ -178,6 +179,7 @@ export class RagController {
         timestamp: new Date().toISOString(),
       };
       this.logger.log(`Added ${docIds.length} documents successfully`);
+
       return response;
     } catch (error) {
       this.logger.error(
@@ -222,6 +224,7 @@ export class RagController {
         timestamp: new Date().toISOString(),
       };
       this.logger.log(`Added ${textIds.length} texts successfully`);
+
       return response;
     } catch (error) {
       this.logger.error(
@@ -252,6 +255,7 @@ export class RagController {
         timestamp: new Date().toISOString(),
       };
       this.logger.log('Documents cleared successfully');
+
       return response;
     } catch (error) {
       this.logger.error(

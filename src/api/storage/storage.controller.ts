@@ -1,27 +1,28 @@
+import { StorageService } from '@/modules/storage/storage.service';
+
 import {
   Controller,
-  Post,
-  Get,
   Delete,
+  Get,
   Param,
+  Post,
   Query,
-  UseInterceptors,
-  UploadedFile,
   Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiConsumes,
+  ApiBearerAuth,
   ApiBody,
+  ApiConsumes,
+  ApiOperation,
   ApiParam,
   ApiQuery,
-  ApiBearerAuth,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { StorageService } from '@/modules/storage/storage.service';
 
 @ApiTags('Storage')
 @ApiBearerAuth('JWT')
@@ -61,6 +62,7 @@ export class StorageController {
     @Query('bucket') bucket?: string,
   ) {
     const result = await this.storageService.uploadFile({ file, bucket });
+
     return { success: true, data: result };
   }
 
@@ -89,6 +91,7 @@ export class StorageController {
       limit,
       startAfter,
     });
+
     return { success: true, data: result };
   }
 
@@ -110,6 +113,7 @@ export class StorageController {
     @Query('bucket') bucket?: string,
   ) {
     const result = await this.storageService.getFileMetadata(key, bucket);
+
     return { success: true, data: result };
   }
 
@@ -128,6 +132,7 @@ export class StorageController {
     res.setHeader('Content-Type', result.metadata.mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${key}"`);
     res.setHeader('Content-Length', result.metadata.size);
+
     return res.send(result.buffer);
   }
 
@@ -156,6 +161,7 @@ export class StorageController {
       ? parseInt(expirySeconds.toString(), 10)
       : 3600;
     const url = await this.storageService.getPresignedUrl(key, bucket, expiry);
+
     return { success: true, data: { url, key, expirySeconds: expiry } };
   }
 
@@ -170,6 +176,7 @@ export class StorageController {
     @Query('bucket') bucket?: string,
   ) {
     await this.storageService.deleteFile({ key, bucket });
+
     return { success: true, message: `File '${key}' deleted successfully` };
   }
 }

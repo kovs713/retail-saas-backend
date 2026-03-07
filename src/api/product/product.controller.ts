@@ -1,9 +1,10 @@
-import { CreateProductDto } from '@/modules/product/dto/create-product.dto';
-import { UpdateProductDto } from '@/modules/product/dto/update-product.dto';
-import { UpdateStockDto } from '@/modules/product/dto/update-stock.dto';
-import { AdjustStockDto } from '@/modules/product/dto/adjust-stock.dto';
-import { PaginationQuery } from '@/modules/product/product.types';
 import { ProductService } from '@/modules/product/product.service';
+import { AdjustStockDto } from './dto/adjust-stock.dto';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { UpdateStockDto } from './dto/update-stock.dto';
+import { PaginationQuery } from '../../common/types/pagination.type';
+
 import {
   Body,
   Controller,
@@ -99,6 +100,7 @@ export class ProductController {
     @Body() updateProductDto: UpdateProductDto,
   ) {
     const product = await this.productService.update(id, updateProductDto);
+
     return {
       success: true,
       data: product,
@@ -113,6 +115,7 @@ export class ProductController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   async remove(@Param('id') id: string) {
     await this.productService.remove(id);
+
     return {
       success: true,
       message: 'Product deleted successfully',
@@ -126,6 +129,7 @@ export class ProductController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   async restore(@Param('id') id: string) {
     const result = await this.productService.restore(id);
+
     return {
       success: true,
       data: result,
@@ -145,6 +149,7 @@ export class ProductController {
       id,
       updateStockDto.quantity,
     );
+
     return {
       success: true,
       data: product,
@@ -165,6 +170,7 @@ export class ProductController {
       id,
       adjustStockDto.adjustment,
     );
+
     return {
       success: true,
       data: product,
@@ -179,6 +185,7 @@ export class ProductController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   async findByBarcode(@Param('barcode') barcode: string) {
     const product = await this.productService.findByBarcode(barcode);
+
     return {
       success: true,
       data: product,
@@ -194,6 +201,7 @@ export class ProductController {
   async getStats() {
     const totalProducts = await this.productService.count();
     const lowStockProducts = await this.productService.findLowStock();
+
     return {
       success: true,
       data: {
@@ -209,6 +217,7 @@ export class ProductController {
   @ApiResponse({ status: 200, description: 'Low stock products retrieved' })
   async getLowStock(@Query('threshold') threshold: number = 10) {
     const products = await this.productService.findLowStock(threshold);
+
     return {
       success: true,
       data: products,
