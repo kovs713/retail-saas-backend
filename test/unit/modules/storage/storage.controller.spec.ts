@@ -65,7 +65,7 @@ describe('StorageController', () => {
         },
       };
       storageService.uploadFile.mockResolvedValue(mockResponse);
-      const result = await controller.uploadFile(mockFile);
+      const result = await controller.uploadFile(mockFile, { bucket: undefined } as any);
       expect(storageService.uploadFile).toHaveBeenCalledWith({
         file: mockFile,
         bucket: undefined,
@@ -87,7 +87,7 @@ describe('StorageController', () => {
         },
       };
       storageService.uploadFile.mockResolvedValue(mockResponse);
-      await controller.uploadFile(mockFile, customBucket);
+      await controller.uploadFile(mockFile, { bucket: customBucket } as any);
       expect(storageService.uploadFile).toHaveBeenCalledWith({
         file: mockFile,
         bucket: customBucket,
@@ -111,11 +111,12 @@ describe('StorageController', () => {
         nextToken: undefined,
       };
       storageService.listFiles.mockResolvedValue(mockResponse);
-      const result = await controller.listFiles();
+      const result = await controller.listFiles({} as any);
       expect(storageService.listFiles).toHaveBeenCalledWith({
         prefix: undefined,
         limit: undefined,
         startAfter: undefined,
+        page: undefined,
       });
       expect(result).toEqual({ success: true, data: mockResponse });
     });
@@ -123,11 +124,12 @@ describe('StorageController', () => {
     it('should list files with query parameters', async () => {
       const mockResponse = { files: [], nextToken: undefined };
       storageService.listFiles.mockResolvedValue(mockResponse);
-      await controller.listFiles('test/', 50, 'file0.txt');
+      await controller.listFiles({ prefix: 'test/', limit: 50, startAfter: 'file0.txt', page: 1 } as any);
       expect(storageService.listFiles).toHaveBeenCalledWith({
         prefix: 'test/',
         limit: 50,
         startAfter: 'file0.txt',
+        page: 1,
       });
     });
   });
@@ -174,7 +176,7 @@ describe('StorageController', () => {
     it('should generate presigned URL successfully', async () => {
       const mockUrl = 'http://test-bucket.localhost/test-file.txt?token=abc';
       storageService.getPresignedUrl.mockResolvedValue(mockUrl);
-      const result = await controller.getPresignedUrl(mockKey);
+      const result = await controller.getPresignedUrl(mockKey, undefined, undefined);
       expect(storageService.getPresignedUrl).toHaveBeenCalledWith(mockKey, undefined, 3600);
       expect(result).toEqual({
         success: true,
