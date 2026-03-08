@@ -18,7 +18,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/e2e/jest-e2e.json",
-    "test:rag": "jest test/integration/rag-integration.spec.ts",
+    "test:rag": "jest src/modules/rag/rag-integration.spec.ts",
     "docker:build": "docker build -t retail-analytics-platform-backend .",
     "docker:run": "docker run -p 3000:3000 retail-analytics-platform-backend"
   },
@@ -105,7 +105,7 @@
     ],
     "moduleNameMapper": {
       "^@/app/(.*)$": "<rootDir>/src/$1",
-      "^@/api/(.*)$": "<rootDir>/src/api/$1",
+      "^@/core/(.*)$": "<rootDir>/src/core/$1",
       "^@/common/(.*)$": "<rootDir>/src/common/$1",
       "^@/database/(.*)$": "<rootDir>/src/database/$1",
       "^@/modules/(.*)$": "<rootDir>/src/modules/$1",

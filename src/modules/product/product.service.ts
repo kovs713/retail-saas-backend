@@ -1,7 +1,6 @@
-import { CreateProductDto } from '@/app/api/product/dto/create-product.dto';
-import { UpdateProductDto } from '@/app/api/product/dto/update-product.dto';
-import { PaginatedResult, PaginationQuery } from '@/app/common/types/pagination.type';
-import { Product } from './product.entity';
+import { PaginatedResult, PaginationQuery } from '@/common/types/pagination.type';
+import { CreateProductDto, UpdateProductDto } from './dto';
+import { Product } from './entities/product.entity';
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';

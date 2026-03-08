@@ -1,9 +1,10 @@
-import { AppLogger } from '@/common/logger/app-logger.service';
 import { EmbeddingsExtractor } from '@/common/types/providers.type';
+import { AppLogger } from '@/core/logger/app-logger.service';
+import { EmbeddingsService } from './embeddings.service';
+
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FeatureExtractionPipeline, pipeline } from '@xenova/transformers';
-import { EmbeddingsService } from './embeddings.service';
 
 @Module({})
 export class EmbeddingsModule {

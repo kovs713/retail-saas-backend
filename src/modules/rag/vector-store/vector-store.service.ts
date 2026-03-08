@@ -1,9 +1,10 @@
-import { AppLogger } from '@/common/logger/app-logger.service';
+import { AppLogger } from '@/app/core/logger/app-logger.service';
 import { ChromaDBClient } from '@/common/types/providers.type';
+import { EmbeddingsService } from '../embeddings/embeddings.service';
+
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { Document } from '@langchain/core/documents';
 import { Inject, Injectable } from '@nestjs/common';
-import { EmbeddingsService } from '../embeddings/embeddings.service';
 
 @Injectable()
 export class VectorStoreService {

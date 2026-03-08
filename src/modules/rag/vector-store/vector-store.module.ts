@@ -1,11 +1,12 @@
-import { AppLogger } from '@/app/common/logger/app-logger.service';
+import { AppLogger } from '@/app/core/logger/app-logger.service';
 import { ChromaDBClient } from '@/common/types/providers.type';
+import { EmbeddingsModule } from '../embeddings/embeddings.module';
+import { EmbeddingsService } from '../embeddings/embeddings.service';
+import { VectorStoreService } from './vector-store.service';
+
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EmbeddingsService } from '../embeddings/embeddings.service';
-import { EmbeddingsModule } from '../embeddings/embeddings.module';
-import { VectorStoreService } from './vector-store.service';
 
 @Module({})
 export class VectorStoreModule {

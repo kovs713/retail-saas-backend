@@ -8,11 +8,8 @@
   },
   "moduleNameMapper": {
     "@/app/(.*)": "<rootDir>/src/$1",
-    "@/api/(.*)": "<rootDir>/src/api/$1",
+    "@/core/(.*)": "<rootDir>/src/core/$1",
     "@/common/(.*)": "<rootDir>/src/common/$1",
-    "@/config/(.*)": "<rootDir>/src/config/$1",
-    "@/database/(.*)": "<rootDir>/src/database/$1",
-    "@/modules/(.*)": "<rootDir>/src/modules/$1",
-    "@/guards/(.*)": "<rootDir>/src/guards/$1"
+    "@/modules/(.*)": "<rootDir>/src/modules/$1"
   }
 }

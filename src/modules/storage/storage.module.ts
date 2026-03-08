@@ -1,6 +1,6 @@
-import { StorageController } from '@/api/storage/storage.controller';
-import { AppLogger } from '@/common/logger/app-logger.service';
 import { MinioClient } from '@/common/types/providers.type';
+import { AppLogger } from '@/core/logger/app-logger.service';
+import { StorageController } from './storage.controller';
 import { StorageService } from './storage.service';
 
 import { DynamicModule, Global, Module } from '@nestjs/common';

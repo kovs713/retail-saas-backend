@@ -1,5 +1,6 @@
-import { AppLogger } from '@/common/logger/app-logger.service';
+import { AppLogger } from '@/app/core/logger/app-logger.service';
 import { EmbeddingsExtractor } from '@/common/types/providers.type';
+
 import { Embeddings } from '@langchain/core/embeddings';
 import { Inject, Injectable } from '@nestjs/common';
 import { FeatureExtractionPipeline } from '@xenova/transformers';

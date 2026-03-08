@@ -1,3 +1,5 @@
+import { MinioClient } from '@/common/types/providers.type';
+import { AppLogger } from '@/core/logger/app-logger.service';
 import {
   DeleteFileRequest,
   DownloadFileResponse,
@@ -6,9 +8,7 @@ import {
   ListFilesResponse,
   UploadFileRequest,
   UploadFileResponse,
-} from '@/app/api/storage/types/storage.type';
-import { AppLogger } from '@/common/logger/app-logger.service';
-import { MinioClient } from '@/common/types/providers.type';
+} from './types/storage.type';
 
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';

@@ -1,4 +1,4 @@
-import { Product } from './product.entity';
+import { Product } from './entities/product.entity';
 import { ProductService } from './product.service';
 
 import { Module } from '@nestjs/common';

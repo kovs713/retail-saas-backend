@@ -1,0 +1,98 @@
+### RAG Module HTTP Tests
+
+
+### Base URL
+
+@baseUrl = http://localhost:3000
+
+
+### 
+
+# @name Chat
+
+# Send a chat message to the RAG system
+
+POST {{baseUrl}}/rag/chat HTTP/1.1
+Content-Type: application/json
+
+{
+  "maxResults": 5,
+  "message": "What is NestJS?",
+  "systemPrompt": "You are a helpful assistant."
+}
+
+
+### 
+
+# @name ChatWithScores
+
+# Send a chat message and get relevance scores
+
+POST {{baseUrl}}/rag/chat-with-scores HTTP/1.1
+Content-Type: application/json
+
+{
+  "maxResults": 3,
+  "message": "Explain TypeScript decorators"
+}
+
+
+### 
+
+# @name AddDocuments
+
+# Add documents to the RAG system
+
+POST {{baseUrl}}/rag/documents HTTP/1.1
+Content-Type: application/json
+
+{
+  "documents": [
+    {
+      "content": "NestJS is a progressive Node.js framework for building efficient and scalable server-side applications.",
+      "metadata": {
+        "category": "backend",
+        "topic": "framework"
+      }
+    },
+    {
+      "content": "TypeScript is a strongly typed programming language that builds on JavaScript.",
+      "metadata": {
+        "category": "programming",
+        "topic": "language"
+      }
+    }
+  ],
+  "source": "manual-test"
+}
+
+
+### 
+
+# @name AddTexts
+
+# Add plain texts to the RAG system
+
+POST {{baseUrl}}/rag/texts HTTP/1.1
+Content-Type: application/json
+
+{
+  "metadata": {
+    "category": "infrastructure",
+    "source": "devops-docs"
+  },
+  "texts": [
+    "Docker is a platform for developing, shipping, and running applications in containers.",
+    "Kubernetes is an open-source container orchestration platform."
+  ]
+}
+
+
+### 
+
+# @name ClearDocuments
+
+# Clear all documents from the RAG system
+
+DELETE {{baseUrl}}/rag/documents HTTP/1.1
+Content-Type: application/json

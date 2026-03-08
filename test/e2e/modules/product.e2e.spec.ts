@@ -4,17 +4,18 @@
  * NOTE: These tests use mocked services - they are NOT true E2E tests.
  * True E2E tests would require a real database and full application context.
  */
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, NotFoundException, ConflictException } from '@nestjs/common';
-import request from 'supertest';
-import { ProductController } from '../../../src/api/product/product.controller';
-import { ProductService } from '../../../src/modules/product/product.service';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Product } from '../../../src/modules/product/product.entity';
-import type { Response } from 'supertest';
-import { createProduct } from '../../fixtures/product.factory';
+import { Product } from '@/modules/product/entities/product.entity';
+import { ProductController } from '@/modules/product/product.controller';
+import { ProductService } from '@/modules/product/product.service';
+import { createProduct } from '@/modules/product/util/product.factory';
 
-jest.mock('@/common/logger/app-logger.service', () => ({
+import { ConflictException, INestApplication, NotFoundException, ValidationPipe } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import type { Response } from 'supertest';
+import request from 'supertest';
+
+jest.mock('@/core/logger/app-logger.service', () => ({
   AppLogger: jest.fn().mockImplementation(() => ({
     log: jest.fn(),
     error: jest.fn(),

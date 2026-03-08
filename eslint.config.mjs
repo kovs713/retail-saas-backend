@@ -32,4 +32,10 @@ export default tseslint.config(
       'no-console': 'warn',
     },
   },
+  {
+    files: ['**/*.spec.ts', '**/*.e2e-spec.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );

@@ -1,9 +1,10 @@
-import { AppLogger } from '@/common/logger/app-logger.service';
+import { AppLogger } from '@/app/core/logger/app-logger.service';
 import { ChatGroqClient } from '@/common/types/providers.type';
+import { LLMService } from './llm.service';
+
 import { ChatGroq } from '@langchain/groq';
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { LLMService } from './llm.service';
 
 @Module({})
 export class LLMModule {

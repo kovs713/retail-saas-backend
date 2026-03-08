@@ -1,9 +1,10 @@
+import { TypeOrmConfigService } from './common/configs/typeorm-config.service';
+import { AuthModule } from './core/auth/auth.module';
+import { ProductModule, RagModule, StorageModule } from './modules';
+
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TypeOrmConfigService } from './database/typeorm-config.service';
-import { RagModule, StorageModule, ProductModule } from './modules';
-import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [

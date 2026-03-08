@@ -17,23 +17,14 @@
       "@/app/*": [
         "./src/*"
       ],
-      "@/api/*": [
-        "./src/api/*"
+      "@/core/*": [
+        "./src/core/*"
       ],
       "@/common/*": [
         "./src/common/*"
       ],
-      "@/config/*": [
-        "./src/config/*"
-      ],
-      "@/database/*": [
-        "./src/database/*"
-      ],
       "@/modules/*": [
         "./src/modules/*"
-      ],
-      "@/guards/*": [
-        "./src/modules/auth/guards/*"
       ]
     },
     "incremental": true,
