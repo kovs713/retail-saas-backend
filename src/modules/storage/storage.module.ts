@@ -22,8 +22,7 @@ export class StorageModule {
             const port = configService.getOrThrow<number>('S3_PORT');
             const accessKey = configService.getOrThrow<string>('S3_USERNAME');
             const secretKey = configService.getOrThrow<string>('S3_PASSWORD');
-            const useSSL =
-              configService.get<string>('S3_USE_SSL', 'false') === 'true';
+            const useSSL = configService.get<string>('S3_USE_SSL', 'false') === 'true';
 
             return new Client({
               endPoint: host,

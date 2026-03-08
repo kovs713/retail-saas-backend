@@ -103,9 +103,7 @@ describe('ProductService', () => {
 
     it('should throw NotFoundException when not found', async () => {
       repository.findOne.mockResolvedValue(null);
-      await expect(service.findOne('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -127,17 +125,13 @@ describe('ProductService', () => {
 
     it('should throw NotFoundException for non-existent product', async () => {
       repository.findOne.mockResolvedValue(null);
-      await expect(
-        service.update('non-existent', { name: 'Updated' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update('non-existent', { name: 'Updated' })).rejects.toThrow(NotFoundException);
     });
 
     it('should throw ConflictException for duplicate SKU', async () => {
       repository.findOne.mockResolvedValue(mockProduct);
       repository.existsBy.mockResolvedValue(true);
-      await expect(
-        service.update('prod_1', { sku: 'EXISTING' }),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.update('prod_1', { sku: 'EXISTING' })).rejects.toThrow(ConflictException);
     });
   });
 
@@ -151,9 +145,7 @@ describe('ProductService', () => {
 
     it('should throw NotFoundException for non-existent product', async () => {
       repository.findOne.mockResolvedValue(null);
-      await expect(service.remove('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -166,9 +158,7 @@ describe('ProductService', () => {
 
     it('should throw NotFoundException when nothing restored', async () => {
       repository.restore.mockResolvedValue({ affected: 0 } as never);
-      await expect(service.restore('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.restore('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -239,9 +229,7 @@ describe('ProductService', () => {
 
     it('should throw NotFoundException for non-existent SKU', async () => {
       repository.findOne.mockResolvedValue(null);
-      await expect(service.findOneBySku('NON-EXISTENT')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOneBySku('NON-EXISTENT')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -274,9 +262,7 @@ describe('ProductService', () => {
 
     it('should throw NotFoundException for invalid barcode', async () => {
       repository.findOne.mockResolvedValue(null);
-      await expect(service.findByBarcode('invalid')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findByBarcode('invalid')).rejects.toThrow(NotFoundException);
     });
   });
 

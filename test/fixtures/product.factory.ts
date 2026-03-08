@@ -23,15 +23,11 @@ interface ProductFactoryOptions {
   includeOptional?: boolean;
 }
 
-export function createProductDto(
-  options: ProductFactoryOptions = {},
-): CreateProductDto {
+export function createProductDto(options: ProductFactoryOptions = {}): CreateProductDto {
   const { index = 1, overrides = {}, includeOptional = true } = options;
 
   const baseProduct: CreateProductDto = {
-    sku:
-      overrides.sku ||
-      `${DEFAULTS.skuPrefix}-${String(index).padStart(3, '0')}`,
+    sku: overrides.sku || `${DEFAULTS.skuPrefix}-${String(index).padStart(3, '0')}`,
     name: overrides.name || `${DEFAULTS.namePrefix} ${index}`,
     price: overrides.price ?? DEFAULTS.price,
     quantity: overrides.quantity ?? DEFAULTS.quantity,
@@ -50,9 +46,7 @@ export function createProductDto(
     baseProduct.barcode = overrides.barcode || generateBarcode(index);
   }
   if (includeOptional || overrides.images) {
-    baseProduct.images = overrides.images || [
-      `https://example.com/product-${index}.jpg`,
-    ];
+    baseProduct.images = overrides.images || [`https://example.com/product-${index}.jpg`];
   }
   if (includeOptional || overrides.metadata) {
     baseProduct.metadata = overrides.metadata || { test: true, index };
@@ -61,9 +55,7 @@ export function createProductDto(
   return baseProduct;
 }
 
-export function createProduct(
-  options: ProductFactoryOptions & { id?: string } = {},
-): Product {
+export function createProduct(options: ProductFactoryOptions & { id?: string } = {}): Product {
   const { id, index = 1, overrides = {}, includeOptional = true } = options;
   const dto = createProductDto({ index, overrides, includeOptional });
   const now = new Date();
@@ -77,18 +69,11 @@ export function createProduct(
   } as Product;
 }
 
-export function createProducts(
-  count: number,
-  options: Omit<ProductFactoryOptions, 'index'> = {},
-): Product[] {
-  return Array.from({ length: count }, (_, i) =>
-    createProduct({ ...options, index: i + 1 }),
-  );
+export function createProducts(count: number, options: Omit<ProductFactoryOptions, 'index'> = {}): Product[] {
+  return Array.from({ length: count }, (_, i) => createProduct({ ...options, index: i + 1 }));
 }
 
-export function createUpdateProductDto(
-  overrides: Partial<UpdateProductDto> = {},
-): UpdateProductDto {
+export function createUpdateProductDto(overrides: Partial<UpdateProductDto> = {}): UpdateProductDto {
   return {
     name: overrides.name || 'Updated Product Name',
     price: overrides.price ?? 39.99,
@@ -104,9 +89,7 @@ export function createLowStockProduct(
   return createProductDto({ overrides: { ...overrides, quantity } });
 }
 
-export function createOutOfStockProduct(
-  overrides: Partial<CreateProductDto> = {},
-): CreateProductDto {
+export function createOutOfStockProduct(overrides: Partial<CreateProductDto> = {}): CreateProductDto {
   return createLowStockProduct(0, overrides);
 }
 
@@ -117,48 +100,35 @@ export function createHighValueProduct(
   return createProductDto({ overrides: { ...overrides, price } });
 }
 
-export function createProductByCategory(
-  category: string,
-  overrides: Partial<CreateProductDto> = {},
-): CreateProductDto {
+export function createProductByCategory(category: string, overrides: Partial<CreateProductDto> = {}): CreateProductDto {
   return createProductDto({ overrides: { ...overrides, category } });
 }
 
-export function createElectronicsProduct(
-  overrides: Partial<CreateProductDto> = {},
-): CreateProductDto {
+export function createElectronicsProduct(overrides: Partial<CreateProductDto> = {}): CreateProductDto {
   return createProductByCategory('Electronics', {
     ...overrides,
     metadata: { ...overrides.metadata, type: 'electronics' },
   });
 }
 
-export function createClothingProduct(
-  overrides: Partial<CreateProductDto> = {},
-): CreateProductDto {
+export function createClothingProduct(overrides: Partial<CreateProductDto> = {}): CreateProductDto {
   return createProductByCategory('Clothing', {
     ...overrides,
     metadata: { ...overrides.metadata, type: 'clothing' },
   });
 }
 
-export function createInvalidProduct(
-  invalidFields: Record<string, unknown>,
-): Partial<CreateProductDto> {
+export function createInvalidProduct(invalidFields: Record<string, unknown>): Partial<CreateProductDto> {
   return { ...createProductDto(), ...invalidFields };
 }
 
 export function createMinimalProduct(
-  overrides: Partial<
-    Pick<CreateProductDto, 'sku' | 'name' | 'price' | 'quantity'>
-  > = {},
+  overrides: Partial<Pick<CreateProductDto, 'sku' | 'name' | 'price' | 'quantity'>> = {},
 ): CreateProductDto {
   return createProductDto({ index: 1, overrides, includeOptional: false });
 }
 
-export function createDeletedProduct(
-  overrides: Partial<Product> = {},
-): Product {
+export function createDeletedProduct(overrides: Partial<Product> = {}): Product {
   const product = createProduct({ overrides });
   product.deletedAt = new Date();
   return product;
@@ -239,9 +209,7 @@ export const SAMPLE_PRODUCTS: CreateProductDto[] = [
   },
 ];
 
-export function createPaginationTestProducts(
-  pageSize: number = 10,
-): CreateProductDto[] {
+export function createPaginationTestProducts(pageSize: number = 10): CreateProductDto[] {
   return Array.from({ length: pageSize * 3 }, (_, i) =>
     createProductDto({
       index: i + 1,

@@ -34,50 +34,32 @@ export class StorageService {
 
   async uploadFile(request: UploadFileRequest): Promise<UploadFileResponse> {
     try {
-      const bucket =
-        request.bucket || this.configService.getOrThrow<string>('S3_BUCKET');
+      const bucket = request.bucket || this.configService.getOrThrow<string>('S3_BUCKET');
       const file = request.file;
 
       await this.ensureBucketExists(bucket);
 
-      await this.minioClient.putObject(
-        bucket,
-        file.originalname,
-        file.buffer,
-        file.buffer.length,
-        {
-          'content-type': file.mimetype,
-        },
-      );
+      await this.minioClient.putObject(bucket, file.originalname, file.buffer, file.buffer.length, {
+        'content-type': file.mimetype,
+      });
 
-      const metadata: FileMetadata = await this.getFileMetadata(
-        file.originalname,
-        bucket,
-      );
+      const metadata: FileMetadata = await this.getFileMetadata(file.originalname, bucket);
 
-      const url = await this.minioClient.presignedGetObject(
-        bucket,
-        file.originalname,
-      );
+      const url = await this.minioClient.presignedGetObject(bucket, file.originalname);
 
       this.logger.log(`File uploaded successfully: ${file.originalname}`);
 
       return { url, key: file.originalname, metadata };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to upload file', errorMessage);
       throw error;
     }
   }
 
-  async downloadFile(
-    key: string,
-    bucket?: string,
-  ): Promise<DownloadFileResponse> {
+  async downloadFile(key: string, bucket?: string): Promise<DownloadFileResponse> {
     try {
-      const fileBucket =
-        bucket || this.configService.getOrThrow<string>('S3_BUCKET');
+      const fileBucket = bucket || this.configService.getOrThrow<string>('S3_BUCKET');
       const metadata = await this.getFileMetadata(key, fileBucket);
       const stream = await this.minioClient.getObject(fileBucket, key);
       const buffer = await this.streamToBuffer(stream);
@@ -86,8 +68,7 @@ export class StorageService {
 
       return { buffer, metadata };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to download file: ${key}`, errorMessage);
       throw error;
     }
@@ -95,13 +76,11 @@ export class StorageService {
 
   async deleteFile(request: DeleteFileRequest): Promise<void> {
     try {
-      const fileBucket =
-        request.bucket || this.configService.getOrThrow<string>('S3_BUCKET');
+      const fileBucket = request.bucket || this.configService.getOrThrow<string>('S3_BUCKET');
       await this.minioClient.removeObject(fileBucket, request.key);
       this.logger.log(`File deleted successfully: ${request.key}`);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to delete file: ${request.key}`, errorMessage);
       throw error;
     }
@@ -135,8 +114,7 @@ export class StorageService {
         nextToken: files.length > 0 ? files[files.length - 1].key : undefined,
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to list files', errorMessage);
       throw error;
     }
@@ -144,27 +122,20 @@ export class StorageService {
 
   async getFileMetadata(key: string, bucket?: string): Promise<FileMetadata> {
     try {
-      const fileBucket =
-        bucket || this.configService.getOrThrow<string>('S3_BUCKET');
+      const fileBucket = bucket || this.configService.getOrThrow<string>('S3_BUCKET');
       const stat = await this.minioClient.statObject(fileBucket, key);
 
       return {
         key,
         size: Number(stat.size),
-        mimeType:
-          (stat.metaData?.['content-type'] as string) ||
-          'application/octet-stream',
+        mimeType: (stat.metaData?.['content-type'] as string) || 'application/octet-stream',
         uploadDate: stat.lastModified,
         etag: stat.etag || '',
         bucket: fileBucket,
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(
-        `Failed to get metadata for file: ${key}`,
-        errorMessage,
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to get metadata for file: ${key}`, errorMessage);
       throw error;
     }
   }
@@ -173,45 +144,25 @@ export class StorageService {
     try {
       const exists = await this.minioClient.bucketExists(bucket);
       if (!exists) {
-        await this.minioClient.makeBucket(
-          bucket,
-          this.configService.getOrThrow<string>('S3_REGION') || 'us-east-1',
-        );
+        await this.minioClient.makeBucket(bucket, this.configService.getOrThrow<string>('S3_REGION') || 'us-east-1');
         this.logger.log(`Created bucket: ${bucket}`);
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(
-        `Failed to ensure bucket exists: ${bucket}`,
-        errorMessage,
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to ensure bucket exists: ${bucket}`, errorMessage);
       throw error;
     }
   }
 
-  async getPresignedUrl(
-    key: string,
-    bucket?: string,
-    expirySeconds = 3600,
-  ): Promise<string> {
+  async getPresignedUrl(key: string, bucket?: string, expirySeconds = 3600): Promise<string> {
     try {
-      const fileBucket =
-        bucket || this.configService.getOrThrow<string>('S3_BUCKET');
-      const url = await this.minioClient.presignedGetObject(
-        fileBucket,
-        key,
-        expirySeconds,
-      );
+      const fileBucket = bucket || this.configService.getOrThrow<string>('S3_BUCKET');
+      const url = await this.minioClient.presignedGetObject(fileBucket, key, expirySeconds);
       this.logger.log(`Generated presigned URL for: ${key}`);
       return url;
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(
-        `Failed to generate presigned URL for: ${key}`,
-        errorMessage,
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to generate presigned URL for: ${key}`, errorMessage);
       throw error;
     }
   }

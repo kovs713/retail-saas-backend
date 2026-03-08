@@ -5,12 +5,7 @@
  * True E2E tests would require a real database and full application context.
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  INestApplication,
-  ValidationPipe,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { INestApplication, ValidationPipe, NotFoundException, ConflictException } from '@nestjs/common';
 import request from 'supertest';
 import { ProductController } from '../../../src/api/product/product.controller';
 import { ProductService } from '../../../src/modules/product/product.service';
@@ -64,9 +59,7 @@ describe('Product API (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true }),
-    );
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     productService = moduleFixture.get(ProductService);
     await app.init();
   });
@@ -99,9 +92,7 @@ describe('Product API (e2e)', () => {
         limit: 10,
         totalPages: 1,
       });
-      const response: Response = await request(app.getHttpServer()).get(
-        '/products',
-      );
+      const response: Response = await request(app.getHttpServer()).get('/products');
       expect(response.status).toBe(200);
       expect((response.body as { success: boolean }).success).toBe(true);
     });
@@ -110,20 +101,14 @@ describe('Product API (e2e)', () => {
   describe('GET /products/:id', () => {
     it('should return a product by id', async () => {
       productService.findOne.mockResolvedValue(mockProduct);
-      const response: Response = await request(app.getHttpServer()).get(
-        '/products/prod_e2e_001',
-      );
+      const response: Response = await request(app.getHttpServer()).get('/products/prod_e2e_001');
       expect(response.status).toBe(200);
-      expect((response.body as { data: { id: string } }).data.id).toBe(
-        'prod_e2e_001',
-      );
+      expect((response.body as { data: { id: string } }).data.id).toBe('prod_e2e_001');
     });
 
     it('should return 404 for non-existent product', async () => {
       productService.findOne.mockRejectedValue(new NotFoundException());
-      const response: Response = await request(app.getHttpServer()).get(
-        '/products/non-existent',
-      );
+      const response: Response = await request(app.getHttpServer()).get('/products/non-existent');
       expect(response.status).toBe(404);
     });
   });
@@ -131,17 +116,13 @@ describe('Product API (e2e)', () => {
   describe('GET /products/sku/:sku', () => {
     it('should return a product by SKU', async () => {
       productService.findOneBySku.mockResolvedValue(mockProduct);
-      const response: Response = await request(app.getHttpServer()).get(
-        `/products/sku/${mockProduct.sku}`,
-      );
+      const response: Response = await request(app.getHttpServer()).get(`/products/sku/${mockProduct.sku}`);
       expect(response.status).toBe(200);
     });
 
     it('should return 404 for non-existent SKU', async () => {
       productService.findOneBySku.mockRejectedValue(new NotFoundException());
-      const response: Response = await request(app.getHttpServer()).get(
-        '/products/sku/NON-EXISTENT',
-      );
+      const response: Response = await request(app.getHttpServer()).get('/products/sku/NON-EXISTENT');
       expect(response.status).toBe(404);
     });
   });
@@ -163,9 +144,7 @@ describe('Product API (e2e)', () => {
   describe('DELETE /products/:id', () => {
     it('should soft delete a product', async () => {
       productService.remove.mockResolvedValue(undefined);
-      const response: Response = await request(app.getHttpServer()).delete(
-        '/products/prod_e2e_001',
-      );
+      const response: Response = await request(app.getHttpServer()).delete('/products/prod_e2e_001');
       expect(response.status).toBe(200);
       expect((response.body as { success: boolean }).success).toBe(true);
     });
@@ -176,9 +155,7 @@ describe('Product API (e2e)', () => {
       productService.restore.mockResolvedValue({
         message: 'Product restored successfully',
       });
-      const response: Response = await request(app.getHttpServer()).post(
-        '/products/prod_e2e_001/restore',
-      );
+      const response: Response = await request(app.getHttpServer()).post('/products/prod_e2e_001/restore');
       expect([200, 201]).toContain(response.status);
     });
   });
@@ -212,17 +189,13 @@ describe('Product API (e2e)', () => {
   describe('GET /products/barcode/:barcode', () => {
     it('should return product by barcode', async () => {
       productService.findByBarcode.mockResolvedValue(mockProduct);
-      const response: Response = await request(app.getHttpServer()).get(
-        '/products/barcode/5901234123001',
-      );
+      const response: Response = await request(app.getHttpServer()).get('/products/barcode/5901234123001');
       expect(response.status).toBe(200);
     });
 
     it('should return 404 for non-existent barcode', async () => {
       productService.findByBarcode.mockRejectedValue(new NotFoundException());
-      const response: Response = await request(app.getHttpServer()).get(
-        '/products/barcode/invalid',
-      );
+      const response: Response = await request(app.getHttpServer()).get('/products/barcode/invalid');
       expect(response.status).toBe(404);
     });
   });

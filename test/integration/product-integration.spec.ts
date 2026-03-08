@@ -77,10 +77,7 @@ describe('ProductService Integration', () => {
     } as unknown as jest.Mocked<Repository<Product>>;
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ProductService,
-        { provide: getRepositoryToken(Product), useValue: mockRepository },
-      ],
+      providers: [ProductService, { provide: getRepositoryToken(Product), useValue: mockRepository }],
     }).compile();
 
     service = module.get<ProductService>(ProductService);
@@ -132,10 +129,7 @@ describe('ProductService Integration', () => {
 
     describe('findAll', () => {
       it('should return paginated products', async () => {
-        repository.findAndCount.mockResolvedValue([
-          sampleProducts as Product[],
-          sampleProducts.length,
-        ]);
+        repository.findAndCount.mockResolvedValue([sampleProducts as Product[], sampleProducts.length]);
 
         const result = await service.findAll({ page: 1, limit: 10 });
         expect(result.data).toHaveLength(2);
@@ -144,10 +138,7 @@ describe('ProductService Integration', () => {
       });
 
       it('should filter by category', async () => {
-        repository.findAndCount.mockResolvedValue([
-          sampleProducts as Product[],
-          sampleProducts.length,
-        ]);
+        repository.findAndCount.mockResolvedValue([sampleProducts as Product[], sampleProducts.length]);
         const result = await service.findAll({
           page: 1,
           limit: 10,
@@ -173,9 +164,7 @@ describe('ProductService Integration', () => {
 
       it('should throw NotFoundException for non-existent ID', async () => {
         repository.findOne.mockResolvedValue(null);
-        await expect(service.findOne('non-existent')).rejects.toThrow(
-          NotFoundException,
-        );
+        await expect(service.findOne('non-existent')).rejects.toThrow(NotFoundException);
       });
     });
 
@@ -200,9 +189,7 @@ describe('ProductService Integration', () => {
       it('should prevent updating to existing SKU', async () => {
         repository.findOne.mockResolvedValue(sampleProducts[0] as Product);
         repository.existsBy.mockResolvedValue(true);
-        await expect(
-          service.update('prod_001', { sku: 'ELEC-002' }),
-        ).rejects.toThrow(ConflictException);
+        await expect(service.update('prod_001', { sku: 'ELEC-002' })).rejects.toThrow(ConflictException);
       });
     });
 

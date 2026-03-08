@@ -17,10 +17,7 @@ export class VectorStoreModule {
         {
           provide: ChromaDBClient,
           inject: [ConfigService, EmbeddingsService],
-          useFactory(
-            config: ConfigService,
-            embeddingsService: EmbeddingsService,
-          ) {
+          useFactory(config: ConfigService, embeddingsService: EmbeddingsService) {
             const collectionName = config.get<string>('VECTOR_COLLECTION_NAME');
             const chromadbUrl = config.get<string>('CHROMADB_URL');
 

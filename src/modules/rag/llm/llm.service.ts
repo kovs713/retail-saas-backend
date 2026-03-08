@@ -8,9 +8,7 @@ import { Inject, Injectable } from '@nestjs/common';
 export class LLMService {
   private readonly logger = new AppLogger(LLMService.name);
 
-  constructor(
-    @Inject(ChatGroqClient) private readonly chatGroqClient: ChatGroq,
-  ) {}
+  constructor(@Inject(ChatGroqClient) private readonly chatGroqClient: ChatGroq) {}
 
   /**
    * Generate text response from a single prompt
@@ -27,10 +25,7 @@ export class LLMService {
       const response = await this.chatGroqClient.invoke(messages);
       return response.content as string;
     } catch (error) {
-      this.logger.error(
-        `Failed to generate text: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to generate text: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -40,17 +35,12 @@ export class LLMService {
    * @param messages - Array of messages (HumanMessage, SystemMessage, etc.)
    * @returns Promise<string> - The generated response
    */
-  async generateWithMessages(
-    messages: (HumanMessage | SystemMessage)[],
-  ): Promise<string> {
+  async generateWithMessages(messages: (HumanMessage | SystemMessage)[]): Promise<string> {
     try {
       const response = await this.chatGroqClient.invoke(messages);
       return response.content as string;
     } catch (error) {
-      this.logger.error(
-        `Failed to generate with messages: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to generate with messages: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }

@@ -16,10 +16,7 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       database: this.configService.getOrThrow<string>('DB_DATABASE'),
       autoLoadEntities: true,
       logging: this.configService.getOrThrow('NODE_ENV') === 'DEV',
-      synchronize:
-        this.configService.getOrThrow<string>('NODE_ENV') === 'DEV'
-          ? true
-          : false,
+      synchronize: this.configService.getOrThrow<string>('NODE_ENV') === 'DEV' ? true : false,
       extra: {
         options: '-c search_path=public',
       },

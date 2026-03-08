@@ -24,10 +24,7 @@ export class RagService {
       this.logger.log(`Added ${documents.length} documents to RAG system`);
       return ids;
     } catch (error) {
-      this.logger.error(
-        `Failed to add documents to RAG system: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to add documents to RAG system: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -41,9 +38,7 @@ export class RagService {
       // For LangChain Chroma, we can't easily get all document IDs
       // This is a placeholder - in a real implementation, you'd need to
       // track document IDs separately or use a different approach
-      this.logger.warn(
-        'clearDocuments not fully implemented for LangChain Chroma wrapper',
-      );
+      this.logger.warn('clearDocuments not fully implemented for LangChain Chroma wrapper');
       // You could implement this by maintaining a separate index of document IDs
     } catch (error) {
       this.logger.error(
@@ -76,17 +71,12 @@ export class RagService {
       this.logger.log(`Processing RAG query: "${query}"`);
 
       // Step 1: Perform similarity search to find relevant documents
-      const relevantDocs = await this.vectorStoreService.similaritySearch(
-        query,
-        maxResults,
-      );
+      const relevantDocs = await this.vectorStoreService.similaritySearch(query, maxResults);
 
       this.logger.log(`Found ${relevantDocs.length} relevant documents`);
 
       // Step 2: Prepare context from retrieved documents
-      const context = relevantDocs
-        .map((doc, index) => `[${index + 1}] ${doc.pageContent}`)
-        .join('\n\n');
+      const context = relevantDocs.map((doc, index) => `[${index + 1}] ${doc.pageContent}`).join('\n\n');
 
       // Step 3: Generate answer using LLM with context
       const prompt =
@@ -102,9 +92,7 @@ Answer based only on the context provided above. If the context doesn't contain 
 
       const answer = await this.llmService.generateText(prompt);
 
-      this.logger.log(
-        `Generated answer for query: "${query.substring(0, 50)}..."`,
-      );
+      this.logger.log(`Generated answer for query: "${query.substring(0, 50)}..."`);
 
       return {
         answer,
@@ -114,10 +102,7 @@ Answer based only on the context provided above. If the context doesn't contain 
         })),
       };
     } catch (error) {
-      this.logger.error(
-        `Failed to process RAG query: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to process RAG query: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -147,20 +132,12 @@ Answer based only on the context provided above. If the context doesn't contain 
       this.logger.log(`Processing RAG query with scores: "${query}"`);
 
       // Step 1: Perform similarity search with scores to find relevant documents
-      const relevantDocsWithScores =
-        await this.vectorStoreService.similaritySearchWithScore(
-          query,
-          maxResults,
-        );
+      const relevantDocsWithScores = await this.vectorStoreService.similaritySearchWithScore(query, maxResults);
 
-      this.logger.log(
-        `Found ${relevantDocsWithScores.length} relevant documents with scores`,
-      );
+      this.logger.log(`Found ${relevantDocsWithScores.length} relevant documents with scores`);
 
       // Step 2: Prepare context from retrieved documents
-      const context = relevantDocsWithScores
-        .map((doc, index) => `[${index + 1}] ${doc[0].pageContent}`)
-        .join('\n\n');
+      const context = relevantDocsWithScores.map((doc, index) => `[${index + 1}] ${doc[0].pageContent}`).join('\n\n');
 
       // Step 3: Generate answer using LLM with context
       const prompt =
@@ -176,9 +153,7 @@ Answer based only on the context provided above. If the context doesn't contain 
 
       const answer = await this.llmService.generateText(prompt);
 
-      this.logger.log(
-        `Generated answer for query: "${query.substring(0, 50)}..."`,
-      );
+      this.logger.log(`Generated answer for query: "${query.substring(0, 50)}..."`);
 
       return {
         answer,
@@ -191,10 +166,7 @@ Answer based only on the context provided above. If the context doesn't contain 
         })),
       };
     } catch (error) {
-      this.logger.error(
-        `Failed to process RAG query with scores: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to process RAG query with scores: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -206,22 +178,13 @@ Answer based only on the context provided above. If the context doesn't contain 
    * @param ids - Optional IDs for each text
    * @returns Promise<string[]> - Array of document IDs
    */
-  async addTexts(
-    texts: string[],
-    metadata?: Record<string, any>[],
-  ): Promise<string[]> {
+  async addTexts(texts: string[], metadata?: Record<string, any>[]): Promise<string[]> {
     try {
-      const documentIds = await this.vectorStoreService.addTexts(
-        texts,
-        metadata,
-      );
+      const documentIds = await this.vectorStoreService.addTexts(texts, metadata);
       this.logger.log(`Added ${texts.length} text documents to RAG system`);
       return documentIds;
     } catch (error) {
-      this.logger.error(
-        `Failed to add texts to RAG system: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to add texts to RAG system: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }

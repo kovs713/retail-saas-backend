@@ -17,9 +17,7 @@ export class LLMModule {
           useFactory(config: ConfigService) {
             const apiKey = config.getOrThrow<string>('GROQ_API_KEY');
             const model = config.getOrThrow<string>('GROQ_MODEL');
-            const temperature = parseFloat(
-              config.getOrThrow<string>('GROQ_TEMPERATURE'),
-            );
+            const temperature = parseFloat(config.getOrThrow<string>('GROQ_TEMPERATURE'));
 
             return new ChatGroq({
               apiKey,

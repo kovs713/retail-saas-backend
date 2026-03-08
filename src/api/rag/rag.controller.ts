@@ -6,22 +6,8 @@ import { ChatRequestDto } from './dto/chat-request.dto';
 import { ChatResponseDto } from './dto/chat-response.dto';
 import { ChatWithScoresResponseDto } from './dto/chat-with-scires-response.dto';
 
-import {
-  Body,
-  Controller,
-  Delete,
-  HttpCode,
-  HttpStatus,
-  Logger,
-  Post,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Delete, HttpCode, HttpStatus, Logger, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AddTextsRequestDto } from './dto/add-texts-request.dto';
 
 @ApiTags('RAG')
@@ -52,9 +38,7 @@ export class RagController {
   @ApiResponse({ status: 400, description: 'Bad request' })
   async chat(@Body() chatRequest: ChatRequestDto) {
     try {
-      this.logger.log(
-        `Chat request: ${chatRequest.message.substring(0, 100)}...`,
-      );
+      this.logger.log(`Chat request: ${chatRequest.message.substring(0, 100)}...`);
       const result = await this.ragService.query(
         chatRequest.message,
         chatRequest.maxResults || 5,
@@ -72,10 +56,7 @@ export class RagController {
 
       return response;
     } catch (error) {
-      this.logger.error(
-        `Chat error: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Chat error: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -100,9 +81,7 @@ export class RagController {
   @ApiResponse({ status: 400, description: 'Bad request' })
   async chatWithScores(@Body() chatRequest: ChatRequestDto) {
     try {
-      this.logger.log(
-        `Chat with scores request: ${chatRequest.message.substring(0, 100)}...`,
-      );
+      this.logger.log(`Chat with scores request: ${chatRequest.message.substring(0, 100)}...`);
       const result = await this.ragService.queryWithScores(
         chatRequest.message,
         chatRequest.maxResults || 5,
@@ -119,16 +98,11 @@ export class RagController {
         })),
         timestamp: new Date().toISOString(),
       };
-      this.logger.log(
-        `Chat with scores response: ${result.answer.substring(0, 100)}...`,
-      );
+      this.logger.log(`Chat with scores response: ${result.answer.substring(0, 100)}...`);
 
       return response;
     } catch (error) {
-      this.logger.error(
-        `Chat with scores error: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Chat with scores error: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -161,9 +135,7 @@ export class RagController {
   @ApiResponse({ status: 400, description: 'Bad request' })
   async addDocuments(@Body() addDocumentsRequest: AddDocumentsRequestDto) {
     try {
-      this.logger.log(
-        `Adding ${addDocumentsRequest.documents.length} documents`,
-      );
+      this.logger.log(`Adding ${addDocumentsRequest.documents.length} documents`);
       const documents = addDocumentsRequest.documents.map((doc) => ({
         pageContent: doc.content,
         metadata: {
@@ -182,10 +154,7 @@ export class RagController {
 
       return response;
     } catch (error) {
-      this.logger.error(
-        `Add documents error: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Add documents error: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -214,10 +183,7 @@ export class RagController {
   async addTexts(@Body() addTextsRequest: AddTextsRequestDto) {
     try {
       this.logger.log(`Adding ${addTextsRequest.texts.length} texts`);
-      const textIds = await this.ragService.addTexts(
-        addTextsRequest.texts,
-        addTextsRequest.metadata,
-      );
+      const textIds = await this.ragService.addTexts(addTextsRequest.texts, addTextsRequest.metadata);
       const response: AddTextsResponseDto = {
         textIds,
         count: textIds.length,
@@ -227,10 +193,7 @@ export class RagController {
 
       return response;
     } catch (error) {
-      this.logger.error(
-        `Add texts error: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Add texts error: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -258,10 +221,7 @@ export class RagController {
 
       return response;
     } catch (error) {
-      this.logger.error(
-        `Clear documents error: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Clear documents error: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }

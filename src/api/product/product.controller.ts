@@ -5,26 +5,8 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { UpdateStockDto } from './dto/update-stock.dto';
 
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')
@@ -95,10 +77,7 @@ export class ProductController {
   @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
   @ApiResponse({ status: 404, description: 'Product not found' })
   @ApiResponse({ status: 409, description: 'Conflict - SKU already exists' })
-  async update(
-    @Param('id') id: string,
-    @Body() updateProductDto: UpdateProductDto,
-  ) {
+  async update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
     const product = await this.productService.update(id, updateProductDto);
 
     return {
@@ -141,14 +120,8 @@ export class ProductController {
   @ApiParam({ name: 'id', type: String, description: 'Product ID' })
   @ApiResponse({ status: 200, description: 'Stock updated successfully' })
   @ApiResponse({ status: 404, description: 'Product not found' })
-  async updateStock(
-    @Param('id') id: string,
-    @Body() updateStockDto: UpdateStockDto,
-  ) {
-    const product = await this.productService.updateStock(
-      id,
-      updateStockDto.quantity,
-    );
+  async updateStock(@Param('id') id: string, @Body() updateStockDto: UpdateStockDto) {
+    const product = await this.productService.updateStock(id, updateStockDto.quantity);
 
     return {
       success: true,
@@ -162,14 +135,8 @@ export class ProductController {
   @ApiParam({ name: 'id', type: String, description: 'Product ID' })
   @ApiResponse({ status: 200, description: 'Stock adjusted successfully' })
   @ApiResponse({ status: 404, description: 'Product not found' })
-  async adjustStock(
-    @Param('id') id: string,
-    @Body() adjustStockDto: AdjustStockDto,
-  ) {
-    const product = await this.productService.adjustStock(
-      id,
-      adjustStockDto.adjustment,
-    );
+  async adjustStock(@Param('id') id: string, @Body() adjustStockDto: AdjustStockDto) {
+    const product = await this.productService.adjustStock(id, adjustStockDto.adjustment);
 
     return {
       success: true,

@@ -64,23 +64,17 @@ describe('RAG Integration Test', () => {
         metadata: { source: 'nestjs-docs', topic: 'framework' },
       },
       {
-        pageContent:
-          'LangChain is a framework for developing applications powered by language models.',
+        pageContent: 'LangChain is a framework for developing applications powered by language models.',
         metadata: { source: 'langchain-docs', topic: 'ai' },
       },
       {
-        pageContent:
-          'ChromaDB is an open-source vector database designed for AI applications.',
+        pageContent: 'ChromaDB is an open-source vector database designed for AI applications.',
         metadata: { source: 'chromadb-docs', topic: 'database' },
       },
     ];
 
     // Mock the vector store response
-    mockVectorStoreService.addDocuments.mockResolvedValue([
-      'doc1',
-      'doc2',
-      'doc3',
-    ]);
+    mockVectorStoreService.addDocuments.mockResolvedValue(['doc1', 'doc2', 'doc3']);
 
     await ragService.addDocuments(sampleDocs);
 

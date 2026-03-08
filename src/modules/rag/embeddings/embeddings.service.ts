@@ -28,10 +28,7 @@ export class EmbeddingsService extends Embeddings {
       });
       return Array.from(output.data as number[]);
     } catch (error) {
-      this.logger.error(
-        `Failed to embed query: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to embed query: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -53,10 +50,7 @@ export class EmbeddingsService extends Embeddings {
       );
       return results.map((output) => Array.from(output.data as number[]));
     } catch (error) {
-      this.logger.error(
-        `Failed to embed documents: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to embed documents: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }

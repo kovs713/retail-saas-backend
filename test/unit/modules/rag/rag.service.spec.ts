@@ -79,9 +79,7 @@ describe('RagService', () => {
       ];
       const mockIds = ['doc-1'];
 
-      const addDocumentsSpy = jest
-        .spyOn(vectorStoreService, 'addDocuments')
-        .mockResolvedValue(mockIds);
+      const addDocumentsSpy = jest.spyOn(vectorStoreService, 'addDocuments').mockResolvedValue(mockIds);
 
       const result = await service.addDocuments(mockDocuments);
 
@@ -100,9 +98,7 @@ describe('RagService', () => {
 
       vectorStoreService.addDocuments.mockRejectedValue(mockError);
 
-      await expect(service.addDocuments(mockDocuments)).rejects.toThrow(
-        'Vector store error',
-      );
+      await expect(service.addDocuments(mockDocuments)).rejects.toThrow('Vector store error');
     });
   });
 
@@ -112,9 +108,7 @@ describe('RagService', () => {
       const mockMetadatas = [{ source: 'test' }];
       const mockIds = ['text-1'];
 
-      const addTextsSpy = jest
-        .spyOn(vectorStoreService, 'addTexts')
-        .mockResolvedValue(mockIds);
+      const addTextsSpy = jest.spyOn(vectorStoreService, 'addTexts').mockResolvedValue(mockIds);
 
       const result = await service.addTexts(mockTexts, mockMetadatas);
 
@@ -138,9 +132,7 @@ describe('RagService', () => {
       const similaritySearchSpy = jest
         .spyOn(vectorStoreService, 'similaritySearch')
         .mockResolvedValue(mockRelevantDocs);
-      const generateTextSpy = jest
-        .spyOn(llmService, 'generateText')
-        .mockResolvedValue(mockAnswer);
+      const generateTextSpy = jest.spyOn(llmService, 'generateText').mockResolvedValue(mockAnswer);
 
       const result = await service.query(mockQuery);
 
@@ -154,8 +146,7 @@ describe('RagService', () => {
 
     it('should handle empty results', async () => {
       const mockQuery = 'Non-existent topic';
-      const mockEmptyAnswer =
-        "I don't have enough information to answer this question based on the available context.";
+      const mockEmptyAnswer = "I don't have enough information to answer this question based on the available context.";
 
       jest.spyOn(vectorStoreService, 'similaritySearch').mockResolvedValue([]);
       jest.spyOn(llmService, 'generateText').mockResolvedValue(mockEmptyAnswer);
@@ -187,10 +178,7 @@ describe('RagService', () => {
 
       await service.query(mockQuery, mockMaxResults);
 
-      expect(similaritySearchSpy).toHaveBeenCalledWith(
-        mockQuery,
-        mockMaxResults,
-      );
+      expect(similaritySearchSpy).toHaveBeenCalledWith(mockQuery, mockMaxResults);
     });
   });
 
@@ -204,9 +192,7 @@ describe('RagService', () => {
       const mockDocsWithScores: [any, number][] = [[mockDocument, 0.95]];
       const mockAnswer = 'Test answer with scores';
 
-      vectorStoreService.similaritySearchWithScore.mockResolvedValue(
-        mockDocsWithScores,
-      );
+      vectorStoreService.similaritySearchWithScore.mockResolvedValue(mockDocsWithScores);
       llmService.generateText.mockResolvedValue(mockAnswer);
 
       const result = await service.queryWithScores(mockQuery);

@@ -14,9 +14,7 @@ export class EmbeddingsModule {
         {
           provide: EmbeddingsExtractor,
           inject: [ConfigService],
-          async useFactory(
-            config: ConfigService,
-          ): Promise<FeatureExtractionPipeline> {
+          async useFactory(config: ConfigService): Promise<FeatureExtractionPipeline> {
             const model = config.getOrThrow<string>('EMBEDDINGS_MODEL');
 
             const extractor = await pipeline('feature-extraction', model, {

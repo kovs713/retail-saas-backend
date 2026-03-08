@@ -144,10 +144,7 @@ describe('StorageController', () => {
       };
       storageService.getFileMetadata.mockResolvedValue(mockMetadata);
       const result = await controller.getFileMetadata(mockKey);
-      expect(storageService.getFileMetadata).toHaveBeenCalledWith(
-        mockKey,
-        undefined,
-      );
+      expect(storageService.getFileMetadata).toHaveBeenCalledWith(mockKey, undefined);
       expect(result).toEqual({ success: true, data: mockMetadata });
     });
 
@@ -163,10 +160,7 @@ describe('StorageController', () => {
       };
       storageService.getFileMetadata.mockResolvedValue(mockMetadata);
       await controller.getFileMetadata(mockKey, customBucket);
-      expect(storageService.getFileMetadata).toHaveBeenCalledWith(
-        mockKey,
-        customBucket,
-      );
+      expect(storageService.getFileMetadata).toHaveBeenCalledWith(mockKey, customBucket);
     });
   });
 
@@ -181,11 +175,7 @@ describe('StorageController', () => {
       const mockUrl = 'http://test-bucket.localhost/test-file.txt?token=abc';
       storageService.getPresignedUrl.mockResolvedValue(mockUrl);
       const result = await controller.getPresignedUrl(mockKey);
-      expect(storageService.getPresignedUrl).toHaveBeenCalledWith(
-        mockKey,
-        undefined,
-        3600,
-      );
+      expect(storageService.getPresignedUrl).toHaveBeenCalledWith(mockKey, undefined, 3600);
       expect(result).toEqual({
         success: true,
         data: { url: mockUrl, key: mockKey, expirySeconds: 3600 },
@@ -196,11 +186,7 @@ describe('StorageController', () => {
       const mockUrl = 'http://test-bucket.localhost/test-file.txt?token=abc';
       storageService.getPresignedUrl.mockResolvedValue(mockUrl);
       await controller.getPresignedUrl(mockKey, undefined, '7200');
-      expect(storageService.getPresignedUrl).toHaveBeenCalledWith(
-        mockKey,
-        undefined,
-        7200,
-      );
+      expect(storageService.getPresignedUrl).toHaveBeenCalledWith(mockKey, undefined, 7200);
     });
   });
 

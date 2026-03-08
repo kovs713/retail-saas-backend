@@ -7,11 +7,7 @@ import { VectorStoreModule } from '@/modules/rag/vector-store/vector-store.modul
 import { Module } from '@nestjs/common';
 
 @Module({
-  imports: [
-    EmbeddingsModule.forRootAsync(),
-    LLMModule.forRootAsync(),
-    VectorStoreModule.forRootAsync(),
-  ],
+  imports: [EmbeddingsModule.forRootAsync(), LLMModule.forRootAsync(), VectorStoreModule.forRootAsync()],
   controllers: [RagController],
   providers: [RagService, AppLogger],
   exports: [RagService],

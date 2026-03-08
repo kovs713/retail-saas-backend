@@ -19,9 +19,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Retail Analytics Platform API')
-    .setDescription(
-      'Backend API for retail analytics with RAG-based document analysis and file storage',
-    )
+    .setDescription('Backend API for retail analytics with RAG-based document analysis and file storage')
     .setVersion('1.0')
     .addTag('RAG', 'AI-powered document analysis and chat')
     .addTag('Storage', 'File storage operations')

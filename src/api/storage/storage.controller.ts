@@ -1,16 +1,6 @@
 import { StorageService } from '@/modules/storage/storage.service';
 
-import {
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Query,
-  Res,
-  UploadedFile,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
@@ -57,10 +47,7 @@ export class StorageController {
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(
-    @UploadedFile() file: Express.Multer.File,
-    @Query('bucket') bucket?: string,
-  ) {
+  async uploadFile(@UploadedFile() file: Express.Multer.File, @Query('bucket') bucket?: string) {
     const result = await this.storageService.uploadFile({ file, bucket });
 
     return { success: true, data: result };
@@ -108,10 +95,7 @@ export class StorageController {
     },
   })
   @ApiResponse({ status: 404, description: 'File not found' })
-  async getFileMetadata(
-    @Param('key') key: string,
-    @Query('bucket') bucket?: string,
-  ) {
+  async getFileMetadata(@Param('key') key: string, @Query('bucket') bucket?: string) {
     const result = await this.storageService.getFileMetadata(key, bucket);
 
     return { success: true, data: result };
@@ -157,9 +141,7 @@ export class StorageController {
     @Query('bucket') bucket?: string,
     @Query('expiry') expirySeconds?: number,
   ) {
-    const expiry = expirySeconds
-      ? parseInt(expirySeconds.toString(), 10)
-      : 3600;
+    const expiry = expirySeconds ? parseInt(expirySeconds.toString(), 10) : 3600;
     const url = await this.storageService.getPresignedUrl(key, bucket, expiry);
 
     return { success: true, data: { url, key, expirySeconds: expiry } };
@@ -171,10 +153,7 @@ export class StorageController {
   @ApiQuery({ name: 'bucket', required: false, type: String })
   @ApiResponse({ status: 200, description: 'File deleted' })
   @ApiResponse({ status: 404, description: 'File not found' })
-  async deleteFile(
-    @Param('key') key: string,
-    @Query('bucket') bucket?: string,
-  ) {
+  async deleteFile(@Param('key') key: string, @Query('bucket') bucket?: string) {
     await this.storageService.deleteFile({ key, bucket });
 
     return { success: true, message: `File '${key}' deleted successfully` };

@@ -83,9 +83,7 @@ describe('StorageService', () => {
         metaData: { 'content-type': 'text/plain' },
         etag: 'test-etag',
       } as import('minio').BucketItemStat);
-      mockMinioClient.presignedGetObject.mockResolvedValue(
-        'http://test-bucket.localhost/test-file.txt',
-      );
+      mockMinioClient.presignedGetObject.mockResolvedValue('http://test-bucket.localhost/test-file.txt');
 
       const result = await service.uploadFile({ file: mockFile });
 
@@ -118,15 +116,10 @@ describe('StorageService', () => {
         metaData: { 'content-type': 'text/plain' },
         etag: 'test-etag',
       } as import('minio').BucketItemStat);
-      mockMinioClient.presignedGetObject.mockResolvedValue(
-        'http://test-bucket.localhost/test-file.txt',
-      );
+      mockMinioClient.presignedGetObject.mockResolvedValue('http://test-bucket.localhost/test-file.txt');
 
       await service.uploadFile({ file: mockFile });
-      expect(mockMinioClient.makeBucket).toHaveBeenCalledWith(
-        mockBucket,
-        'us-east-1',
-      );
+      expect(mockMinioClient.makeBucket).toHaveBeenCalledWith(mockBucket, 'us-east-1');
     });
 
     it('should use custom bucket when provided', async () => {
@@ -139,9 +132,7 @@ describe('StorageService', () => {
         metaData: { 'content-type': 'text/plain' },
         etag: 'test-etag',
       } as import('minio').BucketItemStat);
-      mockMinioClient.presignedGetObject.mockResolvedValue(
-        'http://custom-bucket.localhost/test-file.txt',
-      );
+      mockMinioClient.presignedGetObject.mockResolvedValue('http://custom-bucket.localhost/test-file.txt');
 
       await service.uploadFile({ file: mockFile, bucket: customBucket });
       expect(mockMinioClient.bucketExists).toHaveBeenCalledWith(customBucket);
@@ -150,9 +141,7 @@ describe('StorageService', () => {
     it('should throw error when upload fails', async () => {
       mockMinioClient.bucketExists.mockResolvedValue(true);
       mockMinioClient.putObject.mockRejectedValue(new Error('Upload failed'));
-      await expect(service.uploadFile({ file: mockFile })).rejects.toThrow(
-        'Upload failed',
-      );
+      await expect(service.uploadFile({ file: mockFile })).rejects.toThrow('Upload failed');
     });
   });
 
@@ -174,25 +163,15 @@ describe('StorageService', () => {
 
       const result = await service.downloadFile(mockKey);
 
-      expect(mockMinioClient.statObject).toHaveBeenCalledWith(
-        mockBucket,
-        mockKey,
-      );
-      expect(mockMinioClient.getObject).toHaveBeenCalledWith(
-        mockBucket,
-        mockKey,
-      );
+      expect(mockMinioClient.statObject).toHaveBeenCalledWith(mockBucket, mockKey);
+      expect(mockMinioClient.getObject).toHaveBeenCalledWith(mockBucket, mockKey);
       expect(result.buffer).toEqual(mockFileBuffer);
-      expect(result.metadata).toEqual(
-        expect.objectContaining({ key: mockKey, size: mockFileBuffer.length }),
-      );
+      expect(result.metadata).toEqual(expect.objectContaining({ key: mockKey, size: mockFileBuffer.length }));
     });
 
     it('should throw error when file not found', async () => {
       mockMinioClient.statObject.mockRejectedValue(new Error('File not found'));
-      await expect(service.downloadFile(mockKey)).rejects.toThrow(
-        'File not found',
-      );
+      await expect(service.downloadFile(mockKey)).rejects.toThrow('File not found');
     });
   });
 
@@ -200,19 +179,12 @@ describe('StorageService', () => {
     it('should delete file successfully', async () => {
       mockMinioClient.removeObject.mockResolvedValue();
       await service.deleteFile({ key: mockKey });
-      expect(mockMinioClient.removeObject).toHaveBeenCalledWith(
-        mockBucket,
-        mockKey,
-      );
+      expect(mockMinioClient.removeObject).toHaveBeenCalledWith(mockBucket, mockKey);
     });
 
     it('should throw error when delete fails', async () => {
-      mockMinioClient.removeObject.mockRejectedValue(
-        new Error('Delete failed'),
-      );
-      await expect(service.deleteFile({ key: mockKey })).rejects.toThrow(
-        'Delete failed',
-      );
+      mockMinioClient.removeObject.mockRejectedValue(new Error('Delete failed'));
+      await expect(service.deleteFile({ key: mockKey })).rejects.toThrow('Delete failed');
     });
   });
 
@@ -258,15 +230,9 @@ describe('StorageService', () => {
 
       const result = await service.listFiles({ prefix: 'test/' });
 
-      expect(mockMinioClient.listObjects).toHaveBeenCalledWith(
-        mockBucket,
-        'test/',
-        true,
-      );
+      expect(mockMinioClient.listObjects).toHaveBeenCalledWith(mockBucket, 'test/', true);
       expect(result.files).toHaveLength(1);
-      expect(result.files[0]).toEqual(
-        expect.objectContaining({ key: 'file1.txt', size: 100 }),
-      );
+      expect(result.files[0]).toEqual(expect.objectContaining({ key: 'file1.txt', size: 100 }));
     });
 
     it('should return empty list when no files', async () => {
@@ -304,10 +270,7 @@ describe('StorageService', () => {
 
       const result = await service.getFileMetadata(mockKey);
 
-      expect(mockMinioClient.statObject).toHaveBeenCalledWith(
-        mockBucket,
-        mockKey,
-      );
+      expect(mockMinioClient.statObject).toHaveBeenCalledWith(mockBucket, mockKey);
       expect(result).toEqual({
         key: mockKey,
         size: mockFileBuffer.length,
@@ -331,9 +294,7 @@ describe('StorageService', () => {
 
     it('should throw error when file not found', async () => {
       mockMinioClient.statObject.mockRejectedValue(new Error('File not found'));
-      await expect(service.getFileMetadata(mockKey)).rejects.toThrow(
-        'File not found',
-      );
+      await expect(service.getFileMetadata(mockKey)).rejects.toThrow('File not found');
     });
   });
 
@@ -342,11 +303,7 @@ describe('StorageService', () => {
       const mockUrl = 'http://test-bucket.localhost/test-file.txt?token=abc';
       mockMinioClient.presignedGetObject.mockResolvedValue(mockUrl);
       const result = await service.getPresignedUrl(mockKey);
-      expect(mockMinioClient.presignedGetObject).toHaveBeenCalledWith(
-        mockBucket,
-        mockKey,
-        3600,
-      );
+      expect(mockMinioClient.presignedGetObject).toHaveBeenCalledWith(mockBucket, mockKey, 3600);
       expect(result).toBe(mockUrl);
     });
 
@@ -354,20 +311,12 @@ describe('StorageService', () => {
       const mockUrl = 'http://test-bucket.localhost/test-file.txt?token=abc';
       mockMinioClient.presignedGetObject.mockResolvedValue(mockUrl);
       await service.getPresignedUrl(mockKey, undefined, 7200);
-      expect(mockMinioClient.presignedGetObject).toHaveBeenCalledWith(
-        mockBucket,
-        mockKey,
-        7200,
-      );
+      expect(mockMinioClient.presignedGetObject).toHaveBeenCalledWith(mockBucket, mockKey, 7200);
     });
 
     it('should throw error when URL generation fails', async () => {
-      mockMinioClient.presignedGetObject.mockRejectedValue(
-        new Error('URL generation failed'),
-      );
-      await expect(service.getPresignedUrl(mockKey)).rejects.toThrow(
-        'URL generation failed',
-      );
+      mockMinioClient.presignedGetObject.mockRejectedValue(new Error('URL generation failed'));
+      await expect(service.getPresignedUrl(mockKey)).rejects.toThrow('URL generation failed');
     });
   });
 });

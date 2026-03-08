@@ -26,10 +26,7 @@ export class VectorStoreService {
       this.logger.log(`Added ${documents.length} documents to vector store`);
       return ids;
     } catch (error) {
-      this.logger.error(
-        `Failed to add documents: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to add documents: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -41,10 +38,7 @@ export class VectorStoreService {
    * @param ids - Array of custom IDs (optional)
    * @returns Promise<string[]> - Array of document IDs
    */
-  async addTexts(
-    texts: string[],
-    metadatas?: Record<string, any>[],
-  ): Promise<string[]> {
+  async addTexts(texts: string[], metadatas?: Record<string, any>[]): Promise<string[]> {
     try {
       const resultIds = await this.chromaDBClient.addVectors(
         await this.embeddingsService.embedDocuments(texts),
@@ -56,10 +50,7 @@ export class VectorStoreService {
       this.logger.log(`Added ${texts.length} texts to vector store`);
       return resultIds;
     } catch (error) {
-      this.logger.error(
-        `Failed to add texts: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to add texts: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -71,24 +62,13 @@ export class VectorStoreService {
    * @param filter - Optional filter for metadata
    * @returns Promise<Document[]> - Array of similar documents
    */
-  async similaritySearch(
-    query: string,
-    k: number = 5,
-    filter?: Record<string, any>,
-  ): Promise<Document[]> {
+  async similaritySearch(query: string, k: number = 5, filter?: Record<string, any>): Promise<Document[]> {
     try {
-      const results = await this.chromaDBClient.similaritySearch(
-        query,
-        k,
-        filter,
-      );
+      const results = await this.chromaDBClient.similaritySearch(query, k, filter);
       this.logger.log(`Similarity search completed for query: "${query}"`);
       return results;
     } catch (error) {
-      this.logger.error(
-        `Failed to perform similarity search: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to perform similarity search: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
@@ -106,14 +86,8 @@ export class VectorStoreService {
     filter?: Record<string, any>,
   ): Promise<[Document, number][]> {
     try {
-      const results = await this.chromaDBClient.similaritySearchWithScore(
-        query,
-        k,
-        filter,
-      );
-      this.logger.log(
-        `Similarity search with scores completed for query: "${query}"`,
-      );
+      const results = await this.chromaDBClient.similaritySearchWithScore(query, k, filter);
+      this.logger.log(`Similarity search with scores completed for query: "${query}"`);
       return results;
     } catch (error) {
       this.logger.error(
@@ -133,15 +107,10 @@ export class VectorStoreService {
     try {
       // LangChain Chroma delete method signature may vary
       // For now, we'll log a warning and not implement deletion
-      this.logger.warn(
-        `Document deletion not implemented for Chroma vector store. IDs: ${ids.join(', ')}`,
-      );
+      this.logger.warn(`Document deletion not implemented for Chroma vector store. IDs: ${ids.join(', ')}`);
       // TODO: Implement proper deletion when LangChain Chroma API is clarified
     } catch (error) {
-      this.logger.error(
-        `Failed to delete documents: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`Failed to delete documents: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }

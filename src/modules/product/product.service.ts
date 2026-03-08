@@ -1,16 +1,9 @@
 import { CreateProductDto } from '@/app/api/product/dto/create-product.dto';
 import { UpdateProductDto } from '@/app/api/product/dto/update-product.dto';
-import {
-  PaginatedResult,
-  PaginationQuery,
-} from '@/app/common/types/pagination.type';
+import { PaginatedResult, PaginationQuery } from '@/app/common/types/pagination.type';
 import { Product } from './product.entity';
 
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   FindManyOptions,
@@ -139,10 +132,7 @@ export class ProductService {
     return product;
   }
 
-  async update(
-    id: string,
-    updateProductDto: UpdateProductDto,
-  ): Promise<Product> {
+  async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
     // Check if product exists
     const product = await this.findOne(id);
 
@@ -158,10 +148,7 @@ export class ProductService {
     }
 
     // Update product with DTO data (validation already done by DTO/class-validator)
-    await this.productRepository.update(
-      id,
-      updateProductDto as QueryDeepPartialEntity<Product>,
-    );
+    await this.productRepository.update(id, updateProductDto as QueryDeepPartialEntity<Product>);
     return this.findOne(id);
   }
 
@@ -239,10 +226,7 @@ export class ProductService {
     });
   }
 
-  private getOrderOptions(
-    sortBy?: string,
-    sortOrder?: 'ASC' | 'DESC',
-  ): Record<string, 'ASC' | 'DESC'> {
+  private getOrderOptions(sortBy?: string, sortOrder?: 'ASC' | 'DESC'): Record<string, 'ASC' | 'DESC'> {
     const order: Record<string, 'ASC' | 'DESC'> = { createdAt: 'DESC' };
 
     if (sortBy) {

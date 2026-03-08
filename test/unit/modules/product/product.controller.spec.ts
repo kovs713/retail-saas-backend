@@ -90,12 +90,8 @@ describe('ProductController', () => {
     });
 
     it('should handle NotFoundException', async () => {
-      service.findOne.mockRejectedValue(
-        new NotFoundException('Product not found'),
-      );
-      await expect(controller.findOne('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      service.findOne.mockRejectedValue(new NotFoundException('Product not found'));
+      await expect(controller.findOne('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -115,12 +111,8 @@ describe('ProductController', () => {
     });
 
     it('should handle NotFoundException', async () => {
-      service.update.mockRejectedValue(
-        new NotFoundException('Product not found'),
-      );
-      await expect(
-        controller.update('non-existent', { name: 'Updated' }),
-      ).rejects.toThrow(NotFoundException);
+      service.update.mockRejectedValue(new NotFoundException('Product not found'));
+      await expect(controller.update('non-existent', { name: 'Updated' })).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -167,12 +159,8 @@ describe('ProductController', () => {
     });
 
     it('should handle NotFoundException', async () => {
-      service.findByBarcode.mockRejectedValue(
-        new NotFoundException('Product not found'),
-      );
-      await expect(controller.findByBarcode('invalid')).rejects.toThrow(
-        NotFoundException,
-      );
+      service.findByBarcode.mockRejectedValue(new NotFoundException('Product not found'));
+      await expect(controller.findByBarcode('invalid')).rejects.toThrow(NotFoundException);
     });
   });
 
