@@ -27,6 +27,7 @@ export interface ListFilesRequest {
   prefix?: string;
   limit?: number;
   startAfter?: string;
+  page?: number;
 }
 
 export interface ListFilesResponse {
