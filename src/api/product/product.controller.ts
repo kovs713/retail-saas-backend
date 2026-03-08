@@ -1,9 +1,9 @@
+import { PaginationQuery } from '@/common/types/pagination.type';
 import { ProductService } from '@/modules/product/product.service';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { UpdateStockDto } from './dto/update-stock.dto';
-import { PaginationQuery } from '../../common/types/pagination.type';
 
 import {
   Body,
@@ -28,7 +28,7 @@ import {
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')
-// Note: Add @UseGuards(AuthGuard) here or globally to enable authentication
+// NOTE: Add @UseGuards(AuthGuard)
 @Controller('products')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
