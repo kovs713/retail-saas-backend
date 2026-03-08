@@ -1,17 +1,9 @@
 import { StorageService } from '@/modules/storage/storage.service';
+import { ListFilesDto, UploadFileDto } from './dto';
 
 import { Controller, Delete, Get, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiConsumes,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 @ApiTags('Storage')
@@ -47,17 +39,14 @@ export class StorageController {
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(@UploadedFile() file: Express.Multer.File, @Query('bucket') bucket?: string) {
-    const result = await this.storageService.uploadFile({ file, bucket });
+  async uploadFile(@UploadedFile() file: Express.Multer.File, @Query() query: UploadFileDto) {
+    const result = await this.storageService.uploadFile({ file, bucket: query.bucket });
 
     return { success: true, data: result };
   }
 
   @Get('files')
   @ApiOperation({ summary: 'List files in storage' })
-  @ApiQuery({ name: 'prefix', required: false, type: String })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'startAfter', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'Files listed',
@@ -68,15 +57,12 @@ export class StorageController {
       },
     },
   })
-  async listFiles(
-    @Query('prefix') prefix?: string,
-    @Query('limit') limit?: number,
-    @Query('startAfter') startAfter?: string,
-  ) {
+  async listFiles(@Query() query: ListFilesDto) {
     const result = await this.storageService.listFiles({
-      prefix,
-      limit,
-      startAfter,
+      prefix: query.prefix,
+      limit: query.limit,
+      startAfter: query.startAfter,
+      page: query.page,
     });
 
     return { success: true, data: result };
@@ -84,8 +70,6 @@ export class StorageController {
 
   @Get('file/:key')
   @ApiOperation({ summary: 'Get file metadata' })
-  @ApiParam({ name: 'key', type: String })
-  @ApiQuery({ name: 'bucket', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'Metadata retrieved',
@@ -103,14 +87,12 @@ export class StorageController {
 
   @Get('download/:key')
   @ApiOperation({ summary: 'Download a file' })
-  @ApiParam({ name: 'key', type: String })
-  @ApiQuery({ name: 'bucket', required: false, type: String })
   @ApiResponse({ status: 200, description: 'File downloaded' })
   @ApiResponse({ status: 404, description: 'File not found' })
   async downloadFile(
     @Param('key') key: string,
+    @Query('bucket') bucket: string | undefined,
     @Res({ passthrough: false }) res: Response,
-    @Query('bucket') bucket?: string,
   ) {
     const result = await this.storageService.downloadFile(key, bucket);
     res.setHeader('Content-Type', result.metadata.mimeType);
@@ -122,9 +104,6 @@ export class StorageController {
 
   @Get('presigned/:key')
   @ApiOperation({ summary: 'Generate presigned URL' })
-  @ApiParam({ name: 'key', type: String })
-  @ApiQuery({ name: 'bucket', required: false, type: String })
-  @ApiQuery({ name: 'expiry', required: false, type: Number })
   @ApiResponse({
     status: 200,
     description: 'URL generated',
@@ -138,10 +117,10 @@ export class StorageController {
   })
   async getPresignedUrl(
     @Param('key') key: string,
-    @Query('bucket') bucket?: string,
-    @Query('expiry') expirySeconds?: number,
+    @Query('bucket') bucket: string | undefined,
+    @Query('expirySeconds') expirySeconds: string | undefined,
   ) {
-    const expiry = expirySeconds ? parseInt(expirySeconds.toString(), 10) : 3600;
+    const expiry = expirySeconds ? parseInt(expirySeconds, 10) : 3600;
     const url = await this.storageService.getPresignedUrl(key, bucket, expiry);
 
     return { success: true, data: { url, key, expirySeconds: expiry } };
@@ -149,8 +128,6 @@ export class StorageController {
 
   @Delete('file/:key')
   @ApiOperation({ summary: 'Delete a file' })
-  @ApiParam({ name: 'key', type: String })
-  @ApiQuery({ name: 'bucket', required: false, type: String })
   @ApiResponse({ status: 200, description: 'File deleted' })
   @ApiResponse({ status: 404, description: 'File not found' })
   async deleteFile(@Param('key') key: string, @Query('bucket') bucket?: string) {
