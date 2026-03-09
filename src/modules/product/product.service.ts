@@ -1,4 +1,5 @@
 import { PaginatedResult, PaginationQuery } from '@/common/types/pagination.type';
+import { AppLogger } from '@/core/logger/app-logger.service';
 import { CreateProductDto, UpdateProductDto } from './dto';
 import { Product } from './entities/product.entity';
 
@@ -18,27 +19,38 @@ import {
 
 @Injectable()
 export class ProductService {
+  private readonly logger: AppLogger = new AppLogger(ProductService.name);
+
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
+    this.logger.log(`Creating product with SKU: ${createProductDto.sku}`);
+
     // Check for duplicate SKU
     const existingProduct = await this.productRepository.existsBy({
       sku: createProductDto.sku,
     });
 
     if (existingProduct) {
+      this.logger.warn(`Product with SKU ${createProductDto.sku} already exists`);
       throw new ConflictException('Product with this SKU already exists');
     }
 
     const product = this.productRepository.create(createProductDto);
+    const savedProduct = await this.productRepository.save(product);
 
-    return this.productRepository.save(product);
+    this.logger.log(`Product created successfully with ID: ${savedProduct.id}`);
+    return savedProduct;
   }
 
   async findAll(query: PaginationQuery): Promise<PaginatedResult<Product>> {
+    this.logger.log(
+      `Finding products with query: page=${query.page}, limit=${query.limit}, search=${query.search || 'none'}`,
+    );
+
     const page = query.page ?? 1;
     const limit = Math.min(query.limit ?? 10, 100); // Cap limit to 100
     const skip = (page - 1) * limit;
@@ -92,6 +104,8 @@ export class ProductService {
 
     const [data, total] = await this.productRepository.findAndCount(options);
 
+    this.logger.log(`Found ${data.length} products (total: ${total}, page: ${page})`);
+
     return {
       data,
       total,
@@ -102,6 +116,8 @@ export class ProductService {
   }
 
   async findOne(id: string): Promise<Product> {
+    this.logger.log(`Finding product by ID: ${id}`);
+
     const product = await this.productRepository.findOne({
       where: {
         id,
@@ -110,13 +126,17 @@ export class ProductService {
     });
 
     if (!product) {
+      this.logger.warn(`Product with ID ${id} not found`);
       throw new NotFoundException('Product not found');
     }
 
+    this.logger.log(`Product found: ${product.name}`);
     return product;
   }
 
   async findOneBySku(sku: string): Promise<Product> {
+    this.logger.log(`Finding product by SKU: ${sku}`);
+
     const product = await this.productRepository.findOne({
       where: {
         sku,
@@ -125,13 +145,17 @@ export class ProductService {
     });
 
     if (!product) {
+      this.logger.warn(`Product with SKU ${sku} not found`);
       throw new NotFoundException('Product not found');
     }
 
+    this.logger.log(`Product found: ${product.name}`);
     return product;
   }
 
   async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
+    this.logger.log(`Updating product ID: ${id}`);
+
     // Check if product exists
     const product = await this.findOne(id);
 
@@ -142,42 +166,64 @@ export class ProductService {
       });
 
       if (existingProduct) {
+        this.logger.warn(`Product with SKU ${updateProductDto.sku} already exists`);
         throw new ConflictException('Product with this SKU already exists');
       }
     }
 
     // Update product with DTO data (validation already done by DTO/class-validator)
     await this.productRepository.update(id, updateProductDto as QueryDeepPartialEntity<Product>);
-    return this.findOne(id);
+    const updatedProduct = await this.findOne(id);
+
+    this.logger.log(`Product updated successfully: ${updatedProduct.name}`);
+    return updatedProduct;
   }
 
   async remove(id: string): Promise<void> {
+    this.logger.log(`Soft deleting product ID: ${id}`);
+
     // Check if product exists
     await this.findOne(id);
     await this.productRepository.softDelete(id);
+
+    this.logger.log(`Product ${id} soft deleted successfully`);
   }
 
   async restore(id: string): Promise<{ message: string }> {
+    this.logger.log(`Restoring product ID: ${id}`);
+
     const result = await this.productRepository.restore({ id });
 
     if (result.affected === 0) {
+      this.logger.warn(`Product ${id} not found or already active`);
       throw new NotFoundException('Product not found or already active');
     }
 
+    this.logger.log(`Product ${id} restored successfully`);
     return { message: 'Product restored successfully' };
   }
 
   async updateStock(id: string, quantity: number): Promise<Product> {
+    this.logger.log(`Updating stock for product ID: ${id}, quantity: ${quantity}`);
+
     await this.findOne(id);
     await this.productRepository.update(id, { quantity });
-    return this.findOne(id);
+    const updatedProduct = await this.findOne(id);
+
+    this.logger.log(`Stock updated for product ${id}: ${updatedProduct.quantity}`);
+    return updatedProduct;
   }
 
   async adjustStock(id: string, adjustment: number): Promise<Product> {
+    this.logger.log(`Adjusting stock for product ID: ${id}, adjustment: ${adjustment}`);
+
     await this.findOne(id);
     // increment is atomic at database level
     await this.productRepository.increment({ id }, 'quantity', adjustment);
-    return this.findOne(id);
+    const updatedProduct = await this.findOne(id);
+
+    this.logger.log(`Stock adjusted for product ${id}: ${updatedProduct.quantity}`);
+    return updatedProduct;
   }
 
   async count(where?: FindOptionsWhere<Product>): Promise<number> {
@@ -189,19 +235,25 @@ export class ProductService {
       : ({
           deletedAt: IsNull() as unknown as Date,
         } as FindOptionsWhere<Product>);
-    return this.productRepository.count({ where: countWhere });
+    const count = await this.productRepository.count({ where: countWhere });
+    this.logger.log(`Product count: ${count}`);
+    return count;
   }
 
   async countByCategory(category: string): Promise<number> {
-    return this.productRepository.count({
+    const count = await this.productRepository.count({
       where: {
         category,
         deletedAt: IsNull() as unknown as Date,
       } as FindOptionsWhere<Product>,
     });
+    this.logger.log(`Product count for category ${category}: ${count}`);
+    return count;
   }
 
   async findByBarcode(barcode: string): Promise<Product> {
+    this.logger.log(`Finding product by barcode: ${barcode}`);
+
     const product = await this.productRepository.findOne({
       where: {
         barcode,
@@ -210,19 +262,26 @@ export class ProductService {
     });
 
     if (!product) {
+      this.logger.warn(`Product with barcode ${barcode} not found`);
       throw new NotFoundException('Product not found');
     }
 
+    this.logger.log(`Product found: ${product.name}`);
     return product;
   }
 
   async findLowStock(threshold: number = 10): Promise<Product[]> {
-    return this.productRepository.find({
+    this.logger.log(`Finding products with low stock (threshold: ${threshold})`);
+
+    const products = await this.productRepository.find({
       where: {
         quantity: LessThan(threshold) as unknown as number,
         deletedAt: IsNull() as unknown as Date,
       } as FindOptionsWhere<Product>,
     });
+
+    this.logger.log(`Found ${products.length} products with low stock`);
+    return products;
   }
 
   private getOrderOptions(sortBy?: string, sortOrder?: 'ASC' | 'DESC'): Record<string, 'ASC' | 'DESC'> {

@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsObject, IsOptional, IsString } from 'class-validator';
 
-export class AddTextsRequestDto {
+export class AddTextsDto {
   @ApiProperty({ description: 'Texts to add', type: [String] })
   @IsArray()
   @IsString({ each: true })

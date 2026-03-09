@@ -1,34 +1,41 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsOptional, IsPositive, IsString } from 'class-validator';
 
 export class ListFilesDto {
-  @ApiPropertyOptional({ description: 'Page number', example: 1, default: 1 })
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  @Type(() => Number)
-  page?: number = 1;
-
   @ApiPropertyOptional({
-    description: 'Items per page',
-    example: 10,
-    default: 10,
+    description: 'File prefix filter',
+    example: 'documents/',
   })
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  @Max(100)
-  @Type(() => Number)
-  limit?: number = 10;
-
-  @ApiPropertyOptional({ description: 'Prefix to filter files' })
   @IsOptional()
   @IsString()
   prefix?: string;
 
-  @ApiPropertyOptional({ description: 'Start after this key (for pagination)' })
+  @ApiPropertyOptional({
+    description: 'Maximum number of files to return',
+    example: 50,
+    default: 10,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsPositive()
+  limit?: number;
+
+  @ApiPropertyOptional({
+    description: 'Start listing after this file key',
+    example: 'documents/file-5.pdf',
+  })
   @IsOptional()
   @IsString()
   startAfter?: string;
+
+  @ApiPropertyOptional({
+    description: 'Page number for pagination',
+    example: 1,
+    default: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsPositive()
+  page?: number;
 }

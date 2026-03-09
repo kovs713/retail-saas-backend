@@ -1,5 +1,5 @@
-import { Product } from '@/modules/product/entities/product.entity';
-import { ProductService } from '@/modules/product/product.service';
+import { Product } from './entities/product.entity';
+import { ProductService } from './product.service';
 
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';

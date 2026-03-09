@@ -1,26 +1,30 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsOptional, IsPositive, IsString } from 'class-validator';
 
 export class GetPresignedUrlDto {
-  @ApiProperty({ description: 'File key' })
+  @ApiProperty({
+    description: 'File key (path)',
+    example: 'documents/report.pdf',
+  })
   @IsString()
   key: string;
 
-  @ApiPropertyOptional({ description: 'Bucket name' })
+  @ApiPropertyOptional({
+    description: 'Custom bucket name',
+    example: 'my-bucket',
+  })
   @IsOptional()
   @IsString()
   bucket?: string;
 
   @ApiPropertyOptional({
-    description: 'Expiry in seconds',
-    example: 3600,
+    description: 'URL expiry time in seconds',
+    example: 7200,
     default: 3600,
   })
   @IsOptional()
-  @IsNumber()
-  @Min(1)
-  @Max(86400)
   @Type(() => Number)
-  expirySeconds?: number = 3600;
+  @IsPositive()
+  expirySeconds?: number;
 }

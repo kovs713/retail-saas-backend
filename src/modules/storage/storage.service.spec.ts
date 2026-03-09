@@ -1,6 +1,6 @@
-import { AppLogger } from '@/app/core/logger/app-logger.service';
 import { MinioClient } from '@/common/types/providers.type';
-import { StorageService } from '@/modules/storage';
+import { AppLogger } from '@/core/logger/app-logger.service';
+import { StorageService } from './storage.service';
 
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';

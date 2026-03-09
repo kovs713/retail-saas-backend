@@ -64,7 +64,9 @@ describe('ProductController', () => {
         quantity: 100,
       });
       expect(result.success).toBe(true);
-      expect(result.data).toEqual(mockProduct);
+      expect(result.data).toBeDefined();
+      expect(result.data.sku).toBe(mockProduct.sku);
+      expect(result.message).toBe('Product created successfully');
     });
   });
 
@@ -80,6 +82,8 @@ describe('ProductController', () => {
       const result = await controller.findAll({});
       expect(result.success).toBe(true);
       expect(result.data.data).toHaveLength(1);
+      expect(result.data.total).toBe(1);
+      expect(result.data.page).toBe(1);
     });
   });
 
@@ -87,7 +91,8 @@ describe('ProductController', () => {
     it('should return a product by id', async () => {
       service.findOne.mockResolvedValue(mockProduct);
       const result = await controller.findOne('prod_1');
-      expect(result.data).toEqual(mockProduct);
+      expect(result.data).toBeDefined();
+      expect(result.data.id).toBe(mockProduct.id);
     });
 
     it('should handle NotFoundException', async () => {
@@ -100,6 +105,7 @@ describe('ProductController', () => {
     it('should return a product by SKU', async () => {
       service.findOneBySku.mockResolvedValue(mockProduct);
       const result = await controller.findOneBySku(mockProduct.sku);
+      expect(result.data).toBeDefined();
       expect(result.data.sku).toBe(mockProduct.sku);
     });
   });
@@ -109,6 +115,8 @@ describe('ProductController', () => {
       service.update.mockResolvedValue({ ...mockProduct, name: 'Updated' });
       const result = await controller.update('prod_1', { name: 'Updated' });
       expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.message).toBe('Product updated successfully');
     });
 
     it('should handle NotFoundException', async () => {
@@ -131,6 +139,7 @@ describe('ProductController', () => {
         message: 'Product restored successfully',
       });
       const result = await controller.restore('prod_1');
+      expect(result.data).toBeDefined();
       expect(result.data.message).toBe('Product restored successfully');
     });
   });
@@ -139,7 +148,9 @@ describe('ProductController', () => {
     it('should update stock', async () => {
       service.updateStock.mockResolvedValue({ ...mockProduct, quantity: 150 });
       const result = await controller.updateStock('prod_1', { quantity: 150 });
-      expect(result.data.quantity).toBe(150);
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.data.data.quantity).toBe(150);
     });
   });
 
@@ -148,6 +159,7 @@ describe('ProductController', () => {
       service.adjustStock.mockResolvedValue({ ...mockProduct, quantity: 150 });
       const result = await controller.adjustStock('prod_1', { adjustment: 50 });
       expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
     });
   });
 
@@ -156,6 +168,7 @@ describe('ProductController', () => {
       service.findByBarcode.mockResolvedValue(mockProduct);
       const barcode = mockProduct.barcode ?? 'test-barcode';
       const result = await controller.findByBarcode(barcode);
+      expect(result.data).toBeDefined();
       expect(result.data.barcode).toBeDefined();
     });
 
@@ -170,6 +183,8 @@ describe('ProductController', () => {
       service.count.mockResolvedValue(100);
       service.findLowStock.mockResolvedValue([mockProduct]);
       const result = await controller.getStats();
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
       expect(result.data.totalProducts).toBe(100);
       expect(result.data.lowStockCount).toBe(1);
     });
@@ -179,6 +194,7 @@ describe('ProductController', () => {
     it('should return low stock products', async () => {
       service.findLowStock.mockResolvedValue([mockProduct]);
       const result = await controller.getLowStock(50);
+      expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
     });
   });

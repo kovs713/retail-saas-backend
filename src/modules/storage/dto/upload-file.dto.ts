@@ -13,7 +13,10 @@ export class UploadFileDto {
   @Type(() => Object)
   file: Express.Multer.File;
 
-  @ApiPropertyOptional({ description: 'Bucket name' })
+  @ApiPropertyOptional({
+    description: 'Custom bucket name',
+    example: 'my-bucket',
+  })
   @IsOptional()
   @IsString()
   bucket?: string;

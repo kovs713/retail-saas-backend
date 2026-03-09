@@ -24,6 +24,7 @@ async function bootstrap() {
     .setVersion('1.0')
     .addTag('RAG', 'AI-powered document analysis and chat')
     .addTag('Storage', 'File storage operations')
+    .addTag('Products', 'CRUD pruducts operations')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
     .addServer('http://localhost:3000', 'Development')
     .build();

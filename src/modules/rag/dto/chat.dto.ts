@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 
-export class ChatRequestDto {
+export class ChattDto {
   @ApiProperty({ description: 'Message to send', example: 'What is NestJS?' })
   @IsString()
   message: string;

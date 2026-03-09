@@ -1,7 +1,7 @@
-import { EmbeddingsService } from '@/modules/rag/embeddings/embeddings.service';
-import { LLMService } from '@/modules/rag/llm/llm.service';
-import { RagService } from '@/modules/rag/rag.service';
-import { VectorStoreService } from '@/modules/rag/vector-store/vector-store.service';
+import { EmbeddingsService } from './embeddings/embeddings.service';
+import { LLMService } from './llm/llm.service';
+import { RagService } from './rag.service';
+import { VectorStoreService } from './vector-store/vector-store.service';
 
 import { Test, TestingModule } from '@nestjs/testing';
 

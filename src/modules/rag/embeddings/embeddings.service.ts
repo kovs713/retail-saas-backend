@@ -16,43 +16,23 @@ export class EmbeddingsService extends Embeddings {
     super({});
   }
 
-  /**
-   * Embed a single query string
-   * @param text - The text to embed
-   * @returns Promise<number[]> - The embedding vector
-   */
   async embedQuery(text: string): Promise<number[]> {
-    try {
-      const output = await this.extractor(text, {
-        pooling: 'mean',
-        normalize: true,
-      });
-      return Array.from(output.data as number[]);
-    } catch (error) {
-      this.logger.error(`Failed to embed query: ${(error as Error).message}`, (error as Error).stack);
-      throw error;
-    }
+    const output = await this.extractor(text, {
+      pooling: 'mean',
+      normalize: true,
+    });
+    return Array.from(output.data as number[]);
   }
 
-  /**
-   * Embed multiple documents
-   * @param texts - Array of texts to embed
-   * @returns Promise<number[][]> - Array of embedding vectors
-   */
   async embedDocuments(texts: string[]): Promise<number[][]> {
-    try {
-      const results = await Promise.all(
-        texts.map((text) =>
-          this.extractor(text, {
-            pooling: 'mean',
-            normalize: true,
-          }),
-        ),
-      );
-      return results.map((output) => Array.from(output.data as number[]));
-    } catch (error) {
-      this.logger.error(`Failed to embed documents: ${(error as Error).message}`, (error as Error).stack);
-      throw error;
-    }
+    const results = await Promise.all(
+      texts.map((text) =>
+        this.extractor(text, {
+          pooling: 'mean',
+          normalize: true,
+        }),
+      ),
+    );
+    return results.map((output) => Array.from(output.data as number[]));
   }
 }

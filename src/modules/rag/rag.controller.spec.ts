@@ -58,16 +58,12 @@ describe('RagController', () => {
       const result = await controller.chat(chatRequest);
 
       expect(querySpy).toHaveBeenCalledWith(chatRequest.message, chatRequest.maxResults, chatRequest.systemPrompt);
-      expect(result).toEqual({
-        answer: mockResponse.answer,
-        sources: [
-          {
-            content: mockDocument.pageContent,
-            metadata: mockDocument.metadata,
-          },
-        ],
-        timestamp: expect.any(String) as unknown,
-      });
+      expect(result.success).toBe(true);
+      expect(result.data.answer).toBe(mockResponse.answer);
+      expect(result.data.sources).toHaveLength(1);
+      expect(result.data.sources[0].content).toBe(mockDocument.pageContent);
+      expect(result.data.sources[0].metadata).toEqual(mockDocument.metadata);
+      expect(result.data.timestamp).toBeDefined();
     });
   });
 
@@ -87,9 +83,10 @@ describe('RagController', () => {
       const result = await controller.addDocuments(addRequest);
 
       expect(addDocumentsSpy).toHaveBeenCalled();
-      expect(result.documentIds).toEqual(mockDocIds);
-      expect(result.count).toBe(2);
-      expect(result.timestamp).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.data.documentIds).toEqual(mockDocIds);
+      expect(result.data.count).toBe(2);
+      expect(result.data.timestamp).toBeDefined();
     });
   });
 });
