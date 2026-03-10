@@ -1,9 +1,7 @@
-import { ApiResponse as AppApiResponse } from '@/common/types/api-response.type';
-import { PaginationQuery } from '@/common/types/pagination.type';
+import { ApiResponse as AppApiResponse, Pagination, PaginationApiResponse } from '@/common/dto';
 import {
   AdjustStockDto,
   CreateProductDto,
-  ProductListResponseDto,
   ProductResponseDto,
   ProductRestoreResponseDto,
   ProductStatsResponseDto,
@@ -11,7 +9,6 @@ import {
   UpdateProductDto,
   UpdateStockDto,
 } from './dto';
-import { Product } from './entities/product.entity';
 import { ProductService } from './product.service';
 
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Logger, Param, Patch, Post, Query } from '@nestjs/common';
@@ -37,29 +34,31 @@ export class ProductController {
   ): Promise<AppApiResponse<ProductResponseDto>> {
     this.logger.log(`Creating product with SKU: ${createProductDto.sku}`);
     const product = await this.productService.create(createProductDto);
-    const response = this.toResponseDto(product);
+    const response = ProductResponseDto.fromEntity(product);
     this.logger.log(`Product created successfully with ID: ${product.id}`);
     return { success: true, data: response, message: 'Product created successfully' };
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all products with pagination and filters' })
-  @ApiResponse({ status: 200, description: 'Products retrieved successfully', type: ProductListResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Products retrieved successfully',
+    type: ProductResponseDto,
+    isArray: true,
+  })
   async findAll(
     @Query()
-    query: PaginationQuery,
-  ): Promise<AppApiResponse<ProductListResponseDto>> {
+    query: Pagination,
+  ): Promise<PaginationApiResponse<ProductResponseDto>> {
     this.logger.log(`Finding products with query: page=${query.page}, limit=${query.limit}`);
     const result = await this.productService.findAll(query);
-    const response: ProductListResponseDto = {
-      data: result.data.map((product) => this.toResponseDto(product)),
-      total: result.total,
-      page: result.page,
-      limit: result.limit,
-      totalPages: result.totalPages,
+    this.logger.log(`Found ${result.data?.length || 0} products (total: ${result.pagination?.total})`);
+    return {
+      success: true,
+      data: result.data?.map((product) => ProductResponseDto.fromEntity(product)) ?? [],
+      pagination: result.pagination,
     };
-    this.logger.log(`Found ${result.data.length} products (total: ${result.total})`);
-    return { success: true, data: response };
   }
 
   @Get(':id')
@@ -73,7 +72,7 @@ export class ProductController {
   ): Promise<AppApiResponse<ProductResponseDto>> {
     this.logger.log(`Finding product by ID: ${id}`);
     const product = await this.productService.findOne(id);
-    const response = this.toResponseDto(product);
+    const response = ProductResponseDto.fromEntity(product);
     this.logger.log(`Product found: ${product.name}`);
     return { success: true, data: response };
   }
@@ -89,7 +88,7 @@ export class ProductController {
   ): Promise<AppApiResponse<ProductResponseDto>> {
     this.logger.log(`Finding product by SKU: ${sku}`);
     const product = await this.productService.findOneBySku(sku);
-    const response = this.toResponseDto(product);
+    const response = ProductResponseDto.fromEntity(product);
     this.logger.log(`Product found: ${product.name}`);
     return { success: true, data: response };
   }
@@ -109,7 +108,7 @@ export class ProductController {
   ): Promise<AppApiResponse<ProductResponseDto>> {
     this.logger.log(`Updating product ID: ${id}`);
     const product = await this.productService.update(id, updateProductDto);
-    const response = this.toResponseDto(product);
+    const response = ProductResponseDto.fromEntity(product);
     this.logger.log(`Product updated successfully: ${product.name}`);
     return { success: true, data: response, message: 'Product updated successfully' };
   }
@@ -160,7 +159,7 @@ export class ProductController {
     const product = await this.productService.updateStock(id, updateStockDto.quantity);
     const response: ProductStockResponseDto = {
       message: 'Stock updated successfully',
-      data: this.toResponseDto(product),
+      data: ProductResponseDto.fromEntity(product),
     };
     this.logger.log(`Stock updated for product ${id}: ${product.quantity}`);
     return { success: true, data: response, message: 'Stock updated successfully' };
@@ -181,7 +180,7 @@ export class ProductController {
     const product = await this.productService.adjustStock(id, adjustStockDto.adjustment);
     const response: ProductStockResponseDto = {
       message: 'Stock adjusted successfully',
-      data: this.toResponseDto(product),
+      data: ProductResponseDto.fromEntity(product),
     };
     this.logger.log(`Stock adjusted for product ${id}: ${product.quantity}`);
     return { success: true, data: response, message: 'Stock adjusted successfully' };
@@ -198,7 +197,7 @@ export class ProductController {
   ): Promise<AppApiResponse<ProductResponseDto>> {
     this.logger.log(`Finding product by barcode: ${barcode}`);
     const product = await this.productService.findByBarcode(barcode);
-    const response = this.toResponseDto(product);
+    const response = ProductResponseDto.fromEntity(product);
     this.logger.log(`Product found: ${product.name}`);
     return { success: true, data: response };
   }
@@ -228,30 +227,8 @@ export class ProductController {
   ): Promise<AppApiResponse<ProductResponseDto[]>> {
     this.logger.log(`Finding products with low stock (threshold: ${threshold})`);
     const products = await this.productService.findLowStock(threshold);
-    const response = products.map((product) => this.toResponseDto(product));
+    const response = products.map((product) => ProductResponseDto.fromEntity(product));
     this.logger.log(`Found ${products.length} products with low stock`);
     return { success: true, data: response };
-  }
-
-  /**
-   * Convert Product entity to ProductResponseDto
-   */
-  private toResponseDto(product: Product): ProductResponseDto {
-    return {
-      id: product.id,
-      sku: product.sku,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      cost: product.cost,
-      quantity: product.quantity,
-      category: product.category,
-      barcode: product.barcode,
-      images: product.images,
-      metadata: product.metadata,
-      createdAt: product.createdAt.toISOString(),
-      updatedAt: product.updatedAt.toISOString(),
-      deletedAt: product.deletedAt?.toISOString() ?? null,
-    };
   }
 }

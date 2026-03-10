@@ -1,4 +1,4 @@
-import { PaginatedResult, PaginationQuery } from '@/common/types/pagination.type';
+import { Pagination, PaginationApiResponse } from '@/common/dto';
 import { AppLogger } from '@/core/logger/app-logger.service';
 import { CreateProductDto, UpdateProductDto } from './dto';
 import { Product } from './entities/product.entity';
@@ -46,7 +46,7 @@ export class ProductService {
     return savedProduct;
   }
 
-  async findAll(query: PaginationQuery): Promise<PaginatedResult<Product>> {
+  async findAll(query: Pagination): Promise<PaginationApiResponse<Product>> {
     this.logger.log(
       `Finding products with query: page=${query.page}, limit=${query.limit}, search=${query.search || 'none'}`,
     );
@@ -107,11 +107,14 @@ export class ProductService {
     this.logger.log(`Found ${data.length} products (total: ${total}, page: ${page})`);
 
     return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      success: true,
+      data: data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -182,7 +185,6 @@ export class ProductService {
   async remove(id: string): Promise<void> {
     this.logger.log(`Soft deleting product ID: ${id}`);
 
-    // Check if product exists
     await this.findOne(id);
     await this.productRepository.softDelete(id);
 
@@ -206,7 +208,6 @@ export class ProductService {
   async updateStock(id: string, quantity: number): Promise<Product> {
     this.logger.log(`Updating stock for product ID: ${id}, quantity: ${quantity}`);
 
-    await this.findOne(id);
     await this.productRepository.update(id, { quantity });
     const updatedProduct = await this.findOne(id);
 
@@ -217,8 +218,6 @@ export class ProductService {
   async adjustStock(id: string, adjustment: number): Promise<Product> {
     this.logger.log(`Adjusting stock for product ID: ${id}, adjustment: ${adjustment}`);
 
-    await this.findOne(id);
-    // increment is atomic at database level
     await this.productRepository.increment({ id }, 'quantity', adjustment);
     const updatedProduct = await this.findOne(id);
 

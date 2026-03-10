@@ -190,7 +190,7 @@ describe('ProductService', () => {
 
       const result = await service.findAll({ page: 1, limit: 10 });
       expect(result.data).toHaveLength(1);
-      expect(result.total).toBe(1);
+      expect(result.pagination?.total).toBe(1);
     });
 
     it('should filter by category', async () => {

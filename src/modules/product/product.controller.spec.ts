@@ -74,16 +74,18 @@ describe('ProductController', () => {
     it('should return paginated products', async () => {
       service.findAll.mockResolvedValue({
         data: [mockProduct],
-        total: 1,
-        page: 1,
-        limit: 10,
-        totalPages: 1,
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+        },
       });
       const result = await controller.findAll({});
       expect(result.success).toBe(true);
-      expect(result.data.data).toHaveLength(1);
-      expect(result.data.total).toBe(1);
-      expect(result.data.page).toBe(1);
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination.total).toBe(1);
+      expect(result.pagination.page).toBe(1);
     });
   });
 

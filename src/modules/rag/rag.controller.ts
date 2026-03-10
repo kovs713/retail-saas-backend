@@ -1,4 +1,4 @@
-import { ApiResponse as AppApiResponse } from '@/common/types/api-response.type';
+import { ApiResponse as AppApiResponse } from '@/common/dto';
 import {
   AddDocumentsResponseDto,
   AddDocumentstDto,
