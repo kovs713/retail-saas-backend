@@ -1,16 +1,20 @@
-const mockPipeline = jest.fn().mockImplementation(() => ({
-  // Mock pipeline function that returns fake embeddings
-}));
+const { OllamaEmbeddings } = require('@langchain/ollama');
 
-const mockTensor = {
-  data: new Float32Array(384).map(() => Math.random() - 0.5), // 384-dimensional random vector
-};
+const mockEmbedQuery = jest.fn().mockResolvedValue(new Array(1024).fill(0).map(() => Math.random() - 0.5));
+const mockEmbedDocuments = jest.fn().mockResolvedValue([new Array(1024).fill(0).map(() => Math.random() - 0.5)]);
 
-mockPipeline.mockResolvedValue({
-  data: new Float32Array(384).map(() => Math.random() - 0.5),
-});
+class MockOllamaEmbeddings {
+  constructor(options) {
+    this.model = options?.model || 'embeddinggemma';
+    this.baseUrl = options?.baseUrl || 'http://ollama:11435';
+  }
+
+  embedQuery = mockEmbedQuery;
+  embedDocuments = mockEmbedDocuments;
+}
 
 module.exports = {
-  pipeline: mockPipeline,
-  Tensor: jest.fn().mockImplementation(() => mockTensor),
+  OllamaEmbeddings: MockOllamaEmbeddings,
+  mockEmbedQuery,
+  mockEmbedDocuments,
 };
