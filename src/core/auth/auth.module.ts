@@ -20,6 +20,6 @@ import type { StringValue } from 'ms';
     }),
   ],
   providers: [AuthService, AuthGuard],
-  exports: [AuthGuard],
+  exports: [AuthGuard, JwtModule],
 })
 export class AuthModule {}

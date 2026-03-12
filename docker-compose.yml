@@ -39,9 +39,7 @@ services:
     network_mode: bridge
 
   ollama:
-    build:
-      context: .
-      dockerfile: docker/ollama/Dockerfile
+    image: ollama/ollama:latest
     container_name: ollama-embeddings
 
     ports:
