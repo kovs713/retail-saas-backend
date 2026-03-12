@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('RAG Integration Test', () => {
+  const mockTenantContext = { organizationId: 'test-org-id' };
   it('should run complete RAG workflow', async () => {
     const mockLLMService = {
       generateText: jest.fn(),
@@ -77,7 +78,7 @@ describe('RAG Integration Test', () => {
     // Mock the vector store response
     mockVectorStoreService.addDocuments.mockResolvedValue(['doc1', 'doc2', 'doc3']);
 
-    await ragService.addDocuments(sampleDocs);
+    await ragService.addDocuments(sampleDocs, mockTenantContext);
 
     // Test 2: Query the system
     // Mock similarity search and LLM responses
@@ -89,7 +90,7 @@ describe('RAG Integration Test', () => {
       'NestJS is a progressive Node.js framework for building efficient and scalable server-side applications using TypeScript.',
     );
 
-    await ragService.query('What is NestJS?');
+    await ragService.query('What is NestJS?', mockTenantContext);
 
     // Test 3: Query with scores
     mockVectorStoreService.similaritySearchWithScore.mockResolvedValue([
@@ -97,6 +98,6 @@ describe('RAG Integration Test', () => {
       [{ pageContent: 'Framework info', metadata: { source: 'docs' } }, 0.87],
     ]);
 
-    await ragService.queryWithScores('What is NestJS?');
+    await ragService.queryWithScores('What is NestJS?', mockTenantContext);
   });
 });

@@ -57,6 +57,8 @@ describe('ProductService Integration', () => {
     },
   ];
 
+  const mockTenantContext = { organizationId: 'test-org-id' };
+
   beforeEach(async () => {
     const mockRepository = {
       create: jest.fn(),
@@ -109,7 +111,7 @@ describe('ProductService Integration', () => {
         repository.create.mockReturnValue(created as Product);
         repository.save.mockResolvedValue(created as Product);
 
-        const result = await service.create(newProduct);
+        const result = await service.create(newProduct, mockTenantContext);
         expect(result.sku).toBe('NEW-001');
         expect(result.id).toBe('prod_003');
       });
@@ -122,7 +124,7 @@ describe('ProductService Integration', () => {
             name: 'Duplicate',
             price: 39.99,
             quantity: 20,
-          }),
+          }, mockTenantContext),
         ).rejects.toThrow(ConflictException);
       });
     });
@@ -131,10 +133,10 @@ describe('ProductService Integration', () => {
       it('should return paginated products', async () => {
         repository.findAndCount.mockResolvedValue([sampleProducts as Product[], sampleProducts.length]);
 
-        const result = await service.findAll({ page: 1, limit: 10 });
+        const result = await service.findAll({ page: 1, limit: 10 }, mockTenantContext);
         expect(result.data).toHaveLength(2);
-        expect(result.total).toBe(2);
-        expect(result.totalPages).toBe(1);
+        expect(result.pagination.total).toBe(2);
+        expect(result.pagination.totalPages).toBe(1);
       });
 
       it('should filter by category', async () => {
@@ -143,28 +145,28 @@ describe('ProductService Integration', () => {
           page: 1,
           limit: 10,
           category: 'Electronics',
-        });
+        }, mockTenantContext);
         expect(result.data).toHaveLength(2);
       });
 
       it('should handle empty results', async () => {
         repository.findAndCount.mockResolvedValue([[], 0]);
-        const result = await service.findAll({ page: 1, limit: 10 });
+        const result = await service.findAll({ page: 1, limit: 10 }, mockTenantContext);
         expect(result.data).toHaveLength(0);
-        expect(result.total).toBe(0);
+        expect(result.pagination.total).toBe(0);
       });
     });
 
     describe('findOne', () => {
       it('should return product by ID', async () => {
         repository.findOne.mockResolvedValue(sampleProducts[0] as Product);
-        const result = await service.findOne('prod_001');
+        const result = await service.findOne('prod_001', mockTenantContext);
         expect(result.sku).toBe('ELEC-001');
       });
 
       it('should throw NotFoundException for non-existent ID', async () => {
         repository.findOne.mockResolvedValue(null);
-        await expect(service.findOne('non-existent')).rejects.toThrow(NotFoundException);
+        await expect(service.findOne('non-existent', mockTenantContext)).rejects.toThrow(NotFoundException);
       });
     });
 
@@ -182,14 +184,14 @@ describe('ProductService Integration', () => {
           name: 'Updated',
         } as Product);
 
-        const result = await service.update('prod_001', { name: 'Updated' });
+        const result = await service.update('prod_001', { name: 'Updated' }, mockTenantContext);
         expect(result.name).toBe('Updated');
       });
 
       it('should prevent updating to existing SKU', async () => {
         repository.findOne.mockResolvedValue(sampleProducts[0] as Product);
         repository.existsBy.mockResolvedValue(true);
-        await expect(service.update('prod_001', { sku: 'ELEC-002' })).rejects.toThrow(ConflictException);
+        await expect(service.update('prod_001', { sku: 'ELEC-002' }, mockTenantContext)).rejects.toThrow(ConflictException);
       });
     });
 
@@ -197,7 +199,7 @@ describe('ProductService Integration', () => {
       it('should soft delete a product', async () => {
         repository.findOne.mockResolvedValue(sampleProducts[0] as Product);
         repository.softDelete.mockResolvedValue({ affected: 1 } as never);
-        await service.remove('prod_001');
+        await service.remove('prod_001', mockTenantContext);
         expect(repository.softDelete).toHaveBeenCalledWith('prod_001');
       });
     });
@@ -213,7 +215,7 @@ describe('ProductService Integration', () => {
           quantity: 200,
         } as Product);
 
-        const result = await service.updateStock('prod_001', 200);
+        const result = await service.updateStock('prod_001', 200, mockTenantContext);
         expect(result.quantity).toBe(200);
       });
     });
@@ -227,7 +229,7 @@ describe('ProductService Integration', () => {
           quantity: 200,
         } as Product);
 
-        const result = await service.adjustStock('prod_001', 50);
+        const result = await service.adjustStock('prod_001', 50, mockTenantContext);
         expect(result.quantity).toBe(200);
       });
 
@@ -239,7 +241,7 @@ describe('ProductService Integration', () => {
           quantity: 100,
         } as Product);
 
-        const result = await service.adjustStock('prod_001', -50);
+        const result = await service.adjustStock('prod_001', -50, mockTenantContext);
         expect(result.quantity).toBe(100);
       });
     });
@@ -247,7 +249,7 @@ describe('ProductService Integration', () => {
     describe('findLowStock', () => {
       it('should return products below threshold', async () => {
         repository.find.mockResolvedValue([sampleProducts[1]] as Product[]);
-        const result = await service.findLowStock(100);
+        const result = await service.findLowStock(100, mockTenantContext);
         expect(result).toHaveLength(1);
       });
     });
@@ -273,7 +275,7 @@ describe('ProductService Integration', () => {
       repository.create.mockReturnValue(created as Product);
       repository.save.mockResolvedValue(created as Product);
 
-      const result = await service.create(specialProduct);
+      const result = await service.create(specialProduct, mockTenantContext);
       expect(result.name).toContain('quotes');
     });
 
@@ -296,7 +298,7 @@ describe('ProductService Integration', () => {
       repository.create.mockReturnValue(created as Product);
       repository.save.mockResolvedValue(created as Product);
 
-      const result = await service.create(zeroProduct);
+      const result = await service.create(zeroProduct, mockTenantContext);
       expect(result.quantity).toBe(0);
     });
   });
