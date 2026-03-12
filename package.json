@@ -80,11 +80,8 @@
   },
   "_moduleAliases": {
     "@/app": "./dist",
-    "@/api": "./dist/api",
     "@/common": "./dist/common",
     "@/config": "./dist/config",
-    "@/database": "./dist/database",
-    "@/guards": "./dist/guards",
     "@/modules": "./dist/modules"
   },
   "jest": {
@@ -102,7 +99,18 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!**/node_modules/**",
+      "!**/dist/**",
+      "!**/*.spec.ts",
+      "!**/*.d.ts",
+      "!**/*.integration.spec.ts",
+      "!test/**",
+      "!src/common/test-utils/**",
+      "!src/modules/product/util/**",
+      "!src/core/auth/types/**",
+      "!src/common/types/**",
+      "!src/database/**"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
@@ -111,9 +119,10 @@
       "^@/app/(.*)$": "<rootDir>/src/$1",
       "^@/core/(.*)$": "<rootDir>/src/core/$1",
       "^@/common/(.*)$": "<rootDir>/src/common/$1",
-      "^@/database/(.*)$": "<rootDir>/src/database/$1",
-      "^@/modules/(.*)$": "<rootDir>/src/modules/$1",
-      "^@/guards/(.*)$": "<rootDir>/src/guards/$1"
-    }
+      "^@/modules/(.*)$": "<rootDir>/src/modules/$1"
+    },
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.ts"
+    ]
   }
 }

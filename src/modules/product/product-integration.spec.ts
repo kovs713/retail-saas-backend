@@ -119,12 +119,15 @@ describe('ProductService Integration', () => {
       it('should prevent duplicate SKU', async () => {
         repository.existsBy.mockResolvedValue(true);
         await expect(
-          service.create({
-            sku: 'ELEC-001',
-            name: 'Duplicate',
-            price: 39.99,
-            quantity: 20,
-          }, mockTenantContext),
+          service.create(
+            {
+              sku: 'ELEC-001',
+              name: 'Duplicate',
+              price: 39.99,
+              quantity: 20,
+            },
+            mockTenantContext,
+          ),
         ).rejects.toThrow(ConflictException);
       });
     });
@@ -141,11 +144,14 @@ describe('ProductService Integration', () => {
 
       it('should filter by category', async () => {
         repository.findAndCount.mockResolvedValue([sampleProducts as Product[], sampleProducts.length]);
-        const result = await service.findAll({
-          page: 1,
-          limit: 10,
-          category: 'Electronics',
-        }, mockTenantContext);
+        const result = await service.findAll(
+          {
+            page: 1,
+            limit: 10,
+            category: 'Electronics',
+          },
+          mockTenantContext,
+        );
         expect(result.data).toHaveLength(2);
       });
 
@@ -191,7 +197,9 @@ describe('ProductService Integration', () => {
       it('should prevent updating to existing SKU', async () => {
         repository.findOne.mockResolvedValue(sampleProducts[0] as Product);
         repository.existsBy.mockResolvedValue(true);
-        await expect(service.update('prod_001', { sku: 'ELEC-002' }, mockTenantContext)).rejects.toThrow(ConflictException);
+        await expect(service.update('prod_001', { sku: 'ELEC-002' }, mockTenantContext)).rejects.toThrow(
+          ConflictException,
+        );
       });
     });
 

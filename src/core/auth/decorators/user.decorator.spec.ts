@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { TokenPayload } from '../types/token-payload.type';
 import { Request } from '../types/request.type';
 
