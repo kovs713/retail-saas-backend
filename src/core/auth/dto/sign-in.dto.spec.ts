@@ -16,7 +16,10 @@ describe('SignInDto', () => {
 
   it('should fail validation without id', async () => {
     const dto = new SignInDto();
-    (dto as any).id = undefined;
+
+    const typedDto = dto as any;
+
+    typedDto.id = undefined;
     dto.email = 'test@example.com';
     dto.organizationId = '550e8400-e29b-41d4-a716-446655440001';
 
@@ -40,8 +43,11 @@ describe('SignInDto', () => {
 
   it('should fail validation without email', async () => {
     const dto = new SignInDto();
+
+    const typedDto = dto as any;
+
+    typedDto.email = undefined;
     dto.id = '550e8400-e29b-41d4-a716-446655440000';
-    (dto as any).email = undefined;
     dto.organizationId = '550e8400-e29b-41d4-a716-446655440001';
 
     const errors = await validate(dto);
@@ -64,9 +70,12 @@ describe('SignInDto', () => {
 
   it('should fail validation without organizationId', async () => {
     const dto = new SignInDto();
+
+    const typedDto = dto as any;
+
+    typedDto.organizationId = undefined;
     dto.id = '550e8400-e29b-41d4-a716-446655440000';
     dto.email = 'test@example.com';
-    (dto as any).organizationId = undefined;
 
     const errors = await validate(dto);
 

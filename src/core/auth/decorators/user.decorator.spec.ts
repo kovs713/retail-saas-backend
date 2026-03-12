@@ -77,7 +77,8 @@ describe('User Decorator', () => {
 
     it('should handle missing user object gracefully', () => {
       (mockRequest as any).user = undefined;
-      const result = decoratorFactory(undefined, mockExecutionContext);
+
+      const result = decoratorFactory(undefined, mockExecutionContext) as any;
 
       expect(result).toBeUndefined();
     });

@@ -193,7 +193,9 @@ describe('VectorStoreService', () => {
     it('should create tenant-scoped retriever', () => {
       service.asRetriever(mockTenantContext, { k: 5 });
 
-      expect(chromaDBClient.asRetriever).toHaveBeenCalledWith(
+      const typedChromaDBClient = chromaDBClient as any;
+
+      expect(typedChromaDBClient.asRetriever).toHaveBeenCalledWith(
         expect.objectContaining({
           filter: expect.objectContaining({
             organizationId: mockTenantContext.organizationId,
@@ -205,7 +207,9 @@ describe('VectorStoreService', () => {
     it('should merge searchKwargs filter with tenant filter', () => {
       service.asRetriever(mockTenantContext, { k: 5, filter: { source: 'test' } });
 
-      expect(chromaDBClient.asRetriever).toHaveBeenCalledWith(
+      const typedChromaDBClient = chromaDBClient as any;
+
+      expect(typedChromaDBClient.asRetriever).toHaveBeenCalledWith(
         expect.objectContaining({
           filter: {
             organizationId: mockTenantContext.organizationId,

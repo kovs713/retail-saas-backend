@@ -21,13 +21,13 @@ describe('Pagination DTO', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('page should default to 1', async () => {
+  it('page should default to 1', () => {
     const dto = plainToClass(Pagination, {});
 
     expect(dto.page).toBe(1);
   });
 
-  it('limit should default to 10', async () => {
+  it('limit should default to 10', () => {
     const dto = plainToClass(Pagination, {});
 
     expect(dto.limit).toBe(10);
@@ -137,7 +137,7 @@ describe('Pagination DTO', () => {
     expect(errors[0].property).toBe('search');
   });
 
-  it('should transform string values to correct types', async () => {
+  it('should transform string values to correct types', () => {
     const dto = plainToClass(Pagination, {
       page: '3',
       limit: '25',

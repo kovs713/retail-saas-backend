@@ -2,7 +2,7 @@ import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+
 import { createMockTenantContext } from '@/common/test-utils';
 
 import { ExecutionContext, NotFoundException } from '@nestjs/common';

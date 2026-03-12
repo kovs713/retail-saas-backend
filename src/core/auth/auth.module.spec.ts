@@ -1,8 +1,4 @@
 import { AuthModule } from './auth.module';
-import { AuthService } from './auth.service';
-import { AuthGuard } from './guards/auth.guard';
-
-import { JwtModule } from '@nestjs/jwt';
 
 describe('AuthModule', () => {
   it('should be a valid module', () => {

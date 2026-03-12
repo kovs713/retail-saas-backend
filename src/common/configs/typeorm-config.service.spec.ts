@@ -1,13 +1,12 @@
 import { TypeOrmConfigService } from './typeorm-config.service';
 
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
 
 describe('TypeOrmConfigService', () => {
   let service: TypeOrmConfigService;
   let configService: ConfigService;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     configService = {
       getOrThrow: jest.fn(),
       get: jest.fn(),
@@ -37,11 +36,18 @@ describe('TypeOrmConfigService', () => {
       const result = service.createTypeOrmOptions();
 
       expect(result.type).toBe('postgres');
-      expect((result as any).host).toBe('localhost');
-      expect((result as any).port).toBe(5432);
-      expect((result as any).username).toBe('testuser');
-      expect((result as any).password).toBe('testpass');
-      expect((result as any).database).toBe('testdb');
+
+      const typedResult = result as any;
+
+      expect(typedResult.host).toBe('localhost');
+
+      expect(typedResult.port).toBe(5432);
+
+      expect(typedResult.username).toBe('testuser');
+
+      expect(typedResult.password).toBe('testpass');
+
+      expect(typedResult.database).toBe('testdb');
     });
 
     it('should use default values when env not set', () => {

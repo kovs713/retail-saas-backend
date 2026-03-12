@@ -15,7 +15,10 @@ describe('AuthOutputDto', () => {
 
   it('should fail validation without email', async () => {
     const dto = new AuthOutputDto();
-    (dto as any).email = undefined;
+
+    const typedDto = dto as any;
+
+    typedDto.email = undefined;
     dto.accessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
 
     const errors = await validate(dto);
@@ -37,8 +40,11 @@ describe('AuthOutputDto', () => {
 
   it('should fail validation without accessToken', async () => {
     const dto = new AuthOutputDto();
+
+    const typedDto = dto as any;
+
+    typedDto.accessToken = undefined;
     dto.email = 'test@example.com';
-    (dto as any).accessToken = undefined;
 
     const errors = await validate(dto);
 
@@ -48,8 +54,11 @@ describe('AuthOutputDto', () => {
 
   it('should fail validation with non-string accessToken', async () => {
     const dto = new AuthOutputDto();
+
+    const typedDto = dto as any;
+
+    typedDto.accessToken = 12345;
     dto.email = 'test@example.com';
-    (dto as any).accessToken = 12345;
 
     const errors = await validate(dto);
 

@@ -49,7 +49,9 @@ describe('EmbeddingsService', () => {
 
       const serviceWithDefaults = new EmbeddingsService(configService);
 
-      expect((serviceWithDefaults as any).baseUrl).toBe('http://localhost:11435');
+      const typedService = serviceWithDefaults as any;
+
+      expect(typedService.baseUrl).toBe('http://localhost:11435');
     });
 
     it('should extend OllamaEmbeddings', () => {
@@ -76,7 +78,7 @@ describe('EmbeddingsService', () => {
         return undefined;
       });
 
-      const serviceWithUrl = new EmbeddingsService(configService);
+      new EmbeddingsService(configService);
 
       expect(configService.get).toHaveBeenCalledWith('OLLAMA_BASE_URL', 'http://localhost:11435');
     });

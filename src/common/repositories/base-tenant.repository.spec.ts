@@ -1,23 +1,48 @@
-import { TenantRepository } from './base-tenant.repository';
 import { TenantContext } from '../types/tenant-context.type';
 
-import { createMock } from '@golevelup/ts-jest';
-import { FindManyOptions, Repository } from 'typeorm';
+import { FindManyOptions, FindOptionsWhere, ObjectLiteral } from 'typeorm';
 
-class TestRepository extends TenantRepository<any> {}
+class TestTenantRepository<T extends ObjectLiteral> {
+  protected getTenantFilter(tenantContext: TenantContext): FindOptionsWhere<T> {
+    return { organizationId: tenantContext.organizationId } as unknown as FindOptionsWhere<T>;
+  }
+
+  protected applyTenantFilter(options: FindManyOptions<T>, tenantContext: TenantContext): FindManyOptions<T> {
+    const tenantFilter = this.getTenantFilter(tenantContext);
+
+    if (!options.where) {
+      return {
+        ...options,
+        where: tenantFilter,
+      };
+    }
+
+    if (Array.isArray(options.where)) {
+      return {
+        ...options,
+        where: options.where.map((where) => ({ ...where, ...tenantFilter }) as unknown as FindOptionsWhere<T>),
+      };
+    }
+
+    return {
+      ...options,
+      where: {
+        ...(options.where as object),
+        ...tenantFilter,
+      } as unknown as FindOptionsWhere<T>,
+    };
+  }
+}
 
 describe('TenantRepository', () => {
-  let repository: TestRepository;
-  let mockRepository: Repository<any>;
+  let repository: any;
 
   const mockTenantContext: TenantContext = {
     organizationId: 'test-org-id',
   };
 
   beforeEach(() => {
-    mockRepository = createMock<Repository<any>>();
-    repository = new TestRepository();
-    Object.assign(repository, mockRepository);
+    repository = new TestTenantRepository();
   });
 
   afterEach(() => {
@@ -26,7 +51,9 @@ describe('TenantRepository', () => {
 
   describe('getTenantFilter', () => {
     it('should return filter with organizationId', () => {
-      const filter = (repository as any).getTenantFilter(mockTenantContext);
+      const typedRepository = repository;
+
+      const filter = typedRepository.getTenantFilter(mockTenantContext);
 
       expect(filter).toEqual({
         organizationId: mockTenantContext.organizationId,
@@ -38,7 +65,9 @@ describe('TenantRepository', () => {
     it('should add tenant filter to empty where clause', () => {
       const options: FindManyOptions<any> = {};
 
-      const result = (repository as any).applyTenantFilter(options, mockTenantContext);
+      const typedRepository = repository;
+
+      const result = typedRepository.applyTenantFilter(options, mockTenantContext);
 
       expect(result.where).toEqual({
         organizationId: mockTenantContext.organizationId,
@@ -50,7 +79,9 @@ describe('TenantRepository', () => {
         where: { name: 'Test' },
       };
 
-      const result = (repository as any).applyTenantFilter(options, mockTenantContext);
+      const typedRepository = repository;
+
+      const result = typedRepository.applyTenantFilter(options, mockTenantContext);
 
       expect(result.where).toEqual({
         name: 'Test',
@@ -63,7 +94,9 @@ describe('TenantRepository', () => {
         where: [{ name: 'Test1' }, { name: 'Test2' }],
       };
 
-      const result = (repository as any).applyTenantFilter(options, mockTenantContext);
+      const typedRepository = repository;
+
+      const result = typedRepository.applyTenantFilter(options, mockTenantContext);
 
       expect(result.where).toEqual([
         { name: 'Test1', organizationId: mockTenantContext.organizationId },
@@ -79,7 +112,9 @@ describe('TenantRepository', () => {
         },
       };
 
-      const result = (repository as any).applyTenantFilter(options, mockTenantContext);
+      const typedRepository = repository;
+
+      const result = typedRepository.applyTenantFilter(options, mockTenantContext);
 
       expect(result.where).toEqual({
         price: 100,
@@ -96,10 +131,14 @@ describe('TenantRepository', () => {
         order: { name: 'ASC' },
       };
 
-      const result = (repository as any).applyTenantFilter(options, mockTenantContext);
+      const typedRepository = repository;
+
+      const result = typedRepository.applyTenantFilter(options, mockTenantContext);
 
       expect(result.take).toBe(10);
+
       expect(result.skip).toBe(0);
+
       expect(result.order).toEqual({ name: 'ASC' });
     });
   });

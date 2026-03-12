@@ -1,4 +1,3 @@
-import { Tenant } from './tenant.decorator';
 import { TenantContext } from '../types/tenant-context.type';
 
 import { ExecutionContext } from '@nestjs/common';

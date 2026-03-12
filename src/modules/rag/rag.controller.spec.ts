@@ -2,7 +2,6 @@ import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
 import { createMockTenantContext } from '@/common/test-utils';
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 
 import { Document } from '@langchain/core/documents';
 import { ExecutionContext } from '@nestjs/common';
