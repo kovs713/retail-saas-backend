@@ -1,12 +1,12 @@
+import { createMockTenantContext } from '@/common/test-utils';
 import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
-import { createMockTenantContext } from '@/common/test-utils';
 
+import { createMock } from '@golevelup/ts-jest';
 import { Document } from '@langchain/core/documents';
 import { ExecutionContext } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMock } from '@golevelup/ts-jest';
 
 describe('RagController', () => {
   let controller: RagController;

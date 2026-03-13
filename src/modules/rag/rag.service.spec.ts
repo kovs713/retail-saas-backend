@@ -1,12 +1,11 @@
+import { createMockTenantContext } from '@/common/test-utils';
 import { EmbeddingsService } from './embeddings/embeddings.service';
 import { LLMService } from './llm/llm.service';
 import { RagService } from './rag.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
-import { createMockTenantContext } from '@/common/test-utils';
 
-import { Document } from '@langchain/core/documents';
-import { Test, TestingModule } from '@nestjs/testing';
 import { createMock } from '@golevelup/ts-jest';
+import { Test, TestingModule } from '@nestjs/testing';
 
 jest.mock('@/core/logger/app-logger.service', () => ({
   AppLogger: jest.fn().mockImplementation((context?: string) => ({

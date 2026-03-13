@@ -1,5 +1,5 @@
-import { AppLogger } from '@/core/logger/app-logger.service';
 import { AuthModule } from '@/core/auth/auth.module';
+import { AppLogger } from '@/core/logger/app-logger.service';
 import { Product } from './entities/product.entity';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';

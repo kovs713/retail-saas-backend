@@ -1,10 +1,10 @@
 /* eslint-disable no-console */
+import { AppModule } from '@/app/app.module';
+import { Organization } from '@/modules/organization/entities/organization.entity';
+import { Product } from '@/modules/product/entities/product.entity';
+import { User } from '@/modules/user/entities/user.entity';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { Organization } from '@/modules/organization/entities/organization.entity';
-import { User } from '@/modules/user/entities/user.entity';
-import { Product } from '@/modules/product/entities/product.entity';
-import { AppModule } from '@/app/app.module';
 
 import { hash } from 'bcryptjs';
 import { DataSource } from 'typeorm';

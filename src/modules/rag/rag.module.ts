@@ -1,5 +1,5 @@
-import { AppLogger } from '@/core/logger/app-logger.service';
 import { AuthModule } from '@/core/auth/auth.module';
+import { AppLogger } from '@/core/logger/app-logger.service';
 import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { LLMModule } from './llm/llm.module';
 import { RagController } from './rag.controller';

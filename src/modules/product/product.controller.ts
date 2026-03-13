@@ -1,6 +1,7 @@
-import { ApiResponse as AppApiResponse, Pagination, PaginationApiResponse } from '@/common/dto';
 import { Tenant } from '@/common/decorators';
+import { ApiResponse as AppApiResponse, Pagination, PaginationApiResponse } from '@/common/dto';
 import { TenantContext } from '@/common/types/tenant-context.type';
+import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import {
   AdjustStockDto,
   CreateProductDto,
@@ -28,7 +29,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from '@/core/auth/guards/auth.guard';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')

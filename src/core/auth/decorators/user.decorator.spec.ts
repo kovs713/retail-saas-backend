@@ -1,8 +1,8 @@
-import { TokenPayload } from '../types/token-payload.type';
 import { Request } from '../types/request.type';
+import { TokenPayload } from '../types/token-payload.type';
 
-import { ExecutionContext } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
+import { ExecutionContext } from '@nestjs/common';
 
 describe('User Decorator', () => {
   let mockExecutionContext: ExecutionContext;

@@ -1,11 +1,11 @@
-import { AuthGuard } from './auth.guard';
-import { TokenPayload } from '../types/token-payload.type';
 import { Request } from '../types/request.type';
+import { TokenPayload } from '../types/token-payload.type';
+import { AuthGuard } from './auth.guard';
 
-import { UnauthorizedException, ExecutionContext } from '@nestjs/common';
+import { createMock } from '@golevelup/ts-jest';
+import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { createMock } from '@golevelup/ts-jest';
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;

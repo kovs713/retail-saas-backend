@@ -1,13 +1,13 @@
-import { UserService, CreateUserDto, UpdateUserDto } from './user.service';
-import { User } from './entities/user.entity';
 import { Organization } from '../organization/entities/organization.entity';
+import { User } from './entities/user.entity';
+import { CreateUserDto, UpdateUserDto, UserService } from './user.service';
 
+import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { createMock } from '@golevelup/ts-jest';
-import { Repository } from 'typeorm';
 import * as bcryptjs from 'bcryptjs';
+import { Repository } from 'typeorm';
 
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed-password'),

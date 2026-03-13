@@ -1,6 +1,6 @@
+import { ChatGroqClient } from '@/common/types/providers.type';
 import { LLMModule } from './llm.module';
 import { LLMService } from './llm.service';
-import { ChatGroqClient } from '@/common/types/providers.type';
 
 import { ConfigService } from '@nestjs/config';
 

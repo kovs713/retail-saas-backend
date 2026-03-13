@@ -5,9 +5,9 @@ import { createProduct } from './util/product.factory';
 
 import { createMockTenantContext } from '@/common/test-utils';
 
+import { createMock } from '@golevelup/ts-jest';
 import { ExecutionContext, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMock } from '@golevelup/ts-jest';
 
 jest.mock('@/core/logger/app-logger.service', () => ({
   AppLogger: jest.fn().mockImplementation(() => ({

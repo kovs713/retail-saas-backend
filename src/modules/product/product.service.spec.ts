@@ -1,12 +1,12 @@
+import { createMockTenantContext } from '@/common/test-utils';
 import { Product } from './entities/product.entity';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';
-import { createMockTenantContext } from '@/common/test-utils';
 
+import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { createMock } from '@golevelup/ts-jest';
 import { Repository, UpdateResult } from 'typeorm';
 
 jest.mock('@/core/logger/app-logger.service', () => ({

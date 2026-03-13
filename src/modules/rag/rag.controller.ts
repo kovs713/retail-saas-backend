@@ -1,6 +1,7 @@
-import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { Tenant } from '@/common/decorators';
+import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { TenantContext } from '@/common/types/tenant-context.type';
+import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import {
   AddDocumentsResponseDto,
   AddDocumentstDto,
@@ -14,7 +15,6 @@ import { RagService } from './rag.service';
 
 import { Body, Controller, Delete, HttpCode, HttpStatus, Logger, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from '@/core/auth/guards/auth.guard';
 
 @ApiTags('RAG')
 @ApiBearerAuth('JWT')

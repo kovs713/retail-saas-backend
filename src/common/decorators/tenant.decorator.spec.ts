@@ -1,7 +1,7 @@
 import { TenantContext } from '../types/tenant-context.type';
 
-import { ExecutionContext } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
+import { ExecutionContext } from '@nestjs/common';
 
 describe('Tenant Decorator', () => {
   let mockExecutionContext: ExecutionContext;

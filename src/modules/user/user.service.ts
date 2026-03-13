@@ -2,7 +2,7 @@ import { User } from './entities/user.entity';
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { hash, compare } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { Repository } from 'typeorm';
 
 export interface CreateUserDto {

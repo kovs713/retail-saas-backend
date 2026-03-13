@@ -1,6 +1,6 @@
+import { ChromaDBClient } from '@/common/types/providers.type';
 import { VectorStoreModule } from './vector-store.module';
 import { VectorStoreService } from './vector-store.service';
-import { ChromaDBClient } from '@/common/types/providers.type';
 
 describe('VectorStoreModule', () => {
   it('forRootAsync should return a dynamic module', () => {

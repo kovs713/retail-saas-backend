@@ -1,6 +1,6 @@
+import { AppLogger } from '@/core/logger/app-logger.service';
 import { EmbeddingsModule } from './embeddings.module';
 import { EmbeddingsService } from './embeddings.service';
-import { AppLogger } from '@/core/logger/app-logger.service';
 
 describe('EmbeddingsModule', () => {
   it('forRootAsync should return a dynamic module', () => {

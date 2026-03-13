@@ -1,9 +1,9 @@
 import { AuthService } from './auth.service';
-import { SignInDto } from './dto/sign-in.dto';
 import { AuthOutputDto } from './dto/auth-output.dto';
+import { SignInDto } from './dto/sign-in.dto';
 
-import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
+import { Test, TestingModule } from '@nestjs/testing';
 
 describe('AuthService', () => {
   let service: AuthService;
