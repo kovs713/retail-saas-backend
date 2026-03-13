@@ -1,8 +1,6 @@
 ### RAG Module HTTP Tests
 
-
-### Base URL
-
+@accessToken = {{accessToken}}
 @baseUrl = http://localhost:3000
 
 
@@ -14,6 +12,7 @@
 
 POST {{baseUrl}}/rag/chat HTTP/1.1
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
   "maxResults": 5,
@@ -30,6 +29,7 @@ Content-Type: application/json
 
 POST {{baseUrl}}/rag/chat-with-scores HTTP/1.1
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
   "maxResults": 3,
@@ -45,6 +45,7 @@ Content-Type: application/json
 
 POST {{baseUrl}}/rag/documents HTTP/1.1
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
   "documents": [
@@ -75,6 +76,7 @@ Content-Type: application/json
 
 POST {{baseUrl}}/rag/texts HTTP/1.1
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
   "metadata": {
@@ -95,4 +97,4 @@ Content-Type: application/json
 # Clear all documents from the RAG system
 
 DELETE {{baseUrl}}/rag/documents HTTP/1.1
-Content-Type: application/json
+Authorization: Bearer {{accessToken}}
