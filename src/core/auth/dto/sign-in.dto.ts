@@ -6,4 +6,7 @@ export class SignInDto {
 
   @IsEmail()
   email: string;
+
+  @IsUUID()
+  organizationId: string;
 }

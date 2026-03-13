@@ -4,17 +4,28 @@ import {
   DeleteDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Organization } from '../../organization/entities/organization.entity';
 
 @Entity('products')
+@Index(['organizationId', 'sku'], { unique: true })
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'uuid' })
   @Index()
+  organizationId: string;
+
+  @ManyToOne(() => Organization, { eager: false })
+  @JoinColumn({ name: 'organizationId' })
+  organization: Organization;
+
+  @Column()
   sku: string;
 
   @Column()

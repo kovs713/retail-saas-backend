@@ -1,4 +1,6 @@
-import { ApiResponse as AppApiResponse } from '@/common/types/api-response.type';
+import { ApiResponse as AppApiResponse } from '@/common/dto';
+import { Tenant } from '@/common/decorators';
+import { TenantContext } from '@/common/types/tenant-context.type';
 import {
   AddDocumentsResponseDto,
   AddDocumentstDto,
@@ -10,12 +12,14 @@ import {
 } from './dto';
 import { RagService } from './rag.service';
 
-import { Body, Controller, Delete, HttpCode, HttpStatus, Logger, Post } from '@nestjs/common';
+import { Body, Controller, Delete, HttpCode, HttpStatus, Logger, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@/core/auth/guards/auth.guard';
 
 @ApiTags('RAG')
 @ApiBearerAuth('JWT')
 @Controller('rag')
+@UseGuards(AuthGuard)
 export class RagController {
   private readonly logger = new Logger(RagController.name);
 
@@ -40,12 +44,13 @@ export class RagController {
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async chat(
-    @Body()
-    chatRequest: ChattDto,
+    @Body() chatRequest: ChattDto,
+    @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ChatResponseDto>> {
     this.logger.log(`Chat request: ${chatRequest.message.substring(0, 100)}...`);
     const result = await this.ragService.query(
       chatRequest.message,
+      tenantContext,
       chatRequest.maxResults || 5,
       chatRequest.systemPrompt,
     );
@@ -81,12 +86,13 @@ export class RagController {
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async chatWithScores(
-    @Body()
-    chatRequest: ChattDto,
+    @Body() chatRequest: ChattDto,
+    @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ChatWithScoresResponseDto>> {
     this.logger.log(`Chat with scores request: ${chatRequest.message.substring(0, 100)}...`);
     const result = await this.ragService.queryWithScores(
       chatRequest.message,
+      tenantContext,
       chatRequest.maxResults || 5,
       chatRequest.systemPrompt,
     );
@@ -115,13 +121,8 @@ export class RagController {
       example: {
         summary: 'Add documents',
         value: {
-          source: 'docs',
-          documents: [
-            {
-              content: 'NestJS is a Node.js framework',
-              metadata: { category: 'framework' },
-            },
-          ],
+          documents: [{ content: 'Document content', metadata: { source: 'test' } }],
+          source: 'api',
         },
       },
     },
@@ -133,8 +134,8 @@ export class RagController {
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async addDocuments(
-    @Body()
-    addDocumentsRequest: AddDocumentstDto,
+    @Body() addDocumentsRequest: AddDocumentstDto,
+    @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<AddDocumentsResponseDto>> {
     this.logger.log(`Adding ${addDocumentsRequest.documents.length} documents`);
     const documents = addDocumentsRequest.documents.map((doc) => ({
@@ -145,7 +146,7 @@ export class RagController {
         timestamp: new Date().toISOString(),
       },
     }));
-    const docIds = await this.ragService.addDocuments(documents);
+    const docIds = await this.ragService.addDocuments(documents, tenantContext);
     const response: AddDocumentsResponseDto = {
       documentIds: docIds,
       count: docIds.length,
@@ -178,11 +179,11 @@ export class RagController {
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async addTexts(
-    @Body()
-    addTextsRequest: AddTextsDto,
+    @Body() addTextsRequest: AddTextsDto,
+    @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<AddTextsResponseDto>> {
     this.logger.log(`Adding ${addTextsRequest.texts.length} texts`);
-    const textIds = await this.ragService.addTexts(addTextsRequest.texts, addTextsRequest.metadata);
+    const textIds = await this.ragService.addTexts(addTextsRequest.texts, tenantContext, addTextsRequest.metadata);
     const response: AddTextsResponseDto = {
       textIds,
       count: textIds.length,
@@ -195,26 +196,13 @@ export class RagController {
 
   @Delete('documents')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Clear all documents' })
-  @ApiResponse({
-    status: 200,
-    description: 'Documents cleared',
-    example: {
-      message: 'All documents cleared successfully',
-      timestamp: '2024-01-01T00:00:00.000Z',
-    },
-  })
-  clearDocuments(): AppApiResponse<{ message: string; timestamp: string }> {
+  @ApiOperation({ summary: 'Clear all documents from RAG system' })
+  @ApiResponse({ status: 200, description: 'Documents cleared' })
+  clearDocuments(): AppApiResponse<void> {
     this.logger.log('Clearing all documents from RAG system');
     this.ragService.clearDocuments();
-    this.logger.log('Documents cleared successfully');
+    this.logger.log('All documents cleared successfully');
 
-    return {
-      success: true,
-      data: {
-        message: 'All documents cleared successfully',
-        timestamp: new Date().toISOString(),
-      },
-    };
+    return { success: true, message: 'Documents cleared successfully' };
   }
 }

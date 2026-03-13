@@ -38,6 +38,25 @@ services:
 
     network_mode: bridge
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-embeddings
+
+    ports:
+      - '11435:11434'
+
+    volumes:
+      - ollama_embeddings_data:/root/.ollama
+
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+
+    network_mode: bridge
+
   redis:
     image: redis:7.4-alpine
     container_name: redis
@@ -88,3 +107,4 @@ volumes:
   redis_data:
   chromadb_data:
   minio_data:
+  ollama_embeddings_data:

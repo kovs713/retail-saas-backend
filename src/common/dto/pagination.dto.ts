@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
-export class PaginationQuery {
+export class Pagination {
   @ApiPropertyOptional({ description: 'Page number', example: 1, default: 1 })
   @IsOptional()
   @IsInt()
@@ -63,12 +63,4 @@ export class PaginationQuery {
   @IsOptional()
   @IsString()
   search?: string;
-}
-
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
 }

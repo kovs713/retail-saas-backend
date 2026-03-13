@@ -1,12 +1,18 @@
+import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
+import { createMockTenantContext } from '@/common/test-utils';
 
 import { Document } from '@langchain/core/documents';
+import { ExecutionContext } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMock } from '@golevelup/ts-jest';
 
 describe('RagController', () => {
   let controller: RagController;
-  let ragService: jest.Mocked<RagService>;
+  let ragService: ReturnType<typeof createMock<RagService>>;
+
+  const tenantContext = createMockTenantContext();
 
   beforeEach(async () => {
     const mockRagService = {
@@ -25,7 +31,16 @@ describe('RagController', () => {
           useValue: mockRagService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({
+        canActivate: (context: ExecutionContext) => {
+          const req = context.switchToHttp().getRequest();
+          req.user = { organizationId: 'test-org-id' };
+          return true;
+        },
+      })
+      .compile();
 
     controller = module.get<RagController>(RagController);
     ragService = module.get(RagService);
@@ -47,7 +62,7 @@ describe('RagController', () => {
         sources: [mockDocument],
       };
 
-      const querySpy = jest.spyOn(ragService, 'query').mockResolvedValue(mockResponse);
+      ragService.query.mockResolvedValue(mockResponse);
 
       const chatRequest = {
         message: 'Test message',
@@ -55,22 +70,27 @@ describe('RagController', () => {
         systemPrompt: 'Test prompt',
       };
 
-      const result = await controller.chat(chatRequest);
+      const result = await controller.chat(chatRequest, tenantContext);
 
-      expect(querySpy).toHaveBeenCalledWith(chatRequest.message, chatRequest.maxResults, chatRequest.systemPrompt);
+      expect(ragService.query).toHaveBeenCalledWith(
+        chatRequest.message,
+        tenantContext,
+        chatRequest.maxResults,
+        chatRequest.systemPrompt,
+      );
       expect(result.success).toBe(true);
-      expect(result.data.answer).toBe(mockResponse.answer);
-      expect(result.data.sources).toHaveLength(1);
-      expect(result.data.sources[0].content).toBe(mockDocument.pageContent);
-      expect(result.data.sources[0].metadata).toEqual(mockDocument.metadata);
-      expect(result.data.timestamp).toBeDefined();
+      expect(result.data?.answer).toBe(mockResponse.answer);
+      expect(result.data?.sources).toHaveLength(1);
+      expect(result.data?.sources[0].content).toBe(mockDocument.pageContent);
+      expect(result.data?.sources[0].metadata).toEqual(mockDocument.metadata);
+      expect(result.data?.timestamp).toBeDefined();
     });
   });
 
   describe('addDocuments endpoint', () => {
     it('should call RagService.addDocuments with correct parameters', async () => {
       const mockDocIds = ['doc-1', 'doc-2'];
-      const addDocumentsSpy = jest.spyOn(ragService, 'addDocuments').mockResolvedValue(mockDocIds);
+      ragService.addDocuments.mockResolvedValue(mockDocIds);
 
       const addRequest = {
         documents: [
@@ -80,13 +100,13 @@ describe('RagController', () => {
         source: 'api',
       };
 
-      const result = await controller.addDocuments(addRequest);
+      const result = await controller.addDocuments(addRequest, tenantContext);
 
-      expect(addDocumentsSpy).toHaveBeenCalled();
+      expect(ragService.addDocuments).toHaveBeenCalled();
       expect(result.success).toBe(true);
-      expect(result.data.documentIds).toEqual(mockDocIds);
-      expect(result.data.count).toBe(2);
-      expect(result.data.timestamp).toBeDefined();
+      expect(result.data?.documentIds).toEqual(mockDocIds);
+      expect(result.data?.count).toBe(2);
+      expect(result.data?.timestamp).toBeDefined();
     });
   });
 });

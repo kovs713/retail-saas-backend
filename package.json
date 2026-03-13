@@ -19,13 +19,15 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/e2e/jest-e2e.json",
     "test:rag": "jest src/modules/rag/rag-integration.spec.ts",
+    "seed:default": "ts-node -r tsconfig-paths/register src/database/seeds/default-tenant.seed.ts",
     "docker:build": "docker build -t retail-analytics-platform-backend .",
     "docker:run": "docker run -p 3000:3000 retail-analytics-platform-backend"
   },
   "dependencies": {
     "@langchain/community": "^1.0.4",
-    "@langchain/core": "^1.0.6",
+    "@langchain/core": "^1.1.31",
     "@langchain/groq": "^1.0.1",
+    "@langchain/ollama": "^1.2.6",
     "@nestjs/common": "^11.1.9",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.9",
@@ -33,7 +35,7 @@
     "@nestjs/platform-express": "^11.1.9",
     "@nestjs/swagger": "^11.2.3",
     "@nestjs/typeorm": "^11.0.0",
-    "@xenova/transformers": "^2.17.2",
+    "bcryptjs": "^3.0.3",
     "chromadb": "^3.1.7",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
@@ -49,9 +51,13 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.39.1",
+    "@golevelup/nestjs-common": "^5.1.2",
+    "@golevelup/nestjs-modules": "^1.1.2",
+    "@golevelup/ts-jest": "^1.2.1",
     "@nestjs/cli": "^11.0.12",
     "@nestjs/schematics": "^11.0.9",
     "@nestjs/testing": "^11.1.9",
+    "@types/bcryptjs": "^3.0.0",
     "@types/express": "^5.0.5",
     "@types/jest": "^30.0.0",
     "@types/minio": "^7.1.1",
@@ -74,11 +80,8 @@
   },
   "_moduleAliases": {
     "@/app": "./dist",
-    "@/api": "./dist/api",
     "@/common": "./dist/common",
     "@/config": "./dist/config",
-    "@/database": "./dist/database",
-    "@/guards": "./dist/guards",
     "@/modules": "./dist/modules"
   },
   "jest": {
@@ -96,21 +99,30 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!**/node_modules/**",
+      "!**/dist/**",
+      "!**/*.spec.ts",
+      "!**/*.d.ts",
+      "!**/*.integration.spec.ts",
+      "!test/**",
+      "!src/common/test-utils/**",
+      "!src/modules/product/util/**",
+      "!src/core/auth/types/**",
+      "!src/common/types/**",
+      "!src/database/**"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
-    "transformIgnorePatterns": [
-      "node_modules/(?!(@xenova/transformers)/)"
-    ],
+    "transformIgnorePatterns": [],
     "moduleNameMapper": {
       "^@/app/(.*)$": "<rootDir>/src/$1",
       "^@/core/(.*)$": "<rootDir>/src/core/$1",
       "^@/common/(.*)$": "<rootDir>/src/common/$1",
-      "^@/database/(.*)$": "<rootDir>/src/database/$1",
-      "^@/modules/(.*)$": "<rootDir>/src/modules/$1",
-      "^@/guards/(.*)$": "<rootDir>/src/guards/$1",
-      "^@xenova/transformers$": "<rootDir>/test/__mocks__/@xenova/transformers.js"
-    }
+      "^@/modules/(.*)$": "<rootDir>/src/modules/$1"
+    },
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.ts"
+    ]
   }
 }

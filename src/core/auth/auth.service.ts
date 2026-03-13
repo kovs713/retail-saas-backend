@@ -1,5 +1,6 @@
 import { AuthOutputDto } from './dto/auth-output.dto';
 import { SignInDto } from './dto/sign-in.dto';
+import { TokenPayload } from './types/token-payload.type';
 
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -9,9 +10,10 @@ export class AuthService {
   constructor(private readonly jwtService: JwtService) {}
 
   async signIn(signInDto: SignInDto): Promise<AuthOutputDto> {
-    const tokenPayload = {
+    const tokenPayload: TokenPayload = {
       sub: signInDto.id,
       email: signInDto.email,
+      organizationId: signInDto.organizationId,
     };
 
     const accessToken = await this.jwtService.signAsync(tokenPayload);
