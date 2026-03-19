@@ -1,6 +1,6 @@
 import { Tenant } from '@/common/decorators';
 import { ApiResponse as AppApiResponse } from '@/common/dto';
-import { TenantContext } from '@/common/types/tenant-context.type';
+import { TenantContext } from '@/common/types';
 import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import {
   AddDocumentsResponseDto,

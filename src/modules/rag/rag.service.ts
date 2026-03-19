@@ -1,5 +1,5 @@
 import { AppLogger } from '@/app/core/logger/app-logger.service';
-import { TenantContext } from '@/common/types/tenant-context.type';
+import { TenantContext } from '@/common/types';
 import { LLMService } from './llm/llm.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
 

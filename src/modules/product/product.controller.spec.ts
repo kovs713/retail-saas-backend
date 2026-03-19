@@ -1,9 +1,8 @@
+import { createMockTenantContext } from '@/common/utils';
 import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';
-
-import { createMockTenantContext } from '@/common/test-utils';
 
 import { createMock } from '@golevelup/ts-jest';
 import { ExecutionContext, NotFoundException } from '@nestjs/common';

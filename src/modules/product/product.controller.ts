@@ -1,6 +1,6 @@
 import { Tenant } from '@/common/decorators';
-import { ApiResponse as AppApiResponse, Pagination, PaginationApiResponse } from '@/common/dto';
-import { TenantContext } from '@/common/types/tenant-context.type';
+import { ApiResponse as AppApiResponse, Pagination, PaginationResponse } from '@/common/dto';
+import { TenantContext } from '@/common/types';
 import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import {
   AdjustStockDto,
@@ -69,7 +69,7 @@ export class ProductController {
   async findAll(
     @Query() query: Pagination,
     @Tenant() tenantContext: TenantContext,
-  ): Promise<PaginationApiResponse<ProductResponseDto>> {
+  ): Promise<PaginationResponse<ProductResponseDto>> {
     this.logger.log(`Finding products with query: page=${query.page}, limit=${query.limit}`);
     const result = await this.productService.findAll(query, tenantContext);
     this.logger.log(`Found ${result.data?.length || 0} products (total: ${result.pagination?.total})`);

@@ -1,5 +1,5 @@
 import { AppLogger } from '@/app/core/logger/app-logger.service';
-import { ChatGroqClient } from '@/common/types/providers.type';
+import { ChatGroqClient } from '@/common/types';
 
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGroq } from '@langchain/groq';

@@ -1,6 +1,5 @@
 import { AppLogger } from '@/app/core/logger/app-logger.service';
-import { ChromaDBClient } from '@/common/types/providers.type';
-import { TenantContext } from '@/common/types/tenant-context.type';
+import { ChromaDBClient, TenantContext } from '@/common/types';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 
 import { Chroma } from '@langchain/community/vectorstores/chroma';

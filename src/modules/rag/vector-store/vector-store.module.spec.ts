@@ -1,4 +1,4 @@
-import { ChromaDBClient } from '@/common/types/providers.type';
+import { ChromaDBClient } from '@/common/types';
 import { VectorStoreModule } from './vector-store.module';
 import { VectorStoreService } from './vector-store.service';
 

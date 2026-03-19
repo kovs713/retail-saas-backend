@@ -1,4 +1,4 @@
-import { MinioClient } from '@/common/types/providers.type';
+import { MinioClient } from '@/common/types';
 import { AppLogger } from '@/core/logger/app-logger.service';
 import { StorageController } from './storage.controller';
 import { StorageService } from './storage.service';

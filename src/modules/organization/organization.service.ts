@@ -1,21 +1,9 @@
+import { CreateOrganizationDto, UpdateOrganizationDto } from './dto/dto';
 import { Organization } from './entities/organization.entity';
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-
-export interface CreateOrganizationDto {
-  name: string;
-  slug: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface UpdateOrganizationDto {
-  name?: string;
-  slug?: string;
-  metadata?: Record<string, unknown>;
-  isActive?: boolean;
-}
 
 @Injectable()
 export class OrganizationService {

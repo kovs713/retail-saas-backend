@@ -1,4 +1,4 @@
-import { ChatGroqClient } from '@/common/types/providers.type';
+import { ChatGroqClient } from '@/common/types';
 import { LLMModule } from './llm.module';
 import { LLMService } from './llm.service';
 

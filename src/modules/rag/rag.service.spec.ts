@@ -1,4 +1,4 @@
-import { createMockTenantContext } from '@/common/test-utils';
+import { createMockTenantContext } from '@/app/common/utils';
 import { EmbeddingsService } from './embeddings/embeddings.service';
 import { LLMService } from './llm/llm.service';
 import { RagService } from './rag.service';

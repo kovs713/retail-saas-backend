@@ -1,3 +1,5 @@
+import { Organization } from '../../organization/entities/organization.entity';
+
 import {
   Column,
   CreateDateColumn,
@@ -9,7 +11,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Organization } from '../../organization/entities/organization.entity';
 
 @Entity('products')
 @Index(['organizationId', 'sku'], { unique: true })

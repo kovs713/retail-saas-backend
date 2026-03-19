@@ -1,4 +1,4 @@
-import { ChatGroqClient } from '@/common/types/providers.type';
+import { ChatGroqClient } from '@/common/types';
 import { LLMService } from './llm.service';
 
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';

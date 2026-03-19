@@ -1,4 +1,4 @@
-import { createMockTenantContext } from '@/common/test-utils';
+import { createMockTenantContext } from '@/common/utils';
 import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';

@@ -1,4 +1,4 @@
-import { createMockTenantContext } from '@/common/test-utils';
+import { createMockTenantContext } from '@/app/common/utils';
 import { Product } from './entities/product.entity';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';

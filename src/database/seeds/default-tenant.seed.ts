@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { AppModule } from '@/app/app.module';
 import { Organization } from '@/modules/organization/entities/organization.entity';
 import { Product } from '@/modules/product/entities/product.entity';
@@ -15,7 +14,6 @@ async function bootstrap() {
   const dataSource = app.get<DataSource>(DataSource);
 
   await dataSource.synchronize(true);
-  console.log('Database schema synchronized');
 
   const organizationRepo = dataSource.getRepository(Organization);
   const userRepo = dataSource.getRepository(User);
@@ -24,7 +22,6 @@ async function bootstrap() {
   const defaultOrg = await organizationRepo.findOne({ where: { slug: 'default' } });
 
   if (defaultOrg) {
-    console.log('Default organization already exists. Skipping seed.');
     await app.close();
     return;
   }
@@ -37,7 +34,6 @@ async function bootstrap() {
   });
 
   const savedOrg = await organizationRepo.save(organization);
-  console.log(`Created default organization: ${savedOrg.id}`);
 
   const passwordHash = await hash('changeme123', 10);
   const adminUser = userRepo.create({
@@ -49,7 +45,6 @@ async function bootstrap() {
   });
 
   await userRepo.save(adminUser);
-  console.log(`Created admin user: ${adminUser.email} for organization: ${savedOrg.id}`);
 
   const existingProducts = await productRepo.find({ where: { organizationId: savedOrg.id } });
   if (existingProducts.length === 0) {
@@ -77,17 +72,11 @@ async function bootstrap() {
     ]);
 
     await productRepo.save(sampleProducts);
-    console.log(`Created ${sampleProducts.length} sample products for organization: ${savedOrg.id}`);
   }
-
-  console.log('Seed completed successfully!');
-  console.log('Default Organization ID:', savedOrg.id);
-  console.log('Admin User: admin@default.com / changeme123');
 
   await app.close();
 }
 
-bootstrap().catch((error) => {
-  console.error('Seed failed:', error);
+bootstrap().catch(() => {
   process.exit(1);
 });

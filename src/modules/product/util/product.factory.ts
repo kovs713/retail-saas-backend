@@ -2,11 +2,6 @@ import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { Product } from '../entities/product.entity';
 
-/**
- * Product Test Fixtures and Factories
- * Reusable test data generators for product module testing.
- */
-
 const DEFAULTS = {
   skuPrefix: 'TEST',
   namePrefix: 'Test Product',

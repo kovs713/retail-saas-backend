@@ -1,5 +1,5 @@
-import { Pagination, PaginationApiResponse } from '@/common/dto';
-import { TenantContext } from '@/common/types/tenant-context.type';
+import { Pagination, PaginationResponse } from '@/common/dto';
+import { TenantContext } from '@/common/types';
 import { AppLogger } from '@/core/logger/app-logger.service';
 import { CreateProductDto, UpdateProductDto } from './dto';
 import { Product } from './entities/product.entity';
@@ -26,10 +26,6 @@ export class ProductService {
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
   ) {}
-
-  private getTenantFilter(organizationId: string): FindOptionsWhere<Product> {
-    return { organizationId, deletedAt: IsNull() } as FindOptionsWhere<Product>;
-  }
 
   async create(createProductDto: CreateProductDto, tenantContext: TenantContext): Promise<Product> {
     this.logger.log(
@@ -58,7 +54,7 @@ export class ProductService {
     return savedProduct;
   }
 
-  async findAll(query: Pagination, tenantContext: TenantContext): Promise<PaginationApiResponse<Product>> {
+  async findAll(query: Pagination, tenantContext: TenantContext): Promise<PaginationResponse<Product>> {
     this.logger.log(
       `Finding products with query: page=${query.page}, limit=${query.limit}, search=${query.search || 'none'} for organization: ${tenantContext.organizationId}`,
     );

@@ -1,5 +1,5 @@
 import { AppLogger } from '@/app/core/logger/app-logger.service';
-import { ChromaDBClient } from '@/common/types/providers.type';
+import { ChromaDBClient } from '@/common/types';
 import { EmbeddingsModule } from '../embeddings/embeddings.module';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { VectorStoreService } from './vector-store.service';

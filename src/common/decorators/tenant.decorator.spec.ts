@@ -1,3 +1,4 @@
+import { Request } from '@/app/core/auth/types/request.type';
 import { TenantContext } from '../types/tenant-context.type';
 
 import { createMock } from '@golevelup/ts-jest';
@@ -29,7 +30,7 @@ describe('Tenant Decorator', () => {
 
   describe('decorator factory function', () => {
     const decoratorFactory = (data: unknown, ctx: ExecutionContext): TenantContext => {
-      const request = ctx.switchToHttp().getRequest();
+      const request = ctx.switchToHttp().getRequest<Request>();
       return {
         organizationId: request.user.organizationId,
       };

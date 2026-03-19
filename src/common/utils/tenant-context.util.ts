@@ -1,4 +1,4 @@
-import { TenantContext } from '../types/tenant-context.type';
+import { TenantContext } from '@/common/types/tenant-context.type';
 
 export function createMockTenantContext(overrides?: Partial<TenantContext>): TenantContext {
   return {
