@@ -10,8 +10,8 @@ import { Module } from '@nestjs/common';
 
 @Module({
   imports: [AuthModule, EmbeddingsModule.forRootAsync(), LLMModule.forRootAsync(), VectorStoreModule.forRootAsync()],
-  controllers: [RagController],
   providers: [RagService, AppLogger],
   exports: [RagService],
+  controllers: [RagController],
 })
 export class RagModule {}
