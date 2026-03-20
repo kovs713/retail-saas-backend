@@ -308,6 +308,43 @@ export class StorageController {
     return { success: true, data: { uploadUrl, publicUrl } };
   }
 
+  @Get('products/:productId/images/presigned')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Generate presigned URLs for product image upload' })
+  @ApiParam({
+    name: 'productId',
+    type: String,
+    description: 'Product ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiQuery({ name: 'filename', required: true, type: String, description: 'Filename', example: 'product-image.jpg' })
+  @ApiResponse({
+    status: 200,
+    description: 'Presigned URLs generated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            uploadUrl: { type: 'string' },
+            publicUrl: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  async getProductImagePresignedUrl(
+    @Param('productId') productId: string,
+    @Query('filename') filename: string,
+  ): Promise<any> {
+    const key = `products/${productId}/images/${filename}`;
+    const uploadUrl = await this.storageService.getPresignedPutUrl(key);
+    const publicUrl = await this.storageService.getPresignedUrl(key, undefined, 604800);
+    return { success: true, data: { uploadUrl, publicUrl } };
+  }
+
   @Delete('file/:key')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a file from storage' })

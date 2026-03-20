@@ -8,7 +8,7 @@ const DEFAULTS = {
   price: 29.99,
   cost: 15.0,
   quantity: 100,
-  category: 'Test Category',
+  categoryId: 'test-category-uuid',
   description: 'A test product description',
 };
 
@@ -34,8 +34,8 @@ export function createProductDto(options: ProductFactoryOptions = {}): CreatePro
   if (includeOptional || overrides.cost) {
     baseProduct.cost = overrides.cost ?? DEFAULTS.cost;
   }
-  if (includeOptional || overrides.category) {
-    baseProduct.category = overrides.category ?? DEFAULTS.category;
+  if (includeOptional || overrides.categoryId) {
+    baseProduct.categoryId = overrides.categoryId ?? DEFAULTS.categoryId;
   }
   if (includeOptional || overrides.barcode) {
     baseProduct.barcode = overrides.barcode || generateBarcode(index);
@@ -95,8 +95,11 @@ export function createHighValueProduct(
   return createProductDto({ overrides: { ...overrides, price } });
 }
 
-export function createProductByCategory(category: string, overrides: Partial<CreateProductDto> = {}): CreateProductDto {
-  return createProductDto({ overrides: { ...overrides, category } });
+export function createProductByCategory(
+  categoryId: string,
+  overrides: Partial<CreateProductDto> = {},
+): CreateProductDto {
+  return createProductDto({ overrides: { ...overrides, categoryId } });
 }
 
 export function createElectronicsProduct(overrides: Partial<CreateProductDto> = {}): CreateProductDto {
@@ -151,13 +154,13 @@ export function generateRandomPrice(min = 10, max = 500): number {
 }
 
 export function createVariedProducts(count: number): Product[] {
-  const categories = ['Electronics', 'Clothing', 'Food', 'Accessories', 'Home'];
+  const categoryIds = ['cat-1', 'cat-2', 'cat-3', 'cat-4', 'cat-5'];
   return Array.from({ length: count }, (_, i) => {
-    const category = categories[i % categories.length];
+    const categoryId = categoryIds[i % categoryIds.length];
     return createProduct({
       index: i + 1,
       overrides: {
-        category,
+        categoryId,
         price: generateRandomPrice(20, 200),
         quantity: Math.floor(Math.random() * 200),
       },
@@ -173,7 +176,7 @@ export const SAMPLE_PRODUCTS: CreateProductDto[] = [
     price: 29.99,
     cost: 15.0,
     quantity: 150,
-    category: 'Electronics',
+    categoryId: 'electronics-cat-uuid',
     barcode: '5901234123457',
     images: ['https://example.com/mouse.jpg'],
     metadata: { brand: 'TechBrand', color: 'Black' },
@@ -185,7 +188,7 @@ export const SAMPLE_PRODUCTS: CreateProductDto[] = [
     price: 89.99,
     cost: 45.0,
     quantity: 75,
-    category: 'Electronics',
+    categoryId: 'electronics-cat-uuid',
     barcode: '5901234123458',
     images: ['https://example.com/keyboard.jpg'],
     metadata: { brand: 'TechBrand' },
@@ -197,7 +200,7 @@ export const SAMPLE_PRODUCTS: CreateProductDto[] = [
     price: 49.99,
     cost: 25.0,
     quantity: 200,
-    category: 'Accessories',
+    categoryId: 'accessories-cat-uuid',
     barcode: '5901234123459',
     images: ['https://example.com/hub.jpg'],
     metadata: { brand: 'ConnectPro', ports: 7 },
@@ -205,11 +208,12 @@ export const SAMPLE_PRODUCTS: CreateProductDto[] = [
 ];
 
 export function createPaginationTestProducts(pageSize: number = 10): CreateProductDto[] {
+  const categoryIds = ['cat-electronics', 'cat-clothing', 'cat-home'];
   return Array.from({ length: pageSize * 3 }, (_, i) =>
     createProductDto({
       index: i + 1,
       overrides: {
-        category: ['Electronics', 'Clothing', 'Home'][i % 3],
+        categoryId: categoryIds[i % 3],
         price: 10 + i * 5,
         quantity: 100 - i * 2,
       },

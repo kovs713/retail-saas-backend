@@ -67,7 +67,7 @@ export class ProductService {
     };
 
     if (query.category) {
-      where.category = query.category;
+      where.categoryId = query.category;
     }
 
     if (query.minPrice !== undefined) {

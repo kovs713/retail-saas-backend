@@ -1,4 +1,5 @@
 import { AuthModule } from '@/core/auth/auth.module';
+import { CategoryModule } from '@/modules/category/category.module';
 import { AppLogger } from '@/core/logger/app-logger.service';
 import { Product } from './entities/product.entity';
 import { ProductController } from './product.controller';
@@ -8,7 +9,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  imports: [AuthModule, TypeOrmModule.forFeature([Product])],
+  imports: [AuthModule, CategoryModule, TypeOrmModule.forFeature([Product])],
   providers: [ProductService, AppLogger],
   exports: [ProductService],
   controllers: [ProductController],

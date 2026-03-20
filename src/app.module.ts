@@ -3,6 +3,7 @@ import { AuthModule } from '@/core/auth/auth.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { ProductModule } from './modules/product/product.module';
+import { CategoryModule } from './modules/category/category.module';
 import { RagModule } from './modules/rag/rag.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { UserModule } from './modules/user/user.module';
@@ -19,6 +20,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     AuthModule,
     StorageModule.forRoot(),
     ProductModule,
+    CategoryModule,
     ShopModule,
     OrganizationModule,
     UserModule,

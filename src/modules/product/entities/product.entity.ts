@@ -1,4 +1,5 @@
 import { Shop } from '../../shop/entities/shop.entity';
+import { Category } from '../../category/entities/category.entity';
 
 import {
   Column,
@@ -44,9 +45,13 @@ export class Product {
   @Column({ type: 'int', default: 0 })
   quantity: number;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   @Index()
-  category: string | null;
+  categoryId: string | null;
+
+  @ManyToOne(() => Category, { eager: false, nullable: true })
+  @JoinColumn({ name: 'categoryId' })
+  category: Category | null;
 
   @Column({ type: 'varchar', length: 50, nullable: true, unique: true })
   barcode: string | null;
