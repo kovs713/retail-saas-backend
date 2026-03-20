@@ -15,8 +15,6 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@ne
 
 import { RolesGuard, Role } from '@/core/auth/guards/roles.guard';
 import { Roles } from '@/core/auth/decorators/roles.decorator';
-import { Tenant } from '@/common/decorators/tenant.decorator';
-import { TenantContext } from '@/common/types/tenant-context.type';
 
 import { CategoryService } from './category.service';
 import { Category } from './entities/category.entity';
@@ -39,7 +37,6 @@ export class CategoryController {
   async create(
     @Param('shopId', ParseUUIDPipe) shopId: string,
     @Body() createCategoryDto: CreateCategoryDto,
-    @Tenant() tenantContext: TenantContext,
   ): Promise<Category> {
     return await this.categoryService.create(shopId, createCategoryDto);
   }
@@ -49,10 +46,7 @@ export class CategoryController {
   @ApiOperation({ summary: 'Get all categories for a shop' })
   @ApiParam({ name: 'shopId', description: 'Shop ID', example: '123e4567-e89b-12d3-a456-426614174000' })
   @ApiResponse({ status: 200, type: [Category] })
-  async findAll(
-    @Param('shopId', ParseUUIDPipe) shopId: string,
-    @Tenant() tenantContext: TenantContext,
-  ): Promise<Category[]> {
+  async findAll(@Param('shopId', ParseUUIDPipe) shopId: string): Promise<Category[]> {
     return await this.categoryService.findAll(shopId);
   }
 
@@ -66,7 +60,6 @@ export class CategoryController {
   async findOne(
     @Param('shopId', ParseUUIDPipe) shopId: string,
     @Param('id', ParseUUIDPipe) categoryId: string,
-    @Tenant() tenantContext: TenantContext,
   ): Promise<Category> {
     return await this.categoryService.findOne(categoryId, shopId);
   }
@@ -83,7 +76,6 @@ export class CategoryController {
     @Param('shopId', ParseUUIDPipe) shopId: string,
     @Param('id', ParseUUIDPipe) categoryId: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
-    @Tenant() tenantContext: TenantContext,
   ): Promise<Category> {
     return await this.categoryService.update(categoryId, shopId, updateCategoryDto);
   }
@@ -99,7 +91,6 @@ export class CategoryController {
   async remove(
     @Param('shopId', ParseUUIDPipe) shopId: string,
     @Param('id', ParseUUIDPipe) categoryId: string,
-    @Tenant() tenantContext: TenantContext,
   ): Promise<void> {
     await this.categoryService.remove(categoryId, shopId);
   }

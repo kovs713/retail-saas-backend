@@ -34,11 +34,13 @@ export class CategoryService {
       });
 
       return await this.categoryRepository.save(category);
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ConflictException) {
         throw error;
       }
-      this.logger.error(`Failed to create category: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create category: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -49,8 +51,10 @@ export class CategoryService {
         where: { shopId },
         order: { name: 'ASC' },
       });
-    } catch (error) {
-      this.logger.error(`Failed to find categories: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find categories: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -66,11 +70,13 @@ export class CategoryService {
       }
 
       return category;
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      this.logger.error(`Failed to find category: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find category: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -94,11 +100,13 @@ export class CategoryService {
 
       Object.assign(category, updateCategoryDto);
       return await this.categoryRepository.save(category);
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ConflictException || error instanceof NotFoundException) {
         throw error;
       }
-      this.logger.error(`Failed to update category: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to update category: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -107,11 +115,13 @@ export class CategoryService {
     try {
       const category = await this.findOne(id, shopId);
       await this.categoryRepository.remove(category);
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      this.logger.error(`Failed to remove category: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to remove category: ${errorMessage}`, errorStack);
       throw error;
     }
   }
