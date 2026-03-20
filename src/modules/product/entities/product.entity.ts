@@ -1,4 +1,4 @@
-import { Organization } from '../../organization/entities/organization.entity';
+import { Shop } from '../../shop/entities/shop.entity';
 
 import {
   Column,
@@ -13,18 +13,18 @@ import {
 } from 'typeorm';
 
 @Entity('products')
-@Index(['organizationId', 'sku'], { unique: true })
+@Index(['shopId', 'sku'], { unique: true })
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'uuid' })
   @Index()
-  organizationId: string;
+  shopId: string;
 
-  @ManyToOne(() => Organization, { eager: false })
-  @JoinColumn({ name: 'organizationId' })
-  organization: Organization;
+  @ManyToOne(() => Shop, { eager: false })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop;
 
   @Column()
   sku: string;

@@ -1,5 +1,5 @@
 export interface TenantContext {
-  organizationId: string;
-  organizationName?: string;
-  organizationSlug?: string;
+  shopId: string;
+  shopName?: string;
+  shopSlug?: string;
 }

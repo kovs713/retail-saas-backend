@@ -1,5 +1,3 @@
-import { Organization } from '../../organization/entities/organization.entity';
-
 import {
   Column,
   CreateDateColumn,
@@ -9,6 +7,8 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+
+import { Shop } from '../../shop/entities/shop.entity';
 
 @Entity('users')
 export class User {
@@ -21,18 +21,18 @@ export class User {
   @Column()
   passwordHash: string;
 
-  @Column({ default: 'member' })
+  @Column({ default: 'owner' })
   role: string;
 
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ type: 'uuid' })
-  organizationId: string;
+  @Column({ type: 'uuid', nullable: true })
+  shopId: string | null;
 
-  @ManyToOne(() => Organization, { eager: false })
-  @JoinColumn({ name: 'organizationId' })
-  organization: Organization;
+  @ManyToOne(() => Shop, { eager: false })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop | null;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt: Date;

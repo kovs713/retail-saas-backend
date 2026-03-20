@@ -18,7 +18,7 @@ export class RagService {
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
     const ids = await this.vectorStoreService.addDocuments(documents, tenantContext);
     this.logger.log(
-      `Added ${documents.length} documents to RAG system for organization: ${tenantContext.organizationId}`,
+      `Added ${documents.length} documents to RAG system for organization: ${tenantContext.shopId}`,
     );
     return ids;
   }
@@ -39,7 +39,7 @@ export class RagService {
       metadata: Record<string, any>;
     }>;
   }> {
-    this.logger.log(`Processing RAG query: "${query}" for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Processing RAG query: "${query}" for organization: ${tenantContext.shopId}`);
 
     const relevantDocs = await this.vectorStoreService.similaritySearch(query, tenantContext, maxResults);
 
@@ -97,7 +97,7 @@ Question: ${query}`;
       score: number;
     }>;
   }> {
-    this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${tenantContext.shopId}`);
 
     const relevantDocsWithScores = await this.vectorStoreService.similaritySearchWithScore(
       query,
@@ -150,7 +150,7 @@ Question: ${query}`;
   async addTexts(texts: string[], tenantContext: TenantContext, metadata?: Record<string, any>[]): Promise<string[]> {
     const documentIds = await this.vectorStoreService.addTexts(texts, tenantContext, metadata);
     this.logger.log(
-      `Added ${texts.length} text documents to RAG system for organization: ${tenantContext.organizationId}`,
+      `Added ${texts.length} text documents to RAG system for organization: ${tenantContext.shopId}`,
     );
     return documentIds;
   }

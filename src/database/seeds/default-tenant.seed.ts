@@ -1,6 +1,5 @@
 import { AppModule } from '@/app/app.module';
-import { Organization } from '@/modules/organization/entities/organization.entity';
-import { Product } from '@/modules/product/entities/product.entity';
+import { Shop } from '@/modules/shop/entities/shop.entity';
 import { User } from '@/modules/user/entities/user.entity';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -15,64 +14,38 @@ async function bootstrap() {
 
   await dataSource.synchronize(true);
 
-  const organizationRepo = dataSource.getRepository(Organization);
+  const shopRepo = dataSource.getRepository(Shop);
   const userRepo = dataSource.getRepository(User);
-  const productRepo = dataSource.getRepository(Product);
 
-  const defaultOrg = await organizationRepo.findOne({ where: { slug: 'default' } });
+  const defaultShop = await shopRepo.findOne({ where: { slug: 'default' } });
 
-  if (defaultOrg) {
+  if (defaultShop) {
     await app.close();
     return;
   }
 
-  const organization = organizationRepo.create({
-    name: 'Default Organization',
+  const shop = shopRepo.create({
+    name: 'Default Shop',
     slug: 'default',
+    description: 'Default shop for testing',
     isActive: true,
-    metadata: { seeded: true, seedDate: new Date().toISOString() },
   });
 
-  const savedOrg = await organizationRepo.save(organization);
+  const savedShop = await shopRepo.save(shop);
 
   const passwordHash = await hash('changeme123', 10);
-  const adminUser = userRepo.create({
-    email: 'admin@default.com',
+  const ownerUser = userRepo.create({
+    email: 'owner@default.com',
     passwordHash,
-    role: 'admin',
+    role: 'owner',
     isActive: true,
-    organizationId: savedOrg.id,
+    shopId: savedShop.id,
   });
 
-  await userRepo.save(adminUser);
+  await userRepo.save(ownerUser);
 
-  const existingProducts = await productRepo.find({ where: { organizationId: savedOrg.id } });
-  if (existingProducts.length === 0) {
-    const sampleProducts = productRepo.create([
-      {
-        sku: 'SAMPLE-001',
-        name: 'Sample Product 1',
-        description: 'This is a sample product for testing',
-        price: 29.99,
-        cost: 15.0,
-        quantity: 100,
-        category: 'Sample',
-        organizationId: savedOrg.id,
-      },
-      {
-        sku: 'SAMPLE-002',
-        name: 'Sample Product 2',
-        description: 'Another sample product for testing',
-        price: 49.99,
-        cost: 25.0,
-        quantity: 50,
-        category: 'Sample',
-        organizationId: savedOrg.id,
-      },
-    ]);
-
-    await productRepo.save(sampleProducts);
-  }
+  savedShop.ownerId = ownerUser.id;
+  await shopRepo.save(savedShop);
 
   await app.close();
 }

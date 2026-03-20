@@ -9,7 +9,7 @@ export interface CreateUserDto {
   email: string;
   password: string;
   role?: string;
-  organizationId: string;
+  shopId?: string | null;
 }
 
 export interface UpdateUserDto {
@@ -39,8 +39,8 @@ export class UserService {
     const user = this.userRepository.create({
       email: createDto.email,
       passwordHash,
-      role: createDto.role || 'member',
-      organizationId: createDto.organizationId,
+      role: createDto.role || 'owner',
+      shopId: createDto.shopId || null,
     });
 
     return this.userRepository.save(user);
@@ -66,10 +66,10 @@ export class UserService {
     return user;
   }
 
-  async findByOrganization(organizationId: string): Promise<User[]> {
+  async findByShop(shopId: string): Promise<User[]> {
     return this.userRepository.find({
-      where: { organizationId },
-      relations: ['organization'],
+      where: { shopId },
+      relations: ['shop'],
     });
   }
 

@@ -1,5 +1,6 @@
 import { TypeOrmConfigService } from '@/common/configs/typeorm-config.service';
 import { AuthModule } from '@/core/auth/auth.module';
+import { ShopModule } from './modules/shop/shop.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { ProductModule } from './modules/product/product.module';
 import { RagModule } from './modules/rag/rag.module';
@@ -18,6 +19,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     AuthModule,
     StorageModule.forRoot(),
     ProductModule,
+    ShopModule,
     OrganizationModule,
     UserModule,
   ],

@@ -50,7 +50,7 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductResponseDto>> {
     this.logger.log(
-      `Creating product with SKU: ${createProductDto.sku} for organization: ${tenantContext.organizationId}`,
+      `Creating product with SKU: ${createProductDto.sku} for organization: ${tenantContext.shopId}`,
     );
     const product = await this.productService.create(createProductDto, tenantContext);
     const response = ProductResponseDto.fromEntity(product);

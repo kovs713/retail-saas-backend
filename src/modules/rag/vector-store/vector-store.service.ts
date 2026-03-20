@@ -17,7 +17,7 @@ export class VectorStoreService {
   ) {}
 
   private getTenantFilter(tenantContext: TenantContext): Record<string, any> {
-    return { organizationId: tenantContext.organizationId };
+    return { shopId: tenantContext.shopId };
   }
 
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
@@ -25,13 +25,13 @@ export class VectorStoreService {
       ...doc,
       metadata: {
         ...doc.metadata,
-        organizationId: tenantContext.organizationId,
+        shopId: tenantContext.shopId,
       },
     }));
 
     const ids = await this.chromaDBClient.addDocuments(docsWithTenant);
     this.logger.log(
-      `Added ${documents.length} documents to vector store for organization: ${tenantContext.organizationId}`,
+      `Added ${documents.length} documents to vector store for organization: ${tenantContext.shopId}`,
     );
     return ids;
   }
@@ -46,13 +46,13 @@ export class VectorStoreService {
         pageContent: text,
         metadata: {
           ...metadata,
-          organizationId: tenantContext.organizationId,
+          shopId: tenantContext.shopId,
         },
       };
     });
 
     const resultIds = await this.chromaDBClient.addVectors(await this.embeddingsService.embedDocuments(texts), docs);
-    this.logger.log(`Added ${texts.length} texts to vector store for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Added ${texts.length} texts to vector store for organization: ${tenantContext.shopId}`);
     return resultIds;
   }
 
@@ -67,7 +67,7 @@ export class VectorStoreService {
 
     const results = await this.chromaDBClient.similaritySearch(query, k, combinedFilter);
     this.logger.log(
-      `Similarity search completed for query: "${query}" for organization: ${tenantContext.organizationId}`,
+      `Similarity search completed for query: "${query}" for organization: ${tenantContext.shopId}`,
     );
     return results;
   }
@@ -83,7 +83,7 @@ export class VectorStoreService {
 
     const results = await this.chromaDBClient.similaritySearchWithScore(query, k, combinedFilter);
     this.logger.log(
-      `Similarity search with scores completed for query: "${query}" for organization: ${tenantContext.organizationId}`,
+      `Similarity search with scores completed for query: "${query}" for organization: ${tenantContext.shopId}`,
     );
     return results;
   }

@@ -1,12 +1,11 @@
-import { IsEmail, IsUUID } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 export class SignInDto {
-  @IsUUID()
-  id: string;
-
+  @IsNotEmpty()
   @IsEmail()
   email: string;
 
-  @IsUUID()
-  organizationId: string;
+  @IsNotEmpty()
+  @IsString()
+  password: string;
 }

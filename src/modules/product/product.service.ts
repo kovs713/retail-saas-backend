@@ -29,24 +29,24 @@ export class ProductService {
 
   async create(createProductDto: CreateProductDto, tenantContext: TenantContext): Promise<Product> {
     this.logger.log(
-      `Creating product with SKU: ${createProductDto.sku} for organization: ${tenantContext.organizationId}`,
+      `Creating product with SKU: ${createProductDto.sku} for shop: ${tenantContext.shopId}`,
     );
 
     const existingProduct = await this.productRepository.existsBy({
       sku: createProductDto.sku,
-      organizationId: tenantContext.organizationId,
+      shopId: tenantContext.shopId,
     });
 
     if (existingProduct) {
       this.logger.warn(
-        `Product with SKU ${createProductDto.sku} already exists in organization ${tenantContext.organizationId}`,
+        `Product with SKU ${createProductDto.sku} already exists in organization ${tenantContext.shopId}`,
       );
       throw new ConflictException('Product with this SKU already exists');
     }
 
     const product = this.productRepository.create({
       ...createProductDto,
-      organizationId: tenantContext.organizationId,
+      shopId: tenantContext.shopId,
     });
     const savedProduct = await this.productRepository.save(product);
 
@@ -56,7 +56,7 @@ export class ProductService {
 
   async findAll(query: Pagination, tenantContext: TenantContext): Promise<PaginationResponse<Product>> {
     this.logger.log(
-      `Finding products with query: page=${query.page}, limit=${query.limit}, search=${query.search || 'none'} for organization: ${tenantContext.organizationId}`,
+      `Finding products with query: page=${query.page}, limit=${query.limit}, search=${query.search || 'none'} for shop: ${tenantContext.shopId}`,
     );
 
     const page = query.page ?? 1;
@@ -64,7 +64,7 @@ export class ProductService {
     const skip = (page - 1) * limit;
 
     const where: FindOptionsWhere<Product> = {
-      organizationId: tenantContext.organizationId,
+      shopId: tenantContext.shopId,
       deletedAt: IsNull(),
     };
 
@@ -122,18 +122,18 @@ export class ProductService {
   }
 
   async findOne(id: string, tenantContext: TenantContext): Promise<Product> {
-    this.logger.log(`Finding product by ID: ${id} for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Finding product by ID: ${id} for shop: ${tenantContext.shopId}`);
 
     const product = await this.productRepository.findOne({
       where: {
         id,
-        organizationId: tenantContext.organizationId,
+        shopId: tenantContext.shopId,
         deletedAt: IsNull(),
       } as FindOptionsWhere<Product>,
     });
 
     if (!product) {
-      this.logger.warn(`Product with ID ${id} not found in organization ${tenantContext.organizationId}`);
+      this.logger.warn(`Product with ID ${id} not found in organization ${tenantContext.shopId}`);
       throw new NotFoundException('Product not found');
     }
 
@@ -142,18 +142,18 @@ export class ProductService {
   }
 
   async findOneBySku(sku: string, tenantContext: TenantContext): Promise<Product> {
-    this.logger.log(`Finding product by SKU: ${sku} for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Finding product by SKU: ${sku} for shop: ${tenantContext.shopId}`);
 
     const product = await this.productRepository.findOne({
       where: {
         sku,
-        organizationId: tenantContext.organizationId,
+        shopId: tenantContext.shopId,
         deletedAt: IsNull(),
       } as FindOptionsWhere<Product>,
     });
 
     if (!product) {
-      this.logger.warn(`Product with SKU ${sku} not found in organization ${tenantContext.organizationId}`);
+      this.logger.warn(`Product with SKU ${sku} not found in organization ${tenantContext.shopId}`);
       throw new NotFoundException('Product not found');
     }
 
@@ -162,19 +162,19 @@ export class ProductService {
   }
 
   async update(id: string, updateProductDto: UpdateProductDto, tenantContext: TenantContext): Promise<Product> {
-    this.logger.log(`Updating product ID: ${id} for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Updating product ID: ${id} for shop: ${tenantContext.shopId}`);
 
     const product = await this.findOne(id, tenantContext);
 
     if (updateProductDto.sku && updateProductDto.sku !== product.sku) {
       const existingProduct = await this.productRepository.existsBy({
         sku: updateProductDto.sku,
-        organizationId: tenantContext.organizationId,
+        shopId: tenantContext.shopId,
       });
 
       if (existingProduct) {
         this.logger.warn(
-          `Product with SKU ${updateProductDto.sku} already exists in organization ${tenantContext.organizationId}`,
+          `Product with SKU ${updateProductDto.sku} already exists in organization ${tenantContext.shopId}`,
         );
         throw new ConflictException('Product with this SKU already exists');
       }
@@ -188,7 +188,7 @@ export class ProductService {
   }
 
   async remove(id: string, tenantContext: TenantContext): Promise<void> {
-    this.logger.log(`Soft deleting product ID: ${id} for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Soft deleting product ID: ${id} for shop: ${tenantContext.shopId}`);
 
     await this.findOne(id, tenantContext);
     await this.productRepository.softDelete(id);
@@ -197,15 +197,15 @@ export class ProductService {
   }
 
   async restore(id: string, tenantContext: TenantContext): Promise<{ message: string }> {
-    this.logger.log(`Restoring product ID: ${id} for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Restoring product ID: ${id} for shop: ${tenantContext.shopId}`);
 
     const product = await this.productRepository.findOne({
-      where: { id, organizationId: tenantContext.organizationId } as FindOptionsWhere<Product>,
+      where: { id, shopId: tenantContext.shopId } as FindOptionsWhere<Product>,
       withDeleted: true,
     });
 
     if (!product) {
-      this.logger.warn(`Product ${id} not found in organization ${tenantContext.organizationId}`);
+      this.logger.warn(`Product ${id} not found in organization ${tenantContext.shopId}`);
       throw new NotFoundException('Product not found');
     }
 
@@ -222,7 +222,7 @@ export class ProductService {
 
   async updateStock(id: string, quantity: number, tenantContext: TenantContext): Promise<Product> {
     this.logger.log(
-      `Updating stock for product ID: ${id}, quantity: ${quantity} for organization: ${tenantContext.organizationId}`,
+      `Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${tenantContext.shopId}`,
     );
 
     await this.productRepository.update(id, { quantity });
@@ -234,7 +234,7 @@ export class ProductService {
 
   async adjustStock(id: string, adjustment: number, tenantContext: TenantContext): Promise<Product> {
     this.logger.log(
-      `Adjusting stock for product ID: ${id}, adjustment: ${adjustment} for organization: ${tenantContext.organizationId}`,
+      `Adjusting stock for product ID: ${id}, adjustment: ${adjustment} for shop: ${tenantContext.shopId}`,
     );
 
     await this.findOne(id, tenantContext);
@@ -249,15 +249,15 @@ export class ProductService {
     const countWhere: FindOptionsWhere<Product> = where
       ? ({
           ...where,
-          organizationId: tenantContext.organizationId,
+          shopId: tenantContext.shopId,
           deletedAt: IsNull() as unknown as Date,
         } as FindOptionsWhere<Product>)
       : ({
-          organizationId: tenantContext.organizationId,
+          shopId: tenantContext.shopId,
           deletedAt: IsNull() as unknown as Date,
         } as FindOptionsWhere<Product>);
     const count = await this.productRepository.count({ where: countWhere });
-    this.logger.log(`Product count for organization ${tenantContext.organizationId}: ${count}`);
+    this.logger.log(`Product count for organization ${tenantContext.shopId}: ${count}`);
     return count;
   }
 
@@ -265,27 +265,27 @@ export class ProductService {
     const count = await this.productRepository.count({
       where: {
         category,
-        organizationId: tenantContext.organizationId,
+        shopId: tenantContext.shopId,
         deletedAt: IsNull() as unknown as Date,
       } as FindOptionsWhere<Product>,
     });
-    this.logger.log(`Product count for category ${category} in organization ${tenantContext.organizationId}: ${count}`);
+    this.logger.log(`Product count for category ${category} in organization ${tenantContext.shopId}: ${count}`);
     return count;
   }
 
   async findByBarcode(barcode: string, tenantContext: TenantContext): Promise<Product> {
-    this.logger.log(`Finding product by barcode: ${barcode} for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Finding product by barcode: ${barcode} for shop: ${tenantContext.shopId}`);
 
     const product = await this.productRepository.findOne({
       where: {
         barcode,
-        organizationId: tenantContext.organizationId,
+        shopId: tenantContext.shopId,
         deletedAt: IsNull() as unknown as Date,
       } as FindOptionsWhere<Product>,
     });
 
     if (!product) {
-      this.logger.warn(`Product with barcode ${barcode} not found in organization ${tenantContext.organizationId}`);
+      this.logger.warn(`Product with barcode ${barcode} not found in organization ${tenantContext.shopId}`);
       throw new NotFoundException('Product not found');
     }
 
@@ -295,12 +295,12 @@ export class ProductService {
 
   async findLowStock(threshold: number = 10, tenantContext: TenantContext): Promise<Product[]> {
     this.logger.log(
-      `Finding products with low stock (threshold: ${threshold}) for organization: ${tenantContext.organizationId}`,
+      `Finding products with low stock (threshold: ${threshold}) for shop: ${tenantContext.shopId}`,
     );
 
     const products = await this.productRepository.find({
       where: {
-        organizationId: tenantContext.organizationId,
+        shopId: tenantContext.shopId,
         quantity: LessThan(threshold) as unknown as number,
         deletedAt: IsNull() as unknown as Date,
       } as FindOptionsWhere<Product>,
