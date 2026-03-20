@@ -1,5 +1,6 @@
+import { CreateOrganizationDto, UpdateOrganizationDto } from './dto/dto';
 import { Organization } from './entities/organization.entity';
-import { CreateOrganizationDto, OrganizationService, UpdateOrganizationDto } from './organization.service';
+import { OrganizationService } from './organization.service';
 
 import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
