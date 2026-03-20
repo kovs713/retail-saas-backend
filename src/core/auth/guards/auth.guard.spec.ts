@@ -16,7 +16,8 @@ describe('AuthGuard', () => {
   const mockTokenPayload: TokenPayload = {
     sub: 'user-123',
     email: 'test@example.com',
-    organizationId: 'org-456',
+    shopId: 'shop-456',
+    role: 'owner',
   };
 
   const mockSecret = 'test-secret-key';

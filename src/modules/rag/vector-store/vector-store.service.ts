@@ -30,9 +30,7 @@ export class VectorStoreService {
     }));
 
     const ids = await this.chromaDBClient.addDocuments(docsWithTenant);
-    this.logger.log(
-      `Added ${documents.length} documents to vector store for organization: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Added ${documents.length} documents to vector store for organization: ${tenantContext.shopId}`);
     return ids;
   }
 
@@ -66,9 +64,7 @@ export class VectorStoreService {
     const combinedFilter = filter ? { ...tenantFilter, ...filter } : tenantFilter;
 
     const results = await this.chromaDBClient.similaritySearch(query, k, combinedFilter);
-    this.logger.log(
-      `Similarity search completed for query: "${query}" for organization: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Similarity search completed for query: "${query}" for organization: ${tenantContext.shopId}`);
     return results;
   }
 

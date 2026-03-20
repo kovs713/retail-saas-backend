@@ -61,7 +61,7 @@ describe('ProductService', () => {
 
       expect(repository.existsBy).toHaveBeenCalledWith({
         sku: 'PROD-001',
-        organizationId: mockTenantContext.organizationId,
+        shopId: mockTenantContext.shopId,
       });
       expect(result).toEqual(mockProduct);
     });

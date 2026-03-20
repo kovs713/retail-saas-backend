@@ -49,9 +49,7 @@ export class ProductController {
     @Body() createProductDto: CreateProductDto,
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductResponseDto>> {
-    this.logger.log(
-      `Creating product with SKU: ${createProductDto.sku} for organization: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Creating product with SKU: ${createProductDto.sku} for organization: ${tenantContext.shopId}`);
     const product = await this.productService.create(createProductDto, tenantContext);
     const response = ProductResponseDto.fromEntity(product);
     this.logger.log(`Product created successfully with ID: ${product.id}`);

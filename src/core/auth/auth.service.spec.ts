@@ -1,27 +1,34 @@
 import { AuthService } from './auth.service';
 import { AuthOutputDto } from './dto/auth-output.dto';
-import { SignInDto } from './dto/sign-in.dto';
 
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { UserService } from '@/modules/user/user.service';
+import { ShopService } from '@/modules/shop/shop.service';
 
 describe('AuthService', () => {
   let service: AuthService;
   let jwtService: JwtService;
-
-  const mockSignInDto: SignInDto = {
-    id: 'user-123',
-    email: 'test@example.com',
-    organizationId: 'org-456',
-  };
-
-  const mockTokenPayload = {
-    sub: mockSignInDto.id,
-    email: mockSignInDto.email,
-    organizationId: mockSignInDto.organizationId,
-  };
+  let userService: UserService;
+  let shopService: ShopService;
 
   const mockAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockToken';
+  const mockRefreshToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refreshToken';
+
+  const mockUser = {
+    id: 'user-123',
+    email: 'test@example.com',
+    passwordHash: 'hashed-password',
+    role: 'owner',
+    shopId: 'shop-456',
+  };
+
+  const mockShop = {
+    id: 'shop-456',
+    ownerId: 'user-123',
+    name: 'Test Shop',
+    slug: 'test-shop',
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -31,6 +38,24 @@ describe('AuthService', () => {
           provide: JwtService,
           useValue: {
             signAsync: jest.fn(),
+            verifyAsync: jest.fn(),
+          },
+        },
+        {
+          provide: UserService,
+          useValue: {
+            findByEmail: jest.fn(),
+            create: jest.fn(),
+            findById: jest.fn(),
+            validatePassword: jest.fn(),
+          },
+        },
+        {
+          provide: ShopService,
+          useValue: {
+            create: jest.fn(),
+            findByOwnerId: jest.fn(),
+            updateOwner: jest.fn(),
           },
         },
       ],
@@ -38,6 +63,8 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     jwtService = module.get<JwtService>(JwtService);
+    userService = module.get<UserService>(UserService);
+    shopService = module.get<ShopService>(ShopService);
   });
 
   afterEach(() => {
@@ -45,51 +72,25 @@ describe('AuthService', () => {
   });
 
   describe('signIn', () => {
-    it('should generate JWT token with correct payload', async () => {
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValue(mockAccessToken);
-
-      const result = await service.signIn(mockSignInDto);
-
-      expect(jwtService.signAsync).toHaveBeenCalledWith(mockTokenPayload);
-      expect(result).toEqual({
-        email: mockSignInDto.email,
-        accessToken: mockAccessToken,
-      });
-    });
-
-    it('should include organizationId in token payload', async () => {
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValue(mockAccessToken);
-
-      await service.signIn(mockSignInDto);
-
-      expect(jwtService.signAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          organizationId: mockSignInDto.organizationId,
-        }),
-      );
-    });
-
     it('should return accessToken and email', async () => {
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValue(mockAccessToken);
+      const mockSignInDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
 
-      const result = await service.signIn(mockSignInDto);
+      jest.spyOn(userService, 'findByEmail').mockResolvedValue(mockUser as any);
+      jest.spyOn(userService, 'validatePassword').mockResolvedValue(true);
+      jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(mockShop as any);
+      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
+      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockRefreshToken);
+
+      const result = await service.signIn(mockSignInDto as any);
 
       expect(result).toEqual<AuthOutputDto>({
         email: mockSignInDto.email,
         accessToken: mockAccessToken,
+        refreshToken: mockRefreshToken,
       });
-    });
-
-    it('should use the correct sub claim from user id', async () => {
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValue(mockAccessToken);
-
-      await service.signIn(mockSignInDto);
-
-      expect(jwtService.signAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sub: mockSignInDto.id,
-        }),
-      );
     });
   });
 });

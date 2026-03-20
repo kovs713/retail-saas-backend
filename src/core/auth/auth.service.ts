@@ -37,8 +37,7 @@ export class AuthService {
       shopId: shop.id,
     });
 
-    shop.ownerId = user.id;
-    await this.shopService.update(shop.id, {});
+    await this.shopService.updateOwner(shop.id, user.id);
 
     const tokenPayload: TokenPayload = {
       sub: user.id,

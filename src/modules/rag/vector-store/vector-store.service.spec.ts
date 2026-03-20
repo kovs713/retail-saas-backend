@@ -22,7 +22,7 @@ describe('VectorStoreService', () => {
   let chromaDBClient: Chroma;
 
   const mockTenantContext: TenantContext = {
-    organizationId: 'test-org-id',
+    shopId: 'test-shop-id',
   };
 
   beforeEach(async () => {
@@ -60,7 +60,7 @@ describe('VectorStoreService', () => {
   });
 
   describe('addDocuments', () => {
-    it('should add organizationId to document metadata', async () => {
+    it('should add shopId to document metadata', async () => {
       const documents: Document[] = [
         {
           pageContent: 'Test content',
@@ -75,7 +75,7 @@ describe('VectorStoreService', () => {
           pageContent: 'Test content',
           metadata: {
             source: 'test',
-            organizationId: mockTenantContext.organizationId,
+            shopId: mockTenantContext.shopId,
           },
         },
       ]);
@@ -124,11 +124,11 @@ describe('VectorStoreService', () => {
   });
 
   describe('similaritySearch', () => {
-    it('should filter results by organizationId', async () => {
+    it('should filter results by shopId', async () => {
       await service.similaritySearch('test query', mockTenantContext, 5);
 
       expect(chromaDBClient.similaritySearch).toHaveBeenCalledWith('test query', 5, {
-        organizationId: mockTenantContext.organizationId,
+        shopId: mockTenantContext.shopId,
       });
     });
 
@@ -138,7 +138,7 @@ describe('VectorStoreService', () => {
       await service.similaritySearch('test query', mockTenantContext, 5, customFilter);
 
       expect(chromaDBClient.similaritySearch).toHaveBeenCalledWith('test query', 5, {
-        organizationId: mockTenantContext.organizationId,
+        shopId: mockTenantContext.shopId,
         source: 'test',
       });
     });
@@ -166,7 +166,7 @@ describe('VectorStoreService', () => {
         'test query',
         5,
         expect.objectContaining({
-          organizationId: mockTenantContext.organizationId,
+          shopId: mockTenantContext.shopId,
         }),
       );
     });
@@ -197,7 +197,7 @@ describe('VectorStoreService', () => {
       expect(typedChromaDBClient.asRetriever).toHaveBeenCalledWith(
         expect.objectContaining({
           filter: expect.objectContaining({
-            organizationId: mockTenantContext.organizationId,
+            shopId: mockTenantContext.shopId,
           }),
         }),
       );
@@ -211,7 +211,7 @@ describe('VectorStoreService', () => {
       expect(typedChromaDBClient.asRetriever).toHaveBeenCalledWith(
         expect.objectContaining({
           filter: {
-            organizationId: mockTenantContext.organizationId,
+            shopId: mockTenantContext.shopId,
             source: 'test',
           },
         }),

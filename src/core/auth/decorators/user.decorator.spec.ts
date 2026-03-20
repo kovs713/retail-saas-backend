@@ -11,7 +11,8 @@ describe('User Decorator', () => {
   const mockUser: TokenPayload = {
     sub: 'user-123',
     email: 'test@example.com',
-    organizationId: 'org-456',
+    shopId: 'shop-456',
+    role: 'owner',
   };
 
   beforeEach(() => {
@@ -54,7 +55,7 @@ describe('User Decorator', () => {
 
       expect(result).toEqual(mockUser);
       expect((result as TokenPayload).email).toBe(mockUser.email);
-      expect((result as TokenPayload).organizationId).toBe(mockUser.organizationId);
+      expect((result as TokenPayload).shopId).toBe(mockUser.shopId);
     });
 
     it('should return specific field when field name provided', () => {
@@ -63,10 +64,10 @@ describe('User Decorator', () => {
       expect(result).toBe(mockUser.email);
     });
 
-    it("should return organizationId when 'organizationId' specified", () => {
-      const result = decoratorFactory('organizationId', mockExecutionContext);
+    it("should return shopId when 'shopId' specified", () => {
+      const result = decoratorFactory('shopId', mockExecutionContext);
 
-      expect(result).toBe(mockUser.organizationId);
+      expect(result).toBe(mockUser.shopId);
     });
 
     it("should return sub when 'sub' specified", () => {
@@ -104,7 +105,7 @@ describe('User Decorator', () => {
 
       expect(result).toHaveProperty('sub');
       expect(result).toHaveProperty('email');
-      expect(result).toHaveProperty('organizationId');
+      expect(result).toHaveProperty('shopId');
     });
   });
 });

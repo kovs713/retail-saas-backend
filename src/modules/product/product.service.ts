@@ -28,9 +28,7 @@ export class ProductService {
   ) {}
 
   async create(createProductDto: CreateProductDto, tenantContext: TenantContext): Promise<Product> {
-    this.logger.log(
-      `Creating product with SKU: ${createProductDto.sku} for shop: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Creating product with SKU: ${createProductDto.sku} for shop: ${tenantContext.shopId}`);
 
     const existingProduct = await this.productRepository.existsBy({
       sku: createProductDto.sku,
@@ -221,9 +219,7 @@ export class ProductService {
   }
 
   async updateStock(id: string, quantity: number, tenantContext: TenantContext): Promise<Product> {
-    this.logger.log(
-      `Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${tenantContext.shopId}`);
 
     await this.productRepository.update(id, { quantity });
     const updatedProduct = await this.findOne(id, tenantContext);
@@ -294,9 +290,7 @@ export class ProductService {
   }
 
   async findLowStock(threshold: number = 10, tenantContext: TenantContext): Promise<Product[]> {
-    this.logger.log(
-      `Finding products with low stock (threshold: ${threshold}) for shop: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Finding products with low stock (threshold: ${threshold}) for shop: ${tenantContext.shopId}`);
 
     const products = await this.productRepository.find({
       where: {

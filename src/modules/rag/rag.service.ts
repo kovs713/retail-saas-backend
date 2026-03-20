@@ -17,9 +17,7 @@ export class RagService {
 
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
     const ids = await this.vectorStoreService.addDocuments(documents, tenantContext);
-    this.logger.log(
-      `Added ${documents.length} documents to RAG system for organization: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Added ${documents.length} documents to RAG system for organization: ${tenantContext.shopId}`);
     return ids;
   }
 
@@ -149,9 +147,7 @@ Question: ${query}`;
 
   async addTexts(texts: string[], tenantContext: TenantContext, metadata?: Record<string, any>[]): Promise<string[]> {
     const documentIds = await this.vectorStoreService.addTexts(texts, tenantContext, metadata);
-    this.logger.log(
-      `Added ${texts.length} text documents to RAG system for organization: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Added ${texts.length} text documents to RAG system for organization: ${tenantContext.shopId}`);
     return documentIds;
   }
 }

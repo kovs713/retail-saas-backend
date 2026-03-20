@@ -1,4 +1,4 @@
-import { IsEmail, IsString } from 'class-validator';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
 
 export class AuthOutputDto {
   @IsEmail()
@@ -7,6 +7,7 @@ export class AuthOutputDto {
   @IsString()
   accessToken: string;
 
+  @IsOptional()
   @IsString()
   refreshToken?: string;
 }

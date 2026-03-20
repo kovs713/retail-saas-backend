@@ -28,17 +28,17 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
     const token = this.extractToken(request);
-    const payload = await this.verifyToken(token);
+    const payload: any = await this.verifyToken(token);
 
     if (!requiredRoles.includes(payload.role as Role)) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
-    request['user'] = payload;
+    request.user = payload;
     return true;
   }
 
-  private async verifyToken(token: string) {
+  private async verifyToken(token: string): Promise<any> {
     try {
       return this.jwtService.verifyAsync(token, {
         secret: this.configService.getOrThrow<string>('JWT_SECRET'),

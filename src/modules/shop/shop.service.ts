@@ -60,6 +60,13 @@ export class ShopService {
     return await this.shopRepository.save(shop);
   }
 
+  async updateOwner(id: string, ownerId: string): Promise<Shop> {
+    const shop = await this.findById(id);
+
+    shop.ownerId = ownerId;
+    return await this.shopRepository.save(shop);
+  }
+
   async updateMediaUrls(id: string, logoUrl?: string, bannerUrl?: string): Promise<Shop> {
     const shop = await this.findById(id);
 
