@@ -6,4 +6,7 @@ export class AuthOutputDto {
 
   @IsString()
   accessToken: string;
+
+  @IsString()
+  refreshToken?: string;
 }

@@ -3,13 +3,15 @@ import { RegisterDto } from './dto/register.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { TokenPayload } from './types/token-payload.type';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '@/modules/user/user.service';
 import { ShopService } from '@/modules/shop/shop.service';
 
 @Injectable()
 export class AuthService {
+  private readonly refreshTokens: Map<string, string> = new Map();
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
@@ -46,10 +48,14 @@ export class AuthService {
     };
 
     const accessToken = await this.jwtService.signAsync(tokenPayload);
+    const refreshToken = await this.jwtService.signAsync(tokenPayload, { expiresIn: '7d' });
+
+    this.refreshTokens.set(user.id, refreshToken);
 
     return {
       email: user.email,
       accessToken: accessToken,
+      refreshToken: refreshToken,
     };
   }
 
@@ -72,10 +78,49 @@ export class AuthService {
     };
 
     const accessToken = await this.jwtService.signAsync(tokenPayload);
+    const refreshToken = await this.jwtService.signAsync(tokenPayload, { expiresIn: '7d' });
+
+    this.refreshTokens.set(user.id, refreshToken);
 
     return {
       email: user.email,
       accessToken: accessToken,
+      refreshToken: refreshToken,
     };
+  }
+
+  async refreshToken(refreshToken: string): Promise<AuthOutputDto> {
+    try {
+      const payload = await this.jwtService.verifyAsync<TokenPayload>(refreshToken);
+
+      const storedToken = this.refreshTokens.get(payload.sub);
+
+      if (!storedToken || storedToken !== refreshToken) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      const user = await this.userService.findById(payload.sub);
+      const shop = await this.shopService.findByOwnerId(user.id);
+
+      const newTokenPayload: TokenPayload = {
+        sub: user.id,
+        email: user.email,
+        shopId: shop?.id || '',
+        role: user.role,
+      };
+
+      const newAccessToken = await this.jwtService.signAsync(newTokenPayload);
+      const newRefreshToken = await this.jwtService.signAsync(newTokenPayload, { expiresIn: '7d' });
+
+      this.refreshTokens.set(user.id, newRefreshToken);
+
+      return {
+        email: user.email,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      };
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
   }
 }
