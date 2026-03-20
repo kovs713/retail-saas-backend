@@ -23,19 +23,19 @@ export class Shop {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   address: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   phone: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   workingHours: Record<string, string> | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   logoUrl: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   bannerUrl: string | null;
 
   @Column({ default: true })
