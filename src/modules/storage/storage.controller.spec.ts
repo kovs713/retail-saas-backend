@@ -2,6 +2,7 @@ import { StorageController } from './storage.controller';
 import { StorageService } from './storage.service';
 
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Response } from 'express';
 
 jest.mock('@/core/logger/logger.service', () => ({
   LoggerService: jest.fn().mockImplementation(() => ({
@@ -190,9 +191,50 @@ describe('StorageController', () => {
   });
 
   describe('downloadFile', () => {
-    // Skipped - tested via e2e
-    it.skip('should download file - tested via e2e', () => {});
-    it.skip('should download file with custom bucket - tested via e2e', () => {});
+    const mockFileContent = Buffer.from('test file content');
+    const mockMetadata = {
+      key: mockKey,
+      size: mockFileContent.length,
+      mimeType: 'text/plain',
+      uploadDate: new Date(),
+      etag: 'test-etag',
+      bucket: mockBucket,
+    };
+    const mockDownloadResponse = {
+      buffer: mockFileContent,
+      metadata: mockMetadata,
+    };
+
+    it('should download file successfully', async () => {
+      storageService.downloadFile.mockResolvedValue(mockDownloadResponse);
+
+      const mockResponse = {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+      } as any;
+
+      await controller.downloadFile({ key: mockKey, bucket: undefined }, mockResponse);
+
+      expect(storageService.downloadFile).toHaveBeenCalledWith(mockKey, undefined);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', mockMetadata.mimeType);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Disposition', `attachment; filename="${mockKey}"`);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Length', mockMetadata.size);
+      expect(mockResponse.send).toHaveBeenCalledWith(mockFileContent);
+    });
+
+    it('should download file with custom bucket', async () => {
+      const customBucket = 'custom-bucket';
+      storageService.downloadFile.mockResolvedValue(mockDownloadResponse);
+
+      const mockResponse = {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+      } as any;
+
+      await controller.downloadFile({ key: mockKey, bucket: customBucket }, mockResponse);
+
+      expect(storageService.downloadFile).toHaveBeenCalledWith(mockKey, customBucket);
+    });
   });
 
   describe('getPresignedUrl', () => {

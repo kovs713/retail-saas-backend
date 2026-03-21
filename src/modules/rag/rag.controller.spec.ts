@@ -109,4 +109,109 @@ describe('RagController', () => {
       expect(result.data?.timestamp).toBeDefined();
     });
   });
+
+  describe('chatWithScores endpoint', () => {
+    it('should call RagService.queryWithScores with correct parameters', async () => {
+      const mockDocument = new Document({
+        pageContent: 'Test source content',
+        metadata: { source: 'test' },
+      });
+
+      const mockResponse = {
+        answer: 'Test answer with scores',
+        sources: [
+          {
+            document: mockDocument,
+            score: 0.95,
+          },
+        ],
+      };
+
+      ragService.queryWithScores.mockResolvedValue(mockResponse);
+
+      const chatRequest = {
+        message: 'Test message',
+        maxResults: 5,
+        systemPrompt: 'Test prompt',
+      };
+
+      const result = await controller.chatWithScores(chatRequest, tenantContext);
+
+      expect(ragService.queryWithScores).toHaveBeenCalledWith(
+        chatRequest.message,
+        tenantContext,
+        chatRequest.maxResults,
+        chatRequest.systemPrompt,
+      );
+      expect(result.success).toBe(true);
+      expect(result.data?.answer).toBe(mockResponse.answer);
+      expect(result.data?.sources).toHaveLength(1);
+      expect(result.data?.sources[0].score).toBe(0.95);
+      expect(result.data?.timestamp).toBeDefined();
+    });
+
+    it('should handle service errors', async () => {
+      ragService.queryWithScores.mockRejectedValue(new Error('Service error'));
+
+      const chatRequest = {
+        message: 'Test message',
+        maxResults: 5,
+      };
+
+      await expect(controller.chatWithScores(chatRequest, tenantContext)).rejects.toThrow('Service error');
+    });
+  });
+
+  describe('addTexts endpoint', () => {
+    it('should call RagService.addTexts with correct parameters', async () => {
+      const mockTextIds = ['text-1', 'text-2'];
+      ragService.addTexts.mockResolvedValue(mockTextIds);
+
+      const addRequest = {
+        texts: ['Text 1', 'Text 2'],
+        metadata: [{ source: 'test' }],
+      };
+
+      const result = await controller.addTexts(addRequest, tenantContext);
+
+      expect(ragService.addTexts).toHaveBeenCalledWith(addRequest.texts, tenantContext, addRequest.metadata);
+      expect(result.success).toBe(true);
+      expect(result.data?.textIds).toEqual(mockTextIds);
+      expect(result.data?.count).toBe(2);
+      expect(result.data?.timestamp).toBeDefined();
+    });
+
+    it('should handle empty texts array', async () => {
+      const mockTextIds: string[] = [];
+      ragService.addTexts.mockResolvedValue(mockTextIds);
+
+      const addRequest = {
+        texts: [],
+        metadata: [],
+      };
+
+      const result = await controller.addTexts(addRequest, tenantContext);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.count).toBe(0);
+      expect(result.data?.timestamp).toBeDefined();
+    });
+  });
+
+  describe('clearDocuments endpoint', () => {
+    it('should call RagService.clearDocuments', async () => {
+      const result = await controller.clearDocuments();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Documents cleared successfully');
+    });
+
+    it('should handle service errors', () => {
+      jest.spyOn(ragService, 'clearDocuments').mockImplementation(() => {
+        throw new Error('Clear failed');
+      });
+
+      expect(() => controller.clearDocuments()).toThrow('Clear failed');
+    });
+  });
 });

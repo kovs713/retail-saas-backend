@@ -5,6 +5,7 @@ import { AuthOutputDto } from './dto';
 
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -72,12 +73,12 @@ describe('AuthService', () => {
   });
 
   describe('signIn', () => {
-    it('should return accessToken and email', async () => {
-      const mockSignInDto = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
+    const mockSignInDto = {
+      email: 'test@example.com',
+      password: 'password123',
+    };
 
+    it('should return accessToken and email', async () => {
       jest.spyOn(userService, 'findByEmail').mockResolvedValue(mockUser as any);
       jest.spyOn(userService, 'validatePassword').mockResolvedValue(true);
       jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(mockShop as any);
@@ -91,6 +92,136 @@ describe('AuthService', () => {
         accessToken: mockAccessToken,
         refreshToken: mockRefreshToken,
       });
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      jest.spyOn(userService, 'findByEmail').mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(service.signIn(mockSignInDto as any)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw UnauthorizedException when password invalid', async () => {
+      jest.spyOn(userService, 'findByEmail').mockResolvedValue(mockUser as any);
+      jest.spyOn(userService, 'validatePassword').mockResolvedValue(false);
+
+      await expect(service.signIn(mockSignInDto as any)).rejects.toThrow(Error);
+    });
+
+    it('should handle shop not found and still return tokens', async () => {
+      jest.spyOn(userService, 'findByEmail').mockResolvedValue(mockUser as any);
+      jest.spyOn(userService, 'validatePassword').mockResolvedValue(true);
+      jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(null);
+      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
+      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockRefreshToken);
+
+      const result = await service.signIn(mockSignInDto as any);
+
+      expect(result).toEqual({
+        email: mockSignInDto.email,
+        accessToken: mockAccessToken,
+        refreshToken: mockRefreshToken,
+      });
+    });
+  });
+
+  describe('register', () => {
+    const mockRegisterDto = {
+      email: 'new@example.com',
+      password: 'password123',
+      shopName: 'New Shop',
+      shopSlug: 'new-shop',
+    };
+
+    it('should register user and create shop successfully', async () => {
+      const createdUser = { ...mockUser, email: mockRegisterDto.email };
+      jest.spyOn(shopService, 'create').mockResolvedValue(mockShop as any);
+      jest.spyOn(shopService, 'updateOwner').mockResolvedValue(mockShop as any);
+      jest.spyOn(userService, 'create').mockResolvedValue(createdUser as any);
+      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
+      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockRefreshToken);
+
+      const result = await service.register(mockRegisterDto as any);
+
+      expect(userService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: mockRegisterDto.email,
+          password: mockRegisterDto.password,
+          role: 'owner',
+          shopId: mockShop.id,
+        }),
+      );
+      expect(shopService.updateOwner).toHaveBeenCalledWith(mockShop.id, mockUser.id);
+      expect(result).toEqual({
+        email: mockRegisterDto.email,
+        accessToken: mockAccessToken,
+        refreshToken: mockRefreshToken,
+      });
+    });
+
+    it('should throw ConflictException when shop creation fails', async () => {
+      jest.spyOn(shopService, 'create').mockRejectedValue(new ConflictException('Shop slug already exists'));
+
+      await expect(service.register(mockRegisterDto as any)).rejects.toThrow(ConflictException);
+    });
+
+    it('should throw ConflictException when user creation fails due to duplicate email', async () => {
+      jest.spyOn(shopService, 'create').mockResolvedValue(mockShop as any);
+      jest.spyOn(userService, 'create').mockRejectedValue(new ConflictException('Email already exists'));
+
+      await expect(service.register(mockRegisterDto as any)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('refreshToken', () => {
+    const mockRefreshTokenString = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refreshToken';
+
+    it('should return new accessToken and refreshToken', async () => {
+      const mockPayload = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        shopId: 'shop-456',
+        role: 'owner',
+      };
+
+      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockPayload);
+      jest.spyOn(userService, 'findById').mockResolvedValue(mockUser as any);
+      jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(mockShop as any);
+      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
+      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce('new-refresh-token');
+      (service as any).refreshTokens.set('user-123', mockRefreshTokenString);
+
+      const result = await service.refreshToken(mockRefreshTokenString);
+
+      expect(jwtService.verifyAsync).toHaveBeenCalledWith(mockRefreshTokenString);
+      expect(result.email).toBe(mockPayload.email);
+      expect(result.accessToken).toBe(mockAccessToken);
+      expect(result.refreshToken).toBe('new-refresh-token');
+    });
+
+    it('should throw UnauthorizedException when refresh token invalid', async () => {
+      jest.spyOn(jwtService, 'verifyAsync').mockRejectedValue(new Error('Invalid token'));
+
+      await expect(service.refreshToken(mockRefreshTokenString)).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when refresh token expired', async () => {
+      jest.spyOn(jwtService, 'verifyAsync').mockRejectedValue(new Error('Token expired'));
+
+      await expect(service.refreshToken(mockRefreshTokenString)).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when user not found', async () => {
+      const mockPayload = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        shopId: 'shop-456',
+        role: 'owner',
+      };
+
+      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockPayload);
+      jest.spyOn(userService, 'findById').mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(service.refreshToken(mockRefreshTokenString)).rejects.toThrow(UnauthorizedException);
     });
   });
 });
