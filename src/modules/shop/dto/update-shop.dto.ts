@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString, IsUrl, ValidateNested } from 'class-validator';
+import { IsBoolean, IsObject, IsOptional, IsString, IsUrl } from 'class-validator';
 
 export class UpdateShopDto {
   @IsOptional()
@@ -22,7 +22,7 @@ export class UpdateShopDto {
   phone?: string;
 
   @IsOptional()
-  @ValidateNested()
+  @IsObject()
   workingHours?: Record<string, string>;
 
   @IsOptional()
