@@ -1,8 +1,6 @@
-import { TokenPayload } from '@/core/auth/types/token-payload.type';
+import { Request as BaseRequest } from 'express';
+import { TokenPayload } from './token-payload.type';
 
-export interface TenantRequest {
-  user: TokenPayload & { shopId: string };
-  tenant: {
-    shopId: string;
-  };
-}
+export type Request = BaseRequest & {
+  user: TokenPayload;
+};

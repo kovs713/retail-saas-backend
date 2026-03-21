@@ -1,5 +1,5 @@
 import { MinioClient } from '@/common/types';
-import { AppLogger } from '@/core/logger/app-logger.service';
+import { LoggerService } from '@/app/core/logger/logger.service';
 import { StorageService } from './storage.service';
 
 import { ConfigService } from '@nestjs/config';
@@ -88,7 +88,7 @@ describe('StorageService', () => {
         StorageService,
         { provide: MinioClient, useValue: mockMinioClient },
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: AppLogger, useValue: { log: jest.fn(), error: jest.fn() } },
+        { provide: LoggerService, useValue: { log: jest.fn(), error: jest.fn() } },
       ],
     }).compile();
 

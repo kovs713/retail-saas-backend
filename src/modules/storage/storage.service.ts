@@ -1,5 +1,5 @@
 import { MinioClient } from '@/common/types';
-import { AppLogger } from '@/core/logger/app-logger.service';
+import { LoggerService } from '@/app/core/logger/logger.service';
 import {
   DeleteFileRequest,
   DownloadFileResponse,
@@ -25,7 +25,7 @@ interface ListObjectItem {
 
 @Injectable()
 export class StorageService {
-  private readonly logger: AppLogger = new AppLogger(StorageService.name);
+  private readonly logger: LoggerService = new LoggerService(StorageService.name);
 
   constructor(
     @Inject(MinioClient) private readonly minioClient: Client,

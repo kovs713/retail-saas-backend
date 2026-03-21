@@ -1,5 +1,5 @@
+import { AuthGuard } from '@/common/guards';
 import { createMockTenantContext } from '@/common/utils';
-import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
 

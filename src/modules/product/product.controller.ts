@@ -1,7 +1,7 @@
 import { Tenant } from '@/common/decorators';
 import { ApiResponse as AppApiResponse, Pagination, PaginationResponse } from '@/common/dto';
+import { AuthGuard } from '@/common/guards';
 import { TenantContext } from '@/common/types';
-import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import {
   AdjustStockDto,
   CreateProductDto,

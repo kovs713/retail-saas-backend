@@ -1,5 +1,5 @@
+import { AuthGuard } from '@/common/guards';
 import { createMockTenantContext } from '@/common/utils';
-import { AuthGuard } from '@/core/auth/guards/auth.guard';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';

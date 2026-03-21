@@ -1,4 +1,4 @@
-import { createMockTenantContext } from '@/app/common/utils';
+import { createMockTenantContext } from '@/common/utils';
 import { Product } from './entities/product.entity';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';
@@ -9,7 +9,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, UpdateResult } from 'typeorm';
 
-jest.mock('@/core/logger/app-logger.service', () => ({
+jest.mock('@/core/logger/logger.service', () => ({
   AppLogger: jest.fn().mockImplementation(() => ({
     log: jest.fn(),
     error: jest.fn(),

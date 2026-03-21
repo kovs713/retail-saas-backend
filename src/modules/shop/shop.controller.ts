@@ -1,15 +1,12 @@
+import { Roles } from '@/common/decorators';
+import { Role } from '@/common/enums';
+import { AuthGuard, RolesGuard } from '@/common/guards';
+import { CreateShopDto } from './dto/create-shop.dto';
+import { UpdateShopDto } from './dto/update-shop.dto';
+import { ShopService } from './shop.service';
+
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-
-import { CreateShopDto } from '../dto/create-shop.dto';
-import { UpdateShopDto } from '../dto/update-shop.dto';
-
-import { AuthGuard } from '@/core/auth/guards/auth.guard';
-import { RolesGuard } from '@/core/auth/guards/roles.guard';
-import { Roles } from '@/core/auth/decorators/roles.decorator';
-import { Role } from '@/core/auth/guards/roles.guard';
-
-import { ShopService } from '../shop.service';
 
 @ApiTags('Shops')
 @Controller('shops')

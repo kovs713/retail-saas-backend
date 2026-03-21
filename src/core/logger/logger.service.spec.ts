@@ -1,9 +1,9 @@
-import { AppLogger } from './app-logger.service';
+import { LoggerService } from './logger.service';
 
 import { Logger } from '@nestjs/common';
 
 describe('AppLogger', () => {
-  let logger: AppLogger;
+  let logger: LoggerService;
   let logSpy: jest.SpyInstance;
   let errorSpy: jest.SpyInstance;
   let warnSpy: jest.SpyInstance;
@@ -11,7 +11,7 @@ describe('AppLogger', () => {
   let verboseSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    logger = new AppLogger('TestContext');
+    logger = new LoggerService('TestContext');
 
     logSpy = jest.spyOn(Logger.prototype, 'log');
     errorSpy = jest.spyOn(Logger.prototype, 'error');
@@ -38,7 +38,7 @@ describe('AppLogger', () => {
     });
 
     it('should use default context when not provided', () => {
-      const loggerWithoutContext = new AppLogger();
+      const loggerWithoutContext = new LoggerService();
       loggerWithoutContext.log('Test message');
 
       expect(logSpy).toHaveBeenCalledWith('Test message');

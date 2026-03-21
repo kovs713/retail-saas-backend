@@ -1,5 +1,4 @@
 import { MinioClient } from '@/common/types';
-import { AppLogger } from '@/core/logger/app-logger.service';
 import { StorageController } from './storage.controller';
 import { StorageService } from './storage.service';
 
@@ -34,7 +33,6 @@ export class StorageModule {
           },
         },
         StorageService,
-        AppLogger,
       ],
       exports: [StorageService],
       controllers: [StorageController],

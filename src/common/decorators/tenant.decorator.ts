@@ -1,5 +1,4 @@
-import { Request } from '@/app/core/auth/types/request.type';
-import { TenantContext } from '../types/tenant-context.type';
+import { Request, TenantContext } from '../types';
 
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 

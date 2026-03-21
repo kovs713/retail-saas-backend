@@ -1,4 +1,3 @@
-import { AppLogger } from '@/app/core/logger/app-logger.service';
 import { ChromaDBClient } from '@/common/types';
 import { EmbeddingsModule } from '../embeddings/embeddings.module';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
@@ -13,7 +12,7 @@ export class VectorStoreModule {
   static forRootAsync(): DynamicModule {
     return {
       module: VectorStoreModule,
-      imports: [EmbeddingsModule.forRootAsync()],
+      imports: [EmbeddingsModule],
       providers: [
         {
           provide: ChromaDBClient,
@@ -40,7 +39,6 @@ export class VectorStoreModule {
           },
         },
 
-        AppLogger,
         VectorStoreService,
       ],
       exports: [VectorStoreService],

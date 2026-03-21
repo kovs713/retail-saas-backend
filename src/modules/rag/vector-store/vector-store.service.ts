@@ -1,5 +1,5 @@
-import { AppLogger } from '@/app/core/logger/app-logger.service';
 import { ChromaDBClient, TenantContext } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 
 import { Chroma } from '@langchain/community/vectorstores/chroma';
@@ -8,7 +8,7 @@ import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class VectorStoreService {
-  private readonly logger: AppLogger = new AppLogger(VectorStoreService.name);
+  private readonly logger: LoggerService = new LoggerService(VectorStoreService.name);
 
   constructor(
     private readonly embeddingsService: EmbeddingsService,

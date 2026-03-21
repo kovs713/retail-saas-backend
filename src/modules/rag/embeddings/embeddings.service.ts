@@ -1,4 +1,4 @@
-import { AppLogger } from '@/app/core/logger/app-logger.service';
+import { LoggerService } from '@/core/logger/logger.service';
 
 import { OllamaEmbeddings } from '@langchain/ollama';
 import { Injectable } from '@nestjs/common';
@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class EmbeddingsService extends OllamaEmbeddings {
-  private readonly logger: AppLogger = new AppLogger(EmbeddingsService.name);
+  private readonly logger: LoggerService = new LoggerService(EmbeddingsService.name);
 
   constructor(configService: ConfigService) {
     super({

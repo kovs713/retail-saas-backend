@@ -1,4 +1,4 @@
-import { Shop } from '../shop/entities/shop.entity';
+import { Shop } from '@/modules/shop/entities/shop.entity';
 import { User } from './entities/user.entity';
 import { CreateUserDto, UpdateUserDto, UserService } from './user.service';
 

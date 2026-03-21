@@ -1,5 +1,4 @@
-import { Request } from '../types/request.type';
-import { TokenPayload } from '../types/token-payload.type';
+import { Request, TokenPayload } from '../types';
 
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';

@@ -1,15 +1,10 @@
-import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
+import { Role } from '../enums';
+import { Request } from '../types';
+
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-
-import { Request } from '../types/request.type';
-
-export enum Role {
-  SUPER_ADMIN = 'super_admin',
-  OWNER = 'owner',
-  EMPLOYEE = 'employee',
-}
 
 @Injectable()
 export class RolesGuard implements CanActivate {

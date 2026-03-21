@@ -1,10 +1,10 @@
+import { ShopService } from '@/modules/shop/shop.service';
+import { UserService } from '@/modules/user/user.service';
 import { AuthService } from './auth.service';
-import { AuthOutputDto } from './dto/auth-output.dto';
+import { AuthOutputDto } from './dto';
 
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { UserService } from '@/modules/user/user.service';
-import { ShopService } from '@/modules/shop/shop.service';
 
 describe('AuthService', () => {
   let service: AuthService;

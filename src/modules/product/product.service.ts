@@ -1,6 +1,6 @@
 import { Pagination, PaginationResponse } from '@/common/dto';
 import { TenantContext } from '@/common/types';
-import { AppLogger } from '@/core/logger/app-logger.service';
+import { LoggerService } from '@/core/logger/logger.service';
 import { CreateProductDto, UpdateProductDto } from './dto';
 import { Product } from './entities/product.entity';
 
@@ -20,7 +20,7 @@ import {
 
 @Injectable()
 export class ProductService {
-  private readonly logger: AppLogger = new AppLogger(ProductService.name);
+  private readonly logger: LoggerService = new LoggerService(ProductService.name);
 
   constructor(
     @InjectRepository(Product)

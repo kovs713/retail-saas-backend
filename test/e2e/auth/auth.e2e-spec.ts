@@ -1,15 +1,15 @@
+import { AuthModule } from '@/core/auth/auth.module';
+import { Shop } from '@/modules/shop/entities/shop.entity';
+import { ShopModule } from '@/modules/shop/shop.module';
+import { User } from '@/modules/user/entities/user.entity';
+import { UserModule } from '@/modules/user/user.module';
+
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
 import request from 'supertest';
-
-import { AuthModule } from '@/core/auth/auth.module';
-import { ShopModule } from '@/modules/shop/shop.module';
-import { UserModule } from '@/modules/user/user.module';
-import { Shop } from '@/modules/shop/entities/shop.entity';
-import { User } from '@/modules/user/entities/user.entity';
 
 describe('Authentication E2E', () => {
   let app: INestApplication;

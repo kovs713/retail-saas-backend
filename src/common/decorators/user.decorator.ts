@@ -1,5 +1,4 @@
-import { Request } from '@/app/core/auth/types/request.type';
-import { TokenPayload } from '@/core/auth/types/token-payload.type';
+import { Request, TokenPayload } from '../types';
 
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 

@@ -1,11 +1,10 @@
+import { CreateShopDto } from './dto/create-shop.dto';
+import { UpdateShopDto } from './dto/update-shop.dto';
+import { Shop } from './entities/shop.entity';
+
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-
-import { CreateShopDto } from './dto/create-shop.dto';
-import { UpdateShopDto } from './dto/update-shop.dto';
-
-import { Shop } from './entities/shop.entity';
 
 @Injectable()
 export class ShopService {

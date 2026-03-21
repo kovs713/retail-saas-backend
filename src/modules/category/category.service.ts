@@ -1,14 +1,14 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-
-import { AppLogger } from '@/core/logger/app-logger.service';
+import { LoggerService } from '@/core/logger/logger.service';
+import { CreateCategoryDto, UpdateCategoryDto } from './dto';
 import { Category } from './entities/category.entity';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
-import { Repository } from 'typeorm';
+
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class CategoryService {
-  private readonly logger: AppLogger = new AppLogger(CategoryService.name);
+  private readonly logger: LoggerService = new LoggerService(CategoryService.name);
 
   constructor(
     @InjectRepository(Category)

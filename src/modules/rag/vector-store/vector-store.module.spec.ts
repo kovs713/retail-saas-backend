@@ -28,7 +28,7 @@ describe('VectorStoreModule', () => {
     expect(chromaProvider).toBeDefined();
   });
 
-  it('should include VectorStoreService and AppLogger as providers', () => {
+  it('should include VectorStoreService and LoggerService as providers', () => {
     const dynamicModule = VectorStoreModule.forRootAsync();
 
     expect(dynamicModule.providers).toBeDefined();

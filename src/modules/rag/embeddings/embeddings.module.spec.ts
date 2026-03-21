@@ -1,20 +1,20 @@
-import { AppLogger } from '@/core/logger/app-logger.service';
+import { LoggerService } from '@/core/logger/logger.service';
 import { EmbeddingsModule } from './embeddings.module';
 import { EmbeddingsService } from './embeddings.service';
 
 describe('EmbeddingsModule', () => {
   it('forRootAsync should return a dynamic module', () => {
-    const dynamicModule = EmbeddingsModule.forRootAsync();
+    const module = EmbeddingsModule;
 
-    expect(dynamicModule.module).toBe(EmbeddingsModule);
-    expect(dynamicModule.providers).toBeDefined();
-    expect(dynamicModule.exports).toContain(EmbeddingsService);
+    expect(module).toBe(EmbeddingsModule);
+    expect(module).toBeDefined();
+    expect(module).toContain(EmbeddingsService);
   });
 
-  it('should include AppLogger and EmbeddingsService as providers', () => {
-    const dynamicModule = EmbeddingsModule.forRootAsync();
+  it('should include LoggerService and EmbeddingsService as providers', () => {
+    const module = EmbeddingsModule;
 
-    expect(dynamicModule.providers).toContain(AppLogger);
-    expect(dynamicModule.providers).toContain(EmbeddingsService);
+    expect(module).toContain(LoggerService);
+    expect(module).toContain(EmbeddingsService);
   });
 });

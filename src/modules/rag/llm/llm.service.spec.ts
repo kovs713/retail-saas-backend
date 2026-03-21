@@ -5,8 +5,8 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGroq } from '@langchain/groq';
 import { Test, TestingModule } from '@nestjs/testing';
 
-jest.mock('@/core/logger/app-logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation(() => ({
+jest.mock('@/core/logger/logger.service', () => ({
+  Logger: jest.fn().mockImplementation(() => ({
     log: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),

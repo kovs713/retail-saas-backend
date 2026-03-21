@@ -1,3 +1,10 @@
+import { Roles } from '@/common/decorators';
+import { Role } from '@/common/enums';
+import { RolesGuard } from '@/common/guards';
+import { CategoryService } from './category.service';
+import { CreateCategoryDto, UpdateCategoryDto } from './dto';
+import { Category } from './entities/category.entity';
+
 import {
   Body,
   Controller,
@@ -12,13 +19,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-
-import { RolesGuard, Role } from '@/core/auth/guards/roles.guard';
-import { Roles } from '@/core/auth/decorators/roles.decorator';
-
-import { CategoryService } from './category.service';
-import { Category } from './entities/category.entity';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 
 @ApiTags('Categories')
 @ApiBearerAuth()

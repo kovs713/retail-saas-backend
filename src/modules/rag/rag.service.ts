@@ -1,5 +1,5 @@
-import { AppLogger } from '@/app/core/logger/app-logger.service';
 import { TenantContext } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 import { LLMService } from './llm/llm.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
 
@@ -8,7 +8,7 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class RagService {
-  private readonly logger: AppLogger = new AppLogger(RagService.name);
+  private readonly logger: LoggerService = new LoggerService(RagService.name);
 
   constructor(
     private readonly llmService: LLMService,
