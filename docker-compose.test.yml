@@ -1,0 +1,45 @@
+services:
+  test-db:
+    image: postgres:18-alpine
+    container_name: test-postgres
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test_db
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U test']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  test-minio:
+    image: minio/minio:latest
+    container_name: test-minio
+    environment:
+      MINIO_ROOT_USER: test-admin
+      MINIO_ROOT_PASSWORD: test-password
+    command: minio server /data --console-address ":9001"
+    ports:
+      - '9002:9000'
+      - '9003:9001'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  test-chromadb:
+    image: chromadb/chroma:latest
+    container_name: test-chromadb
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    ports:
+      - '8001:8000'
+    volumes:
+      - chromadb_test_data:/chroma/chroma
+
+volumes:
+  chromadb_test_data:
