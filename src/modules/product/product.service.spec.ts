@@ -10,7 +10,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, UpdateResult } from 'typeorm';
 
 jest.mock('@/core/logger/logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation(() => ({
+  LoggerService: jest.fn().mockImplementation(() => ({
     log: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),

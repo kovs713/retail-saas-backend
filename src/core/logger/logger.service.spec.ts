@@ -67,7 +67,7 @@ describe('AppLogger', () => {
     it('should handle undefined trace', () => {
       logger.error('Error message', undefined, 'CustomContext');
 
-      expect(errorSpy).toHaveBeenCalledWith('Error message', undefined, 'CustomContext');
+      expect(errorSpy).toHaveBeenCalledWith('Error message', 'CustomContext');
     });
   });
 

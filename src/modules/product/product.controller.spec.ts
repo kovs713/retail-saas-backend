@@ -8,8 +8,8 @@ import { createMock } from '@golevelup/ts-jest';
 import { ExecutionContext, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
-jest.mock('@/core/logger/app-logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation(() => ({
+jest.mock('@/core/logger/logger.service', () => ({
+  LoggerService: jest.fn().mockImplementation(() => ({
     log: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),

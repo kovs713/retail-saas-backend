@@ -3,8 +3,8 @@ import { StorageService } from './storage.service';
 
 import { Test, TestingModule } from '@nestjs/testing';
 
-jest.mock('@/core/logger/app-logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation(() => ({
+jest.mock('@/core/logger/logger.service', () => ({
+  LoggerService: jest.fn().mockImplementation(() => ({
     log: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
@@ -76,9 +76,9 @@ describe('StorageController', () => {
         bucket: undefined,
       });
       expect(result.success).toBe(true);
-      expect(result.data.url).toBe(mockResponse.url);
-      expect(result.data.key).toBe(mockResponse.key);
-      expect(result.data.metadata).toEqual({
+      expect(result.data?.url).toBe(mockResponse.url);
+      expect(result.data?.key).toBe(mockResponse.key);
+      expect(result.data?.metadata).toEqual({
         ...mockResponse.metadata,
         uploadDate: mockResponse.metadata.uploadDate.toISOString(),
       });
