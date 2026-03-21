@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsObject, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsNotEmpty()
@@ -31,7 +31,7 @@ export class RegisterDto {
   shopPhone?: string;
 
   @IsOptional()
-  @ValidateNested()
+  @IsObject()
   shopWorkingHours?: Record<string, string>;
 
   @IsOptional()
