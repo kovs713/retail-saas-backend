@@ -6,7 +6,6 @@ import { UserModule } from '@/modules/user/user.module';
 
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
@@ -16,11 +15,12 @@ import { StartedTestContainer } from 'testcontainers';
 describe('Product E2E Tests', () => {
   let app: INestApplication;
   let container: StartedTestContainer;
-  let jwtService: JwtService;
 
   let accessToken: string;
-  let refreshToken: string;
-  let shopId: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let _refreshToken: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let _shopId: string;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine')
@@ -64,8 +64,6 @@ describe('Product E2E Tests', () => {
     );
     await app.init();
 
-    jwtService = moduleFixture.get<JwtService>(JwtService);
-
     const registerResponse = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
@@ -77,8 +75,8 @@ describe('Product E2E Tests', () => {
       .expect(201);
 
     accessToken = registerResponse.body.data.accessToken;
-    refreshToken = registerResponse.body.data.refreshToken;
-    shopId = registerResponse.body.data.shopId;
+    _refreshToken = registerResponse.body.data.refreshToken;
+    _shopId = registerResponse.body.data.shopId;
   });
 
   afterAll(async () => {
@@ -394,7 +392,8 @@ describe('Product E2E Tests', () => {
 
   describe('Multi-tenant Isolation', () => {
     let tenant2AccessToken: string;
-    let tenant2ShopId: string;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let _tenant2ShopId: string;
 
     beforeAll(async () => {
       const registerResponse = await request(app.getHttpServer())
@@ -408,7 +407,7 @@ describe('Product E2E Tests', () => {
         .expect(201);
 
       tenant2AccessToken = registerResponse.body.data.accessToken;
-      tenant2ShopId = registerResponse.body.data.shopId;
+      _tenant2ShopId = registerResponse.body.data.shopId;
     });
 
     it('should not see products from other shop', async () => {

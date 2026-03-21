@@ -9,9 +9,14 @@ export interface TestAppContext {
   shopId: string;
 }
 
+type ModuleFixture = {
+  createNestApplication: () => INestApplication;
+  get: <T>(token: any) => T;
+};
+
 export const TestHelpers = {
-  async setupTestApp(moduleFixture: any): Promise<INestApplication> {
-    const app = moduleFixture.createNestApplication();
+  async setupTestApp(moduleFixture: ModuleFixture): Promise<INestApplication> {
+    const app: INestApplication = moduleFixture.createNestApplication();
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -35,13 +40,18 @@ export const TestHelpers = {
       shopSlug: `test-shop-${Date.now()}`,
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const registerResponse = await request(app.getHttpServer()).post('/auth/register').send(registerDto).expect(201);
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const body: { data: { accessToken: string; refreshToken: string; userId: string; shopId: string } } =
+      registerResponse.body;
+
     return {
-      accessToken: registerResponse.body.data.accessToken,
-      refreshToken: registerResponse.body.data.refreshToken,
-      userId: registerResponse.body.data.userId,
-      shopId: registerResponse.body.data.shopId,
+      accessToken: body.data.accessToken,
+      refreshToken: body.data.refreshToken,
+      userId: body.data.userId,
+      shopId: body.data.shopId,
     };
   },
 

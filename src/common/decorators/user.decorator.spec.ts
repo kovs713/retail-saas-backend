@@ -44,7 +44,7 @@ describe('User Decorator', () => {
     });
 
     it('should return user with all required properties', () => {
-      const result = decoratorFactory(undefined, mockExecutionContext) as TokenPayload;
+      const result = decoratorFactory(undefined, mockExecutionContext);
 
       expect(result.sub).toBe('user-123');
       expect(result.email).toBe('test@example.com');
@@ -60,14 +60,14 @@ describe('User Decorator', () => {
         shopId: 'shop-1',
       };
 
-      const result = decoratorFactory(undefined, mockExecutionContext) as TokenPayload;
+      const result = decoratorFactory(undefined, mockExecutionContext);
 
       expect(result.role).toBe('super_admin');
       expect(result.shopId).toBe('shop-1');
     });
 
     it('should return user object reference', () => {
-      const result = decoratorFactory(undefined, mockExecutionContext) as TokenPayload;
+      const result = decoratorFactory(undefined, mockExecutionContext);
 
       expect(result).toBe(mockRequest.user);
     });

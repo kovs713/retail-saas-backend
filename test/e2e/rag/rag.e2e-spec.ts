@@ -16,7 +16,8 @@ describe('RAG E2E Tests', () => {
   let postgresContainer: StartedTestContainer;
 
   let accessToken: string;
-  let shopId: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let _shopId: string;
 
   beforeAll(async () => {
     postgresContainer = await new PostgreSqlContainer('postgres:18-alpine')
@@ -76,7 +77,7 @@ describe('RAG E2E Tests', () => {
       .expect(201);
 
     accessToken = registerResponse.body.data.accessToken;
-    shopId = registerResponse.body.data.shopId;
+    _shopId = registerResponse.body.data.shopId;
   });
 
   afterAll(async () => {

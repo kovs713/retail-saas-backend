@@ -172,7 +172,8 @@ describe('Shop E2E Tests', () => {
   });
 
   describe('Shop Owner Transfer', () => {
-    let newOwnerAccessToken: string;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let _newOwnerAccessToken: string;
     let newOwnerId: string;
 
     beforeAll(async () => {
@@ -186,7 +187,7 @@ describe('Shop E2E Tests', () => {
         })
         .expect(201);
 
-      newOwnerAccessToken = registerResponse.body.data.accessToken;
+      _newOwnerAccessToken = registerResponse.body.data.accessToken;
       newOwnerId = registerResponse.body.data.userId;
     });
 

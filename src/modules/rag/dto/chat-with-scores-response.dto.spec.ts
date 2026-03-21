@@ -1,6 +1,5 @@
 import { ChatWithScoresResponseDto } from './chat-with-scires-response.dto';
 import { DocumentWithScoreDto } from './document-with-score.dto';
-import { DocumentDto } from './document.dto';
 
 describe('ChatWithScoresResponseDto', () => {
   const mockDocumentsWithScore: DocumentWithScoreDto[] = [

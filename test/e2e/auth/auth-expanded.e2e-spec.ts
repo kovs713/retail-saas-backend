@@ -14,11 +14,6 @@ describe('Authentication E2E (Expanded)', () => {
   let app: INestApplication;
   let container: StartedTestContainer;
 
-  let accessToken: string;
-  let refreshToken: string;
-  let userId: string;
-  let shopId: string;
-
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine')
       .withDatabase('test_db')

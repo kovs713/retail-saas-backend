@@ -1,8 +1,6 @@
 import { Roles, ROLES_KEY } from './roles.decorator';
 import { Role } from '../enums';
 
-import { SetMetadata } from '@nestjs/common';
-
 describe('Roles Decorator', () => {
   it('should set roles metadata', () => {
     const roles = [Role.OWNER, Role.EMPLOYEE];

@@ -199,8 +199,8 @@ describe('RagController', () => {
   });
 
   describe('clearDocuments endpoint', () => {
-    it('should call RagService.clearDocuments', async () => {
-      const result = await controller.clearDocuments();
+    it('should call RagService.clearDocuments', () => {
+      const result = controller.clearDocuments();
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Documents cleared successfully');

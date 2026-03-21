@@ -17,7 +17,8 @@ describe('Category E2E Tests', () => {
   let container: StartedTestContainer;
 
   let accessToken: string;
-  let shopId: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let _shopId: string;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine')
@@ -72,7 +73,7 @@ describe('Category E2E Tests', () => {
       .expect(201);
 
     accessToken = registerResponse.body.data.accessToken;
-    shopId = registerResponse.body.data.shopId;
+    _shopId = registerResponse.body.data.shopId;
   });
 
   afterAll(async () => {
@@ -173,7 +174,7 @@ describe('Category E2E Tests', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      const subcategories = response.body.data.filter((c: any) => c.parent);
+      const subcategories = response.body.data.filter((c: { parent?: { id: string; name: string } }) => c.parent);
       if (subcategories.length > 0) {
         expect(subcategories[0].parent).toHaveProperty('id');
         expect(subcategories[0].parent).toHaveProperty('name');
@@ -308,7 +309,6 @@ describe('Category E2E Tests', () => {
 
   describe('Category-Product Integration', () => {
     let categoryId: string;
-    let productId: string;
 
     beforeAll(async () => {
       const categoryResponse = await request(app.getHttpServer())
@@ -322,7 +322,7 @@ describe('Category E2E Tests', () => {
 
       categoryId = categoryResponse.body.data.id;
 
-      const productResponse = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post('/products')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -333,8 +333,6 @@ describe('Category E2E Tests', () => {
           categoryId: categoryId,
         })
         .expect(201);
-
-      productId = productResponse.body.data.id;
     });
 
     it('should filter products by category', async () => {

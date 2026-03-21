@@ -1,7 +1,5 @@
 import { UploadFileDto } from './upload-file.dto';
 
-import { validate } from 'class-validator';
-
 describe('UploadFileDto', () => {
   it('should pass validation with file object and bucket', () => {
     const dto = new UploadFileDto();

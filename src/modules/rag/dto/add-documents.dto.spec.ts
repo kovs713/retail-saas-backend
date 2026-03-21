@@ -1,5 +1,4 @@
 import { AddDocumentstDto } from './add-documents.dto';
-import { DocumentDto } from './document.dto';
 
 import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
