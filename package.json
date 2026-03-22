@@ -19,7 +19,6 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:integration": "jest --config jest.integration.config.js",
     "test:e2e": "jest --config ./test/e2e/jest-e2e.json",
-    "test:rag": "jest src/modules/rag/rag-integration.spec.ts",
     "seed:default": "ts-node -r tsconfig-paths/register src/database/seeds/default-tenant.seed.ts",
     "docker:build": "docker build -t retail-analytics-platform-backend .",
     "docker:run": "docker run -p 3000:3000 retail-analytics-platform-backend"
