@@ -1,5 +1,5 @@
-import { LoggerService } from '@/core/logger/logger.service';
 import { MinioClient } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 import {
   DeleteFileRequest,
   DownloadFileResponse,

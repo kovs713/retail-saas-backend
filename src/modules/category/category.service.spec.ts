@@ -1,27 +1,20 @@
+import { mockCacheService } from '@/common/utils';
+import { CacheService } from '@/core/cache/cache.service';
+import { LoggerService } from '@/core/logger/logger.service';
 import { Shop } from '@/modules/shop/entities/shop.entity';
 import { User } from '@/modules/user/entities/user.entity';
 import { CategoryService } from './category.service';
 import { Category } from './entities/category.entity';
 
-import { createMock } from '@golevelup/ts-jest';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-jest.mock('@/core/logger/logger.service', () => ({
-  LoggerService: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
-
 describe('CategoryService', () => {
   let service: CategoryService;
-  let repository: ReturnType<typeof createMock<Repository<Category>>>;
+  let repository: DeepMocked<Repository<Category>>;
 
   const mockShopId = 'shop-123';
   const mockShop: Shop = {
@@ -57,6 +50,14 @@ describe('CategoryService', () => {
         {
           provide: getRepositoryToken(Category),
           useValue: createMock<Repository<Category>>(),
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheService(),
+        },
+        {
+          provide: LoggerService,
+          useValue: createMock<LoggerService>(),
         },
       ],
     }).compile();

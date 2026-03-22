@@ -2,6 +2,7 @@ import { Tenant } from '@/common/decorators';
 import { ApiResponse as AppApiResponse, Pagination, PaginationResponse } from '@/common/dto';
 import { AuthGuard } from '@/common/guards';
 import { TenantContext } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 import {
   AdjustStockDto,
   CreateProductDto,
@@ -21,7 +22,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Logger,
   Param,
   Patch,
   Post,
@@ -35,7 +35,7 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags }
 @Controller('products')
 @UseGuards(AuthGuard)
 export class ProductController {
-  private readonly logger = new Logger(ProductController.name);
+  private readonly logger = new LoggerService(ProductController.name);
 
   constructor(private readonly productService: ProductService) {}
 

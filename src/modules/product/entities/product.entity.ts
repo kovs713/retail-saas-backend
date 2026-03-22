@@ -1,5 +1,5 @@
-import { Shop } from '../../shop/entities/shop.entity';
-import { Category } from '../../category/entities/category.entity';
+import { Category } from '@/modules/category/entities/category.entity';
+import { Shop } from '@/modules/shop/entities/shop.entity';
 
 import {
   Column,
@@ -15,6 +15,8 @@ import {
 
 @Entity('products')
 @Index(['shopId', 'sku'], { unique: true })
+@Index(['shopId', 'deletedAt'])
+@Index(['shopId', 'categoryId'])
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -28,6 +30,7 @@ export class Product {
   shop: Shop;
 
   @Column()
+  @Index()
   sku: string;
 
   @Column()
@@ -53,7 +56,8 @@ export class Product {
   @JoinColumn({ name: 'categoryId' })
   category: Category | null;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, unique: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  @Index()
   barcode: string | null;
 
   @Column('simple-array', { nullable: true })

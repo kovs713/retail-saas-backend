@@ -1,26 +1,18 @@
+import { mockCacheService } from '@/common/utils';
+import { CacheService } from '@/core/cache/cache.service';
 import { User } from '@/modules/user/entities/user.entity';
 import { Shop } from './entities/shop.entity';
 import { ShopService } from './shop.service';
 
-import { createMock } from '@golevelup/ts-jest';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-jest.mock('@/core/logger/logger.service', () => ({
-  LoggerService: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
-
 describe('ShopService', () => {
   let service: ShopService;
-  let repository: ReturnType<typeof createMock<Repository<Shop>>>;
+  let repository: DeepMocked<Repository<Shop>>;
 
   const mockShop: Shop = {
     id: 'shop-1',
@@ -45,6 +37,10 @@ describe('ShopService', () => {
         {
           provide: getRepositoryToken(Shop),
           useValue: createMock<Repository<Shop>>(),
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheService(),
         },
       ],
     }).compile();

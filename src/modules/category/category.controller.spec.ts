@@ -1,4 +1,5 @@
 import { RolesGuard } from '@/common/guards';
+import { mockGuard } from '@/common/utils/guard.util';
 import { Shop } from '@/modules/shop/entities/shop.entity';
 import { User } from '@/modules/user/entities/user.entity';
 import { CategoryController } from './category.controller';
@@ -6,6 +7,7 @@ import { CategoryService } from './category.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto';
 import { Category } from './entities/category.entity';
 
+import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
@@ -51,21 +53,11 @@ describe('CategoryController', () => {
       providers: [
         {
           provide: CategoryService,
-          useValue: {
-            create: jest.fn(),
-            findAll: jest.fn(),
-            findOne: jest.fn(),
-            update: jest.fn(),
-            remove: jest.fn(),
-          },
-        },
-        {
-          provide: RolesGuard,
-          useValue: { canActivate: jest.fn().mockReturnValue(true) },
+          useValue: createMock<CategoryService>(),
         },
         {
           provide: JwtService,
-          useValue: { verifyAsync: jest.fn() },
+          useValue: createMock<JwtService>(),
         },
         {
           provide: ConfigService,
@@ -75,7 +67,7 @@ describe('CategoryController', () => {
       ],
     })
       .overrideGuard(RolesGuard)
-      .useValue({ canActivate: jest.fn().mockReturnValue(true) })
+      .useValue(mockGuard())
       .compile();
 
     controller = module.get<CategoryController>(CategoryController);

@@ -1,6 +1,7 @@
 import { CommonModule } from './common/common.module';
 import { TypeOrmConfigService } from './common/configs';
 import { AuthModule } from './core/auth/auth.module';
+import { CacheModule } from './core/cache/cache.module';
 import { LoggerModule } from './core/logger/logger.module';
 import { CategoryModule } from './modules/category/category.module';
 import { ProductModule } from './modules/product/product.module';
@@ -19,6 +20,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     TypeOrmModule.forRootAsync({ useClass: TypeOrmConfigService }),
 
     LoggerModule,
+    CacheModule.forRootAsync(),
     CommonModule,
 
     AuthModule,

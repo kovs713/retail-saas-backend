@@ -1,49 +1,41 @@
 import { AuthGuard } from '@/common/guards';
-import { createMockTenantContext } from '@/common/utils';
+import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
 
-import { createMock } from '@golevelup/ts-jest';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Document } from '@langchain/core/documents';
-import { ExecutionContext } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('RagController', () => {
   let controller: RagController;
-  let ragService: ReturnType<typeof createMock<RagService>>;
+  let service: DeepMocked<RagService>;
 
   const tenantContext = createMockTenantContext();
 
   beforeEach(async () => {
-    const mockRagService = {
-      query: jest.fn(),
-      queryWithScores: jest.fn(),
-      addDocuments: jest.fn(),
-      addTexts: jest.fn(),
-      clearDocuments: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [RagController],
       providers: [
         {
           provide: RagService,
-          useValue: mockRagService,
+          useValue: createMock<RagService>(),
         },
       ],
+      controllers: [RagController],
     })
       .overrideGuard(AuthGuard)
-      .useValue({
-        canActivate: (context: ExecutionContext) => {
-          const req = context.switchToHttp().getRequest();
-          req.user = { organizationId: 'test-org-id' };
-          return true;
-        },
-      })
+      .useValue(
+        mockAuthGuard({
+          sub: 'user-123',
+          email: 'test@example.com',
+          shopId: 'shop-456',
+          role: 'owner',
+        }),
+      )
       .compile();
 
     controller = module.get<RagController>(RagController);
-    ragService = module.get(RagService);
+    service = module.get(RagService);
   });
 
   it('should be defined', () => {
@@ -62,7 +54,7 @@ describe('RagController', () => {
         sources: [mockDocument],
       };
 
-      ragService.query.mockResolvedValue(mockResponse);
+      service.query.mockResolvedValue(mockResponse);
 
       const chatRequest = {
         message: 'Test message',
@@ -72,7 +64,7 @@ describe('RagController', () => {
 
       const result = await controller.chat(chatRequest, tenantContext);
 
-      expect(ragService.query).toHaveBeenCalledWith(
+      expect(service.query).toHaveBeenCalledWith(
         chatRequest.message,
         tenantContext,
         chatRequest.maxResults,
@@ -90,7 +82,7 @@ describe('RagController', () => {
   describe('addDocuments endpoint', () => {
     it('should call RagService.addDocuments with correct parameters', async () => {
       const mockDocIds = ['doc-1', 'doc-2'];
-      ragService.addDocuments.mockResolvedValue(mockDocIds);
+      service.addDocuments.mockResolvedValue(mockDocIds);
 
       const addRequest = {
         documents: [
@@ -102,7 +94,7 @@ describe('RagController', () => {
 
       const result = await controller.addDocuments(addRequest, tenantContext);
 
-      expect(ragService.addDocuments).toHaveBeenCalled();
+      expect(service.addDocuments).toHaveBeenCalled();
       expect(result.success).toBe(true);
       expect(result.data?.documentIds).toEqual(mockDocIds);
       expect(result.data?.count).toBe(2);
@@ -127,7 +119,7 @@ describe('RagController', () => {
         ],
       };
 
-      ragService.queryWithScores.mockResolvedValue(mockResponse);
+      service.queryWithScores.mockResolvedValue(mockResponse);
 
       const chatRequest = {
         message: 'Test message',
@@ -137,7 +129,7 @@ describe('RagController', () => {
 
       const result = await controller.chatWithScores(chatRequest, tenantContext);
 
-      expect(ragService.queryWithScores).toHaveBeenCalledWith(
+      expect(service.queryWithScores).toHaveBeenCalledWith(
         chatRequest.message,
         tenantContext,
         chatRequest.maxResults,
@@ -151,7 +143,7 @@ describe('RagController', () => {
     });
 
     it('should handle service errors', async () => {
-      ragService.queryWithScores.mockRejectedValue(new Error('Service error'));
+      service.queryWithScores.mockRejectedValue(new Error('Service error'));
 
       const chatRequest = {
         message: 'Test message',
@@ -165,7 +157,7 @@ describe('RagController', () => {
   describe('addTexts endpoint', () => {
     it('should call RagService.addTexts with correct parameters', async () => {
       const mockTextIds = ['text-1', 'text-2'];
-      ragService.addTexts.mockResolvedValue(mockTextIds);
+      service.addTexts.mockResolvedValue(mockTextIds);
 
       const addRequest = {
         texts: ['Text 1', 'Text 2'],
@@ -174,7 +166,7 @@ describe('RagController', () => {
 
       const result = await controller.addTexts(addRequest, tenantContext);
 
-      expect(ragService.addTexts).toHaveBeenCalledWith(addRequest.texts, tenantContext, addRequest.metadata);
+      expect(service.addTexts).toHaveBeenCalledWith(addRequest.texts, tenantContext, addRequest.metadata);
       expect(result.success).toBe(true);
       expect(result.data?.textIds).toEqual(mockTextIds);
       expect(result.data?.count).toBe(2);
@@ -183,7 +175,7 @@ describe('RagController', () => {
 
     it('should handle empty texts array', async () => {
       const mockTextIds: string[] = [];
-      ragService.addTexts.mockResolvedValue(mockTextIds);
+      service.addTexts.mockResolvedValue(mockTextIds);
 
       const addRequest = {
         texts: [],
@@ -207,7 +199,7 @@ describe('RagController', () => {
     });
 
     it('should handle service errors', () => {
-      jest.spyOn(ragService, 'clearDocuments').mockImplementation(() => {
+      jest.spyOn(service, 'clearDocuments').mockImplementation(() => {
         throw new Error('Clear failed');
       });
 

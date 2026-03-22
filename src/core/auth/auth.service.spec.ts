@@ -1,8 +1,11 @@
+import { mockCacheService } from '@/common/utils';
+import { CacheService } from '@/core/cache/cache.service';
 import { ShopService } from '@/modules/shop/shop.service';
 import { UserService } from '@/modules/user/user.service';
 import { AuthService } from './auth.service';
 import { AuthOutputDto } from './dto';
 
+import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -12,6 +15,7 @@ describe('AuthService', () => {
   let jwtService: JwtService;
   let userService: UserService;
   let shopService: ShopService;
+  let cacheService: CacheService;
 
   const mockAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockToken';
   const mockRefreshToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refreshToken';
@@ -37,27 +41,19 @@ describe('AuthService', () => {
         AuthService,
         {
           provide: JwtService,
-          useValue: {
-            signAsync: jest.fn(),
-            verifyAsync: jest.fn(),
-          },
+          useValue: createMock<JwtService>(),
         },
         {
           provide: UserService,
-          useValue: {
-            findByEmail: jest.fn(),
-            create: jest.fn(),
-            findById: jest.fn(),
-            validatePassword: jest.fn(),
-          },
+          useValue: createMock<UserService>(),
         },
         {
           provide: ShopService,
-          useValue: {
-            create: jest.fn(),
-            findByOwnerId: jest.fn(),
-            updateOwner: jest.fn(),
-          },
+          useValue: createMock<ShopService>(),
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheService(),
         },
       ],
     }).compile();
@@ -66,6 +62,7 @@ describe('AuthService', () => {
     jwtService = module.get<JwtService>(JwtService);
     userService = module.get<UserService>(UserService);
     shopService = module.get<ShopService>(ShopService);
+    cacheService = module.get<CacheService>(CacheService);
   });
 
   afterEach(() => {
@@ -183,12 +180,12 @@ describe('AuthService', () => {
         role: 'owner',
       };
 
+      jest.spyOn(cacheService, 'get').mockResolvedValue(mockRefreshTokenString);
       jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockPayload);
       jest.spyOn(userService, 'findById').mockResolvedValue(mockUser as any);
       jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(mockShop as any);
       jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
       jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce('new-refresh-token');
-      (service as any).refreshTokens.set('user-123', mockRefreshTokenString);
 
       const result = await service.refreshToken(mockRefreshTokenString);
 

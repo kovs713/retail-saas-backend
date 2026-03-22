@@ -1,27 +1,17 @@
 import { createMockTenantContext } from '@/common/utils';
+import { LoggerService } from '@/core/logger/logger.service';
 import { EmbeddingsService } from './embeddings/embeddings.service';
 import { LLMService } from './llm/llm.service';
 import { RagService } from './rag.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
 
-import { createMock } from '@golevelup/ts-jest';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
-
-jest.mock('@/core/logger/logger.service', () => ({
-  LoggerService: jest.fn().mockImplementation((context?: string) => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-    context: context || 'AppLogger',
-  })),
-}));
 
 describe('RagService', () => {
   let service: RagService;
-  let llmService: ReturnType<typeof createMock<LLMService>>;
-  let vectorStoreService: ReturnType<typeof createMock<VectorStoreService>>;
+  let llmService: DeepMocked<LLMService>;
+  let vectorStoreService: DeepMocked<VectorStoreService>;
 
   const mockTenantContext = createMockTenantContext();
 
@@ -41,12 +31,16 @@ describe('RagService', () => {
           provide: VectorStoreService,
           useValue: createMock<VectorStoreService>(),
         },
+        {
+          provide: LoggerService,
+          useValue: createMock<LoggerService>(),
+        },
       ],
     }).compile();
 
     service = module.get<RagService>(RagService);
-    llmService = module.get(LLMService);
-    vectorStoreService = module.get(VectorStoreService);
+    llmService = module.get<DeepMocked<LLMService>>(LLMService);
+    vectorStoreService = module.get<DeepMocked<VectorStoreService>>(VectorStoreService);
   });
 
   it('should be defined', () => {

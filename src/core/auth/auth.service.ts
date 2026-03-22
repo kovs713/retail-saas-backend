@@ -1,4 +1,5 @@
 import { TokenPayload } from '@/common/types';
+import { CacheService } from '@/core/cache/cache.service';
 import { ShopService } from '@/modules/shop/shop.service';
 import { UserService } from '@/modules/user/user.service';
 import { AuthOutputDto, RegisterDto, SignInDto } from './dto';
@@ -8,12 +9,14 @@ import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-  private readonly refreshTokens: Map<string, string> = new Map();
+  private readonly REFRESH_TOKEN_PREFIX = 'auth:refresh';
+  private readonly REFRESH_TOKEN_TTL = 604800;
 
   constructor(
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
     private readonly shopService: ShopService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthOutputDto> {
@@ -46,7 +49,11 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(tokenPayload);
     const refreshToken = await this.jwtService.signAsync(tokenPayload, { expiresIn: '7d' });
 
-    this.refreshTokens.set(user.id, refreshToken);
+    await this.cacheService.set(
+      this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, user.id),
+      refreshToken,
+      this.REFRESH_TOKEN_TTL,
+    );
 
     return {
       email: user.email,
@@ -61,7 +68,7 @@ export class AuthService {
     const isValid = await this.userService.validatePassword(user, signInDto.password);
 
     if (!isValid) {
-      throw new Error('Invalid credentials');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const shop = await this.shopService.findByOwnerId(user.id);
@@ -76,7 +83,11 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(tokenPayload);
     const refreshToken = await this.jwtService.signAsync(tokenPayload, { expiresIn: '7d' });
 
-    this.refreshTokens.set(user.id, refreshToken);
+    await this.cacheService.set(
+      this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, user.id),
+      refreshToken,
+      this.REFRESH_TOKEN_TTL,
+    );
 
     return {
       email: user.email,
@@ -89,7 +100,9 @@ export class AuthService {
     try {
       const payload = await this.jwtService.verifyAsync<TokenPayload>(refreshToken);
 
-      const storedToken = this.refreshTokens.get(payload.sub);
+      const storedToken = await this.cacheService.get<string>(
+        this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, payload.sub),
+      );
 
       if (!storedToken || storedToken !== refreshToken) {
         throw new UnauthorizedException('Invalid refresh token');
@@ -108,7 +121,11 @@ export class AuthService {
       const newAccessToken = await this.jwtService.signAsync(newTokenPayload);
       const newRefreshToken = await this.jwtService.signAsync(newTokenPayload, { expiresIn: '7d' });
 
-      this.refreshTokens.set(user.id, newRefreshToken);
+      await this.cacheService.set(
+        this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, user.id),
+        newRefreshToken,
+        this.REFRESH_TOKEN_TTL,
+      );
 
       return {
         email: user.email,
@@ -118,5 +135,9 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
+  }
+
+  async revokeRefreshToken(userId: string): Promise<void> {
+    await this.cacheService.del(this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, userId));
   }
 }

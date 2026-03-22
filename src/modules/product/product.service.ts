@@ -1,5 +1,6 @@
 import { Pagination, PaginationResponse } from '@/common/dto';
 import { TenantContext } from '@/common/types';
+import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { CreateProductDto, UpdateProductDto } from './dto';
 import { Product } from './entities/product.entity';
@@ -25,6 +26,7 @@ export class ProductService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    private readonly cacheService: CacheService,
   ) {}
 
   async create(createProductDto: CreateProductDto, tenantContext: TenantContext): Promise<Product> {
@@ -48,11 +50,28 @@ export class ProductService {
     });
     const savedProduct = await this.productRepository.save(product);
 
+    await this.invalidateProductCache(tenantContext.shopId);
+
     this.logger.log(`Product created successfully with ID: ${savedProduct.id}`);
     return savedProduct;
   }
 
   async findAll(query: Pagination, tenantContext: TenantContext): Promise<PaginationResponse<Product>> {
+    const cacheKey = this.cacheService.generateKey(
+      'products',
+      'list',
+      tenantContext.shopId,
+      query.page ?? 1,
+      query.limit ?? 10,
+      query.category || 'all',
+      query.search || '',
+    );
+
+    const cached = await this.cacheService.get<PaginationResponse<Product>>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     this.logger.log(
       `Finding products with query: page=${query.page}, limit=${query.limit}, search=${query.search || 'none'} for shop: ${tenantContext.shopId}`,
     );
@@ -107,7 +126,7 @@ export class ProductService {
 
     this.logger.log(`Found ${data.length} products (total: ${total}, page: ${page})`);
 
-    return {
+    const result: PaginationResponse<Product> = {
       success: true,
       data: data,
       pagination: {
@@ -117,9 +136,19 @@ export class ProductService {
         totalPages: Math.ceil(total / limit),
       },
     };
+
+    await this.cacheService.set(cacheKey, result, 300);
+
+    return result;
   }
 
   async findOne(id: string, tenantContext: TenantContext): Promise<Product> {
+    const cacheKey = this.cacheService.generateKey('product', 'id', id);
+    const cached = await this.cacheService.get<Product>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     this.logger.log(`Finding product by ID: ${id} for shop: ${tenantContext.shopId}`);
 
     const product = await this.productRepository.findOne({
@@ -135,11 +164,19 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
+    await this.cacheService.set(cacheKey, product, 600);
+
     this.logger.log(`Product found: ${product.name}`);
     return product;
   }
 
   async findOneBySku(sku: string, tenantContext: TenantContext): Promise<Product> {
+    const cacheKey = this.cacheService.generateKey('product', 'sku', tenantContext.shopId, sku);
+    const cached = await this.cacheService.get<Product>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     this.logger.log(`Finding product by SKU: ${sku} for shop: ${tenantContext.shopId}`);
 
     const product = await this.productRepository.findOne({
@@ -154,6 +191,8 @@ export class ProductService {
       this.logger.warn(`Product with SKU ${sku} not found in organization ${tenantContext.shopId}`);
       throw new NotFoundException('Product not found');
     }
+
+    await this.cacheService.set(cacheKey, product, 600);
 
     this.logger.log(`Product found: ${product.name}`);
     return product;
@@ -179,6 +218,7 @@ export class ProductService {
     }
 
     await this.productRepository.update(id, updateProductDto as QueryDeepPartialEntity<Product>);
+    await this.invalidateProductCache(tenantContext.shopId, id);
     const updatedProduct = await this.findOne(id, tenantContext);
 
     this.logger.log(`Product updated successfully: ${updatedProduct.name}`);
@@ -190,6 +230,7 @@ export class ProductService {
 
     await this.findOne(id, tenantContext);
     await this.productRepository.softDelete(id);
+    await this.invalidateProductCache(tenantContext.shopId, id);
 
     this.logger.log(`Product ${id} soft deleted successfully`);
   }
@@ -214,6 +255,8 @@ export class ProductService {
       throw new NotFoundException('Product not found or already active');
     }
 
+    await this.invalidateProductCache(tenantContext.shopId, id);
+
     this.logger.log(`Product ${id} restored successfully`);
     return { message: 'Product restored successfully' };
   }
@@ -222,6 +265,7 @@ export class ProductService {
     this.logger.log(`Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${tenantContext.shopId}`);
 
     await this.productRepository.update(id, { quantity });
+    await this.invalidateProductCache(tenantContext.shopId, id);
     const updatedProduct = await this.findOne(id, tenantContext);
 
     this.logger.log(`Stock updated for product ${id}: ${updatedProduct.quantity}`);
@@ -235,6 +279,7 @@ export class ProductService {
 
     await this.findOne(id, tenantContext);
     await this.productRepository.increment({ id }, 'quantity', adjustment);
+    await this.invalidateProductCache(tenantContext.shopId, id);
     const updatedProduct = await this.findOne(id, tenantContext);
 
     this.logger.log(`Stock adjusted for product ${id}: ${updatedProduct.quantity}`);
@@ -270,6 +315,12 @@ export class ProductService {
   }
 
   async findByBarcode(barcode: string, tenantContext: TenantContext): Promise<Product> {
+    const cacheKey = this.cacheService.generateKey('product', 'barcode', tenantContext.shopId, barcode);
+    const cached = await this.cacheService.get<Product>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     this.logger.log(`Finding product by barcode: ${barcode} for shop: ${tenantContext.shopId}`);
 
     const product = await this.productRepository.findOne({
@@ -285,11 +336,19 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
+    await this.cacheService.set(cacheKey, product, 600);
+
     this.logger.log(`Product found: ${product.name}`);
     return product;
   }
 
   async findLowStock(threshold: number = 10, tenantContext: TenantContext): Promise<Product[]> {
+    const cacheKey = this.cacheService.generateKey('products', 'low-stock', tenantContext.shopId, threshold);
+    const cached = await this.cacheService.get<Product[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     this.logger.log(`Finding products with low stock (threshold: ${threshold}) for shop: ${tenantContext.shopId}`);
 
     const products = await this.productRepository.find({
@@ -301,6 +360,9 @@ export class ProductService {
     });
 
     this.logger.log(`Found ${products.length} products with low stock`);
+
+    await this.cacheService.set(cacheKey, products, 120);
+
     return products;
   }
 
@@ -312,5 +374,13 @@ export class ProductService {
     }
 
     return order;
+  }
+
+  private async invalidateProductCache(shopId: string, productId?: string): Promise<void> {
+    if (productId) {
+      await this.cacheService.del(this.cacheService.generateKey('product', 'id', productId));
+      await this.cacheService.del(this.cacheService.generateKey('product', 'sku', shopId, productId));
+    }
+    await this.cacheService.delPattern(`products:list:${shopId}:*`);
   }
 }

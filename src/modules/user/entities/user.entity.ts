@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -11,6 +12,10 @@ import {
 import { Shop } from '../../shop/entities/shop.entity';
 
 @Entity('users')
+@Index(['email'], { unique: true })
+@Index(['shopId'])
+@Index(['role'])
+@Index(['isActive'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;

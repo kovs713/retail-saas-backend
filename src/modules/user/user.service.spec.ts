@@ -1,8 +1,11 @@
+import { mockCacheService } from '@/common/utils';
+import { CacheService } from '@/core/cache/cache.service';
 import { Shop } from '@/modules/shop/entities/shop.entity';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { CreateUserDto, UpdateUserDto } from './dto';
 import { User } from './entities/user.entity';
-import { CreateUserDto, UpdateUserDto, UserService } from './user.service';
+import { UserService } from './user.service';
 
-import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -16,7 +19,7 @@ jest.mock('bcryptjs', () => ({
 
 describe('UserService', () => {
   let service: UserService;
-  let repository: ReturnType<typeof createMock<Repository<User>>>;
+  let repository: DeepMocked<Repository<User>>;
 
   const mockUser: User = {
     id: 'user-123',
@@ -37,6 +40,10 @@ describe('UserService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: createMock<Repository<User>>(),
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheService(),
         },
       ],
     }).compile();

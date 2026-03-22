@@ -1,8 +1,11 @@
 import { User } from '@/modules/user/entities/user.entity';
 
-import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('shops')
+@Index(['slug'])
+@Index(['ownerId'])
+@Index(['isActive'])
 export class Shop {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -16,7 +16,7 @@ export class StorageModule {
         {
           provide: MinioClient,
           inject: [ConfigService],
-          useFactory: (configService: ConfigService) => {
+          useFactory: (configService: ConfigService): Client => {
             const host = configService.getOrThrow<string>('S3_HOST');
             const port = configService.getOrThrow<number>('S3_PORT');
             const accessKey = configService.getOrThrow<string>('S3_USERNAME');
@@ -32,6 +32,7 @@ export class StorageModule {
             });
           },
         },
+
         StorageService,
       ],
       exports: [StorageService],

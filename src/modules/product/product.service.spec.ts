@@ -1,4 +1,5 @@
-import { createMockTenantContext } from '@/common/utils';
+import { createMockTenantContext, mockCacheService } from '@/common/utils';
+import { CacheService } from '@/core/cache/cache.service';
 import { Product } from './entities/product.entity';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';
@@ -8,16 +9,6 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, UpdateResult } from 'typeorm';
-
-jest.mock('@/core/logger/logger.service', () => ({
-  LoggerService: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
 
 describe('ProductService', () => {
   let service: ProductService;
@@ -33,6 +24,10 @@ describe('ProductService', () => {
         {
           provide: getRepositoryToken(Product),
           useValue: createMock<Repository<Product>>(),
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheService(),
         },
       ],
     }).compile();

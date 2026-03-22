@@ -17,7 +17,6 @@ export class RagService {
 
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
     const ids = await this.vectorStoreService.addDocuments(documents, tenantContext);
-    this.logger.log(`Added ${documents.length} documents to RAG system for organization: ${tenantContext.shopId}`);
     return ids;
   }
 
@@ -52,19 +51,19 @@ export class RagService {
     if (systemPrompt) {
       prompt = `${systemPrompt}
 
-Context:
-${context}
+                Context:
+                ${context}
 
-Question: ${query}
+                Question: ${query}
 
-${baseInstructions}`;
+                ${baseInstructions}`;
     } else {
       prompt = `You are a helpful assistant that answers questions based on the provided context. ${baseInstructions}
 
-Context:
-${context}
+                Context:
+                ${context}
 
-Question: ${query}`;
+                Question: ${query}`;
     }
 
     const answer = await this.llmService.generateText(prompt);
@@ -114,19 +113,19 @@ Question: ${query}`;
     if (systemPrompt) {
       prompt = `${systemPrompt}
 
-Context:
-${context}
+                Context:
+                ${context}
 
-Question: ${query}
+                Question: ${query}
 
-${baseInstructions}`;
+                ${baseInstructions}`;
     } else {
       prompt = `You are a helpful assistant that answers questions based on the provided context. ${baseInstructions}
 
-Context:
-${context}
+                Context:
+                ${context}
 
-Question: ${query}`;
+                Question: ${query}`;
     }
 
     const answer = await this.llmService.generateText(prompt);
@@ -147,7 +146,6 @@ Question: ${query}`;
 
   async addTexts(texts: string[], tenantContext: TenantContext, metadata?: Record<string, any>[]): Promise<string[]> {
     const documentIds = await this.vectorStoreService.addTexts(texts, tenantContext, metadata);
-    this.logger.log(`Added ${texts.length} text documents to RAG system for organization: ${tenantContext.shopId}`);
     return documentIds;
   }
 }

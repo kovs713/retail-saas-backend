@@ -1,42 +1,28 @@
 import { ChromaDBClient, TenantContext } from '@/common/types';
+import { createMockTenantContext } from '@/common/utils';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { VectorStoreService } from './vector-store.service';
 
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { Document } from '@langchain/core/documents';
 import { Test, TestingModule } from '@nestjs/testing';
 
-jest.mock('@/core/logger/logger.service', () => ({
-  LoggerService: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
-
 describe('VectorStoreService', () => {
   let service: VectorStoreService;
-  let embeddingsService: EmbeddingsService;
-  let chromaDBClient: Chroma;
+  let embeddingsService: DeepMocked<EmbeddingsService>;
+  let chromaDBClient: DeepMocked<Chroma>;
 
-  const mockTenantContext: TenantContext = {
-    shopId: 'test-shop-id',
-  };
+  let mockTenantContext: TenantContext;
 
   beforeEach(async () => {
-    embeddingsService = {
-      embedDocuments: jest.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
-    } as unknown as EmbeddingsService;
+    mockTenantContext = createMockTenantContext();
 
-    chromaDBClient = {
-      addDocuments: jest.fn().mockResolvedValue(['doc-1']),
-      addVectors: jest.fn().mockResolvedValue(['vec-1']),
-      similaritySearch: jest.fn().mockResolvedValue([]),
-      similaritySearchWithScore: jest.fn().mockResolvedValue([]),
-      asRetriever: jest.fn().mockReturnValue({}),
-    } as unknown as Chroma;
+    embeddingsService = createMock<EmbeddingsService>();
+    embeddingsService.embedDocuments.mockResolvedValue([[0.1, 0.2, 0.3]]);
+
+    chromaDBClient = createMock<Chroma>();
+    chromaDBClient.addDocuments.mockResolvedValue(['doc-1']);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -53,6 +39,8 @@ describe('VectorStoreService', () => {
     }).compile();
 
     service = module.get<VectorStoreService>(VectorStoreService);
+    embeddingsService = module.get<DeepMocked<EmbeddingsService>>(EmbeddingsService);
+    chromaDBClient = module.get<DeepMocked<Chroma>>(ChromaDBClient);
   });
 
   afterEach(() => {

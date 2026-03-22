@@ -1,7 +1,5 @@
 import { AuthService } from './auth.service';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { RegisterDto } from './dto/register.dto';
-import { SignInDto } from './dto/sign-in.dto';
+import { RefreshTokenDto, RegisterDto, SignInDto } from './dto';
 
 import { Body, Controller, Post } from '@nestjs/common';
 

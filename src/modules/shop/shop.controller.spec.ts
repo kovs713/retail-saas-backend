@@ -1,4 +1,5 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
+import { mockAuthGuard, mockGuard } from '@/common/utils';
 import { User } from '@/modules/user/entities/user.entity';
 import { CreateShopDto } from './dto/create-shop.dto';
 import { UpdateShopDto } from './dto/update-shop.dto';
@@ -6,6 +7,7 @@ import { Shop } from './entities/shop.entity';
 import { ShopController } from './shop.controller';
 import { ShopService } from './shop.service';
 
+import { createMock } from '@golevelup/ts-jest';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
@@ -33,41 +35,34 @@ describe('ShopController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [ShopController],
       providers: [
         {
           provide: ShopService,
-          useValue: {
-            create: jest.fn(),
-            findBySlug: jest.fn(),
-            findById: jest.fn(),
-            update: jest.fn(),
-            updateMediaUrls: jest.fn(),
-          },
-        },
-        {
-          provide: AuthGuard,
-          useValue: { canActivate: jest.fn().mockReturnValue(true) },
-        },
-        {
-          provide: RolesGuard,
-          useValue: { canActivate: jest.fn().mockReturnValue(true) },
+          useValue: createMock<ShopService>(),
         },
         {
           provide: JwtService,
-          useValue: { verifyAsync: jest.fn() },
+          useValue: createMock<JwtService>(),
         },
         {
           provide: ConfigService,
-          useValue: { getOrThrow: jest.fn().mockReturnValue('test-secret') },
+          useValue: createMock<ConfigService>(),
         },
         Reflector,
       ],
+      controllers: [ShopController],
     })
       .overrideGuard(AuthGuard)
-      .useValue({ canActivate: jest.fn().mockReturnValue(true) })
+      .useValue(
+        mockAuthGuard({
+          sub: 'user-123',
+          email: 'test@example.com',
+          shopId: 'shop-456',
+          role: 'owner',
+        }),
+      )
       .overrideGuard(RolesGuard)
-      .useValue({ canActivate: jest.fn().mockReturnValue(true) })
+      .useValue(mockGuard())
       .compile();
 
     controller = module.get<ShopController>(ShopController);
