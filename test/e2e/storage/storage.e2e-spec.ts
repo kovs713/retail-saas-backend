@@ -1,3 +1,4 @@
+import { CommonModule } from '@/common/common.module';
 import { AuthModule } from '@/core/auth/auth.module';
 import { StorageModule } from '@/modules/storage/storage.module';
 import { postgresVersion } from '../env.const';
@@ -7,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import * as path from 'path';
 import request from 'supertest';
 import { StartedTestContainer } from 'testcontainers';
 
@@ -30,6 +32,7 @@ describe('Storage E2E Tests', () => {
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
+          envFilePath: path.resolve(__dirname, '../../.env'),
           load: [
             () => ({
               S3_ENDPOINT: process.env.S3_ENDPOINT || 'http://localhost:9000',
@@ -40,6 +43,8 @@ describe('Storage E2E Tests', () => {
               S3_USE_SSL: 'false',
               S3_PORT: process.env.S3_PORT || '9000',
               S3_HOST: process.env.S3_HOST || 'localhost',
+              JWT_SECRET: process.env.JWT_SECRET || 'test-secret',
+              JWT_EXPIRED_TIME: process.env.JWT_EXPIRED_TIME || '1d',
             }),
           ],
         }),
@@ -56,6 +61,7 @@ describe('Storage E2E Tests', () => {
         }),
         AuthModule,
         StorageModule,
+        CommonModule,
       ],
     }).compile();
 

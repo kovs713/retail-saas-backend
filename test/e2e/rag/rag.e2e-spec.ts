@@ -2,6 +2,7 @@ import { AuthModule } from '@/core/auth/auth.module';
 import { RagModule } from '@/modules/rag/rag.module';
 import { ShopModule } from '@/modules/shop/shop.module';
 import { UserModule } from '@/modules/user/user.module';
+import { CommonModule } from '@/common/common.module';
 import { postgresVersion } from '../env.const';
 
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -11,6 +12,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import request from 'supertest';
 import { StartedTestContainer } from 'testcontainers';
+import * as path from 'path';
 
 describe('RAG E2E Tests', () => {
   let app: INestApplication;
@@ -29,11 +31,14 @@ describe('RAG E2E Tests', () => {
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
+          envFilePath: path.resolve(__dirname, '../../.env'),
           load: [
             () => ({
               CHROMA_URL: process.env.CHROMA_URL || 'http://localhost:8000',
               GROQ_API_KEY: process.env.GROQ_API_KEY || 'mock-api-key',
               LLM_MODEL: process.env.LLM_MODEL || 'llama-3.1-70b-versatile',
+              JWT_SECRET: process.env.JWT_SECRET || 'test-secret',
+              JWT_EXPIRED_TIME: process.env.JWT_EXPIRED_TIME || '1d',
             }),
           ],
         }),
@@ -52,6 +57,7 @@ describe('RAG E2E Tests', () => {
         UserModule,
         ShopModule,
         RagModule,
+        CommonModule,
       ],
     }).compile();
 

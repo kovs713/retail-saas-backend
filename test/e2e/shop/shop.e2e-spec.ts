@@ -1,6 +1,7 @@
 import { AuthModule } from '@/core/auth/auth.module';
 import { ShopModule } from '@/modules/shop/shop.module';
 import { UserModule } from '@/modules/user/user.module';
+import { CommonModule } from '@/common/common.module';
 import { postgresVersion } from '../env.const';
 
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -10,6 +11,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import request from 'supertest';
 import { StartedTestContainer } from 'testcontainers';
+import * as path from 'path';
 
 describe('Shop E2E Tests', () => {
   let app: INestApplication;
@@ -30,7 +32,13 @@ describe('Shop E2E Tests', () => {
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
-          envFilePath: '.env.test',
+          envFilePath: path.resolve(__dirname, '../../.env'),
+          load: [
+            () => ({
+              JWT_SECRET: process.env.JWT_SECRET || 'test-secret-key-for-e2e-tests',
+              JWT_EXPIRED_TIME: process.env.JWT_EXPIRED_TIME || '1d',
+            }),
+          ],
         }),
         TypeOrmModule.forRoot({
           type: 'postgres',
@@ -46,6 +54,7 @@ describe('Shop E2E Tests', () => {
         AuthModule,
         UserModule,
         ShopModule,
+        CommonModule,
       ],
     }).compile();
 

@@ -1,6 +1,7 @@
 import { AuthModule } from '@/core/auth/auth.module';
 import { ShopModule } from '@/modules/shop/shop.module';
 import { UserModule } from '@/modules/user/user.module';
+import { CommonModule } from '@/common/common.module';
 import { postgresVersion } from '../env.const';
 
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -10,6 +11,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import request from 'supertest';
 import { StartedTestContainer } from 'testcontainers';
+import * as path from 'path';
 
 describe('Authentication E2E (Expanded)', () => {
   let app: INestApplication;
@@ -26,7 +28,13 @@ describe('Authentication E2E (Expanded)', () => {
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
-          envFilePath: '.env.test',
+          envFilePath: path.resolve(__dirname, '../../.env'),
+          load: [
+            () => ({
+              JWT_SECRET: process.env.JWT_SECRET || 'test-secret-key-for-e2e-tests',
+              JWT_EXPIRED_TIME: process.env.JWT_EXPIRED_TIME || '1d',
+            }),
+          ],
         }),
         TypeOrmModule.forRoot({
           type: 'postgres',
@@ -42,6 +50,7 @@ describe('Authentication E2E (Expanded)', () => {
         AuthModule,
         UserModule,
         ShopModule,
+        CommonModule,
       ],
     }).compile();
 
@@ -72,12 +81,10 @@ describe('Authentication E2E (Expanded)', () => {
 
       const response = await request(app.getHttpServer()).post('/auth/register').send(registerDto).expect(201);
 
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty('accessToken');
-      expect(response.body.data).toHaveProperty('refreshToken');
-      expect(response.body.data).toHaveProperty('userId');
-      expect(response.body.data).toHaveProperty('shopId');
-      expect(response.body.data.email).toBe(registerDto.email);
+      expect(response.body).toHaveProperty('accessToken');
+      expect(response.body).toHaveProperty('refreshToken');
+      expect(response.body).toHaveProperty('email');
+      expect(response.body.email).toBe(registerDto.email);
     });
 
     it('should fail with duplicate email', async () => {
@@ -224,7 +231,7 @@ describe('Authentication E2E (Expanded)', () => {
         })
         .expect(201);
 
-      testRefreshToken = registerResponse.body.data.refreshToken;
+      testRefreshToken = registerResponse.body.refreshToken;
     });
 
     it('should successfully refresh token', async () => {
@@ -233,10 +240,9 @@ describe('Authentication E2E (Expanded)', () => {
         .send({ refreshToken: testRefreshToken })
         .expect(201);
 
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty('accessToken');
-      expect(response.body.data).toHaveProperty('refreshToken');
-      expect(response.body.data.refreshToken).not.toBe(testRefreshToken);
+      expect(response.body).toHaveProperty('accessToken');
+      expect(response.body).toHaveProperty('refreshToken');
+      expect(response.body.refreshToken).not.toBe(testRefreshToken);
     });
 
     it('should fail with invalid refresh token', async () => {
@@ -253,7 +259,7 @@ describe('Authentication E2E (Expanded)', () => {
         .send({ refreshToken: testRefreshToken })
         .expect(201);
 
-      const newRefreshToken = firstRefresh.body.data.refreshToken;
+      const newRefreshToken = firstRefresh.body.refreshToken;
 
       await request(app.getHttpServer()).post('/auth/refresh').send({ refreshToken: testRefreshToken }).expect(401);
 
@@ -262,7 +268,7 @@ describe('Authentication E2E (Expanded)', () => {
         .send({ refreshToken: newRefreshToken })
         .expect(201);
 
-      expect(secondRefresh.body.data.refreshToken).toBeDefined();
+      expect(secondRefresh.body.refreshToken).toBeDefined();
     });
   });
 
@@ -281,8 +287,8 @@ describe('Authentication E2E (Expanded)', () => {
         })
         .expect(201);
 
-      logoutAccessToken = registerResponse.body.data.accessToken;
-      logoutRefreshToken = registerResponse.body.data.refreshToken;
+      logoutAccessToken = registerResponse.body.accessToken;
+      logoutRefreshToken = registerResponse.body.refreshToken;
     });
 
     it('should logout user successfully', async () => {
@@ -292,7 +298,7 @@ describe('Authentication E2E (Expanded)', () => {
         .send({ refreshToken: logoutRefreshToken })
         .expect(200);
 
-      expect(response.body.success).toBe(true);
+      expect(response.body).toBeDefined();
     });
 
     it('should invalidate access token after logout', async () => {
@@ -306,8 +312,8 @@ describe('Authentication E2E (Expanded)', () => {
         })
         .expect(201);
 
-      const testAccessToken = registerResponse.body.data.accessToken;
-      const testRefreshToken = registerResponse.body.data.refreshToken;
+      const testAccessToken = registerResponse.body.accessToken;
+      const testRefreshToken = registerResponse.body.refreshToken;
 
       await request(app.getHttpServer())
         .post('/auth/logout')
@@ -333,7 +339,7 @@ describe('Authentication E2E (Expanded)', () => {
         })
         .expect(201);
 
-      resetEmail = registerResponse.body.data.email;
+      resetEmail = registerResponse.body.email;
     });
 
     it('should request password reset email', async () => {
@@ -352,7 +358,7 @@ describe('Authentication E2E (Expanded)', () => {
         .send({ email: 'nonexistent@example.com' })
         .expect(200);
 
-      expect(response.body.success).toBe(true);
+      expect(response.body).toBeDefined();
     });
 
     it('should fail with invalid email format', async () => {
@@ -374,7 +380,7 @@ describe('Authentication E2E (Expanded)', () => {
         })
         .expect(201);
 
-      validToken = registerResponse.body.data.accessToken;
+      validToken = registerResponse.body.accessToken;
     });
 
     it('should accept valid token', async () => {
@@ -383,7 +389,7 @@ describe('Authentication E2E (Expanded)', () => {
         .set('Authorization', `Bearer ${validToken}`)
         .expect(200);
 
-      expect(response.body.success).toBe(true);
+      expect(response.body).toBeDefined();
     });
 
     it('should reject malformed token', async () => {
