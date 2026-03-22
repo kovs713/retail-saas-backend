@@ -1,43 +1,28 @@
-import { VectorStoreService } from './vector-store.service';
+import { ChromaDBClient, TenantContext } from '@/common/types';
+import { createMockTenantContext } from '@/common/utils';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
-import { ChromaDBClient } from '@/common/types/providers.type';
-import { TenantContext } from '@/common/types/tenant-context.type';
+import { VectorStoreService } from './vector-store.service';
 
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { Document } from '@langchain/core/documents';
 import { Test, TestingModule } from '@nestjs/testing';
 
-jest.mock('@/core/logger/app-logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
-
 describe('VectorStoreService', () => {
   let service: VectorStoreService;
-  let embeddingsService: EmbeddingsService;
-  let chromaDBClient: Chroma;
+  let embeddingsService: DeepMocked<EmbeddingsService>;
+  let chromaDBClient: DeepMocked<Chroma>;
 
-  const mockTenantContext: TenantContext = {
-    organizationId: 'test-org-id',
-  };
+  let mockTenantContext: TenantContext;
 
   beforeEach(async () => {
-    embeddingsService = {
-      embedDocuments: jest.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
-    } as unknown as EmbeddingsService;
+    mockTenantContext = createMockTenantContext();
 
-    chromaDBClient = {
-      addDocuments: jest.fn().mockResolvedValue(['doc-1']),
-      addVectors: jest.fn().mockResolvedValue(['vec-1']),
-      similaritySearch: jest.fn().mockResolvedValue([]),
-      similaritySearchWithScore: jest.fn().mockResolvedValue([]),
-      asRetriever: jest.fn().mockReturnValue({}),
-    } as unknown as Chroma;
+    embeddingsService = createMock<EmbeddingsService>();
+    embeddingsService.embedDocuments.mockResolvedValue([[0.1, 0.2, 0.3]]);
+
+    chromaDBClient = createMock<Chroma>();
+    chromaDBClient.addDocuments.mockResolvedValue(['doc-1']);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -54,6 +39,8 @@ describe('VectorStoreService', () => {
     }).compile();
 
     service = module.get<VectorStoreService>(VectorStoreService);
+    embeddingsService = module.get<DeepMocked<EmbeddingsService>>(EmbeddingsService);
+    chromaDBClient = module.get<DeepMocked<Chroma>>(ChromaDBClient);
   });
 
   afterEach(() => {
@@ -61,7 +48,7 @@ describe('VectorStoreService', () => {
   });
 
   describe('addDocuments', () => {
-    it('should add organizationId to document metadata', async () => {
+    it('should add shopId to document metadata', async () => {
       const documents: Document[] = [
         {
           pageContent: 'Test content',
@@ -76,7 +63,7 @@ describe('VectorStoreService', () => {
           pageContent: 'Test content',
           metadata: {
             source: 'test',
-            organizationId: mockTenantContext.organizationId,
+            shopId: mockTenantContext.shopId,
           },
         },
       ]);
@@ -125,11 +112,11 @@ describe('VectorStoreService', () => {
   });
 
   describe('similaritySearch', () => {
-    it('should filter results by organizationId', async () => {
+    it('should filter results by shopId', async () => {
       await service.similaritySearch('test query', mockTenantContext, 5);
 
       expect(chromaDBClient.similaritySearch).toHaveBeenCalledWith('test query', 5, {
-        organizationId: mockTenantContext.organizationId,
+        shopId: mockTenantContext.shopId,
       });
     });
 
@@ -139,7 +126,7 @@ describe('VectorStoreService', () => {
       await service.similaritySearch('test query', mockTenantContext, 5, customFilter);
 
       expect(chromaDBClient.similaritySearch).toHaveBeenCalledWith('test query', 5, {
-        organizationId: mockTenantContext.organizationId,
+        shopId: mockTenantContext.shopId,
         source: 'test',
       });
     });
@@ -167,7 +154,7 @@ describe('VectorStoreService', () => {
         'test query',
         5,
         expect.objectContaining({
-          organizationId: mockTenantContext.organizationId,
+          shopId: mockTenantContext.shopId,
         }),
       );
     });
@@ -198,7 +185,7 @@ describe('VectorStoreService', () => {
       expect(typedChromaDBClient.asRetriever).toHaveBeenCalledWith(
         expect.objectContaining({
           filter: expect.objectContaining({
-            organizationId: mockTenantContext.organizationId,
+            shopId: mockTenantContext.shopId,
           }),
         }),
       );
@@ -212,7 +199,7 @@ describe('VectorStoreService', () => {
       expect(typedChromaDBClient.asRetriever).toHaveBeenCalledWith(
         expect.objectContaining({
           filter: {
-            organizationId: mockTenantContext.organizationId,
+            shopId: mockTenantContext.shopId,
             source: 'test',
           },
         }),

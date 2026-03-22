@@ -1,5 +1,4 @@
-import { AppLogger } from '@/app/core/logger/app-logger.service';
-import { ChromaDBClient } from '@/common/types/providers.type';
+import { ChromaDBClient } from '@/common/types';
 import { EmbeddingsModule } from '../embeddings/embeddings.module';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { VectorStoreService } from './vector-store.service';
@@ -13,12 +12,12 @@ export class VectorStoreModule {
   static forRootAsync(): DynamicModule {
     return {
       module: VectorStoreModule,
-      imports: [EmbeddingsModule.forRootAsync()],
+      imports: [EmbeddingsModule],
       providers: [
         {
           provide: ChromaDBClient,
           inject: [ConfigService, EmbeddingsService],
-          useFactory(config: ConfigService, embeddingsService: EmbeddingsService) {
+          useFactory: (config: ConfigService, embeddingsService: EmbeddingsService): Chroma => {
             const collectionName = config.get<string>('VECTOR_COLLECTION_NAME');
             const chromadbUrl = config.get<string>('CHROMADB_URL');
 
@@ -40,7 +39,6 @@ export class VectorStoreModule {
           },
         },
 
-        AppLogger,
         VectorStoreService,
       ],
       exports: [VectorStoreService],

@@ -1,6 +1,6 @@
+import { ChromaDBClient } from '@/common/types';
 import { VectorStoreModule } from './vector-store.module';
 import { VectorStoreService } from './vector-store.service';
-import { ChromaDBClient } from '@/common/types/providers.type';
 
 describe('VectorStoreModule', () => {
   it('forRootAsync should return a dynamic module', () => {
@@ -28,7 +28,7 @@ describe('VectorStoreModule', () => {
     expect(chromaProvider).toBeDefined();
   });
 
-  it('should include VectorStoreService and AppLogger as providers', () => {
+  it('should include VectorStoreService and LoggerService as providers', () => {
     const dynamicModule = VectorStoreModule.forRootAsync();
 
     expect(dynamicModule.providers).toBeDefined();

@@ -1,5 +1,4 @@
-import { AppLogger } from '@/app/core/logger/app-logger.service';
-import { ChatGroqClient } from '@/common/types/providers.type';
+import { ChatGroqClient } from '@/common/types';
 import { LLMService } from './llm.service';
 
 import { ChatGroq } from '@langchain/groq';
@@ -28,7 +27,6 @@ export class LLMModule {
           },
         },
 
-        AppLogger,
         LLMService,
       ],
       exports: [LLMService],

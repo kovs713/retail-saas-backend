@@ -1,5 +1,5 @@
-import { AppLogger } from '@/app/core/logger/app-logger.service';
-import { ChatGroqClient } from '@/common/types/providers.type';
+import { ChatGroqClient } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGroq } from '@langchain/groq';
@@ -7,7 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class LLMService {
-  private readonly logger = new AppLogger(LLMService.name);
+  private readonly logger = new LoggerService(LLMService.name);
 
   constructor(@Inject(ChatGroqClient) private readonly chatGroqClient: ChatGroq) {}
 

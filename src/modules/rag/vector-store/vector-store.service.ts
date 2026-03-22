@@ -1,6 +1,5 @@
-import { AppLogger } from '@/app/core/logger/app-logger.service';
-import { TenantContext } from '@/common/types/tenant-context.type';
-import { ChromaDBClient } from '@/common/types/providers.type';
+import { ChromaDBClient, TenantContext } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 
 import { Chroma } from '@langchain/community/vectorstores/chroma';
@@ -9,7 +8,7 @@ import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class VectorStoreService {
-  private readonly logger: AppLogger = new AppLogger(VectorStoreService.name);
+  private readonly logger: LoggerService = new LoggerService(VectorStoreService.name);
 
   constructor(
     private readonly embeddingsService: EmbeddingsService,
@@ -18,7 +17,7 @@ export class VectorStoreService {
   ) {}
 
   private getTenantFilter(tenantContext: TenantContext): Record<string, any> {
-    return { organizationId: tenantContext.organizationId };
+    return { shopId: tenantContext.shopId };
   }
 
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
@@ -26,14 +25,12 @@ export class VectorStoreService {
       ...doc,
       metadata: {
         ...doc.metadata,
-        organizationId: tenantContext.organizationId,
+        shopId: tenantContext.shopId,
       },
     }));
 
     const ids = await this.chromaDBClient.addDocuments(docsWithTenant);
-    this.logger.log(
-      `Added ${documents.length} documents to vector store for organization: ${tenantContext.organizationId}`,
-    );
+    this.logger.log(`Added ${documents.length} documents to vector store for organization: ${tenantContext.shopId}`);
     return ids;
   }
 
@@ -47,13 +44,13 @@ export class VectorStoreService {
         pageContent: text,
         metadata: {
           ...metadata,
-          organizationId: tenantContext.organizationId,
+          shopId: tenantContext.shopId,
         },
       };
     });
 
     const resultIds = await this.chromaDBClient.addVectors(await this.embeddingsService.embedDocuments(texts), docs);
-    this.logger.log(`Added ${texts.length} texts to vector store for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Added ${texts.length} texts to vector store for organization: ${tenantContext.shopId}`);
     return resultIds;
   }
 
@@ -67,9 +64,7 @@ export class VectorStoreService {
     const combinedFilter = filter ? { ...tenantFilter, ...filter } : tenantFilter;
 
     const results = await this.chromaDBClient.similaritySearch(query, k, combinedFilter);
-    this.logger.log(
-      `Similarity search completed for query: "${query}" for organization: ${tenantContext.organizationId}`,
-    );
+    this.logger.log(`Similarity search completed for query: "${query}" for organization: ${tenantContext.shopId}`);
     return results;
   }
 
@@ -84,7 +79,7 @@ export class VectorStoreService {
 
     const results = await this.chromaDBClient.similaritySearchWithScore(query, k, combinedFilter);
     this.logger.log(
-      `Similarity search with scores completed for query: "${query}" for organization: ${tenantContext.organizationId}`,
+      `Similarity search with scores completed for query: "${query}" for organization: ${tenantContext.shopId}`,
     );
     return results;
   }

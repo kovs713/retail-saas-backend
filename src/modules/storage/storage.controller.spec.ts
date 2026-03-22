@@ -1,42 +1,30 @@
 import { StorageController } from './storage.controller';
 import { StorageService } from './storage.service';
 
+import { createMock } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
-
-jest.mock('@/core/logger/app-logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
 
 describe('StorageController', () => {
   let controller: StorageController;
-  let storageService: jest.Mocked<StorageService>;
+  let service: StorageService;
 
   const mockBucket = 'test-bucket';
   const mockKey = 'test-file.txt';
   const mockFileBuffer = Buffer.from('test content');
 
   beforeEach(async () => {
-    storageService = {
-      uploadFile: jest.fn(),
-      downloadFile: jest.fn(),
-      deleteFile: jest.fn(),
-      listFiles: jest.fn(),
-      getFileMetadata: jest.fn(),
-      getPresignedUrl: jest.fn(),
-    } as unknown as jest.Mocked<StorageService>;
-
     const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        {
+          provide: StorageService,
+          useValue: createMock<StorageService>(),
+        },
+      ],
       controllers: [StorageController],
-      providers: [{ provide: StorageService, useValue: storageService }],
     }).compile();
 
     controller = module.get<StorageController>(StorageController);
+    service = module.get<StorageService>(StorageService);
   });
 
   afterEach(() => {
@@ -69,16 +57,16 @@ describe('StorageController', () => {
           bucket: mockBucket,
         },
       };
-      storageService.uploadFile.mockResolvedValue(mockResponse);
+      service.uploadFile.mockResolvedValue(mockResponse);
       const result = await controller.uploadFile(mockFile, { file: mockFile, bucket: undefined });
-      expect(storageService.uploadFile).toHaveBeenCalledWith({
+      expect(service.uploadFile).toHaveBeenCalledWith({
         file: mockFile,
         bucket: undefined,
       });
       expect(result.success).toBe(true);
-      expect(result.data.url).toBe(mockResponse.url);
-      expect(result.data.key).toBe(mockResponse.key);
-      expect(result.data.metadata).toEqual({
+      expect(result.data?.url).toBe(mockResponse.url);
+      expect(result.data?.key).toBe(mockResponse.key);
+      expect(result.data?.metadata).toEqual({
         ...mockResponse.metadata,
         uploadDate: mockResponse.metadata.uploadDate.toISOString(),
       });
@@ -98,9 +86,9 @@ describe('StorageController', () => {
           bucket: customBucket,
         },
       };
-      storageService.uploadFile.mockResolvedValue(mockResponse);
+      service.uploadFile.mockResolvedValue(mockResponse);
       await controller.uploadFile(mockFile, { file: mockFile, bucket: customBucket });
-      expect(storageService.uploadFile).toHaveBeenCalledWith({
+      expect(service.uploadFile).toHaveBeenCalledWith({
         file: mockFile,
         bucket: customBucket,
       });
@@ -122,9 +110,9 @@ describe('StorageController', () => {
         ],
         nextToken: undefined,
       };
-      storageService.listFiles.mockResolvedValue(mockResponse);
+      service.listFiles.mockResolvedValue(mockResponse);
       const result = await controller.listFiles({});
-      expect(storageService.listFiles).toHaveBeenCalledWith({
+      expect(service.listFiles).toHaveBeenCalledWith({
         prefix: undefined,
         limit: undefined,
         startAfter: undefined,
@@ -142,9 +130,9 @@ describe('StorageController', () => {
 
     it('should list files with query parameters', async () => {
       const mockResponse = { files: [], nextToken: undefined };
-      storageService.listFiles.mockResolvedValue(mockResponse);
+      service.listFiles.mockResolvedValue(mockResponse);
       await controller.listFiles({ prefix: 'test/', limit: 50, startAfter: 'file0.txt', page: 1 });
-      expect(storageService.listFiles).toHaveBeenCalledWith({
+      expect(service.listFiles).toHaveBeenCalledWith({
         prefix: 'test/',
         limit: 50,
         startAfter: 'file0.txt',
@@ -163,9 +151,9 @@ describe('StorageController', () => {
         etag: 'test-etag',
         bucket: mockBucket,
       };
-      storageService.getFileMetadata.mockResolvedValue(mockMetadata);
+      service.getFileMetadata.mockResolvedValue(mockMetadata);
       const result = await controller.getFileMetadata({ key: mockKey, bucket: undefined });
-      expect(storageService.getFileMetadata).toHaveBeenCalledWith(mockKey, undefined);
+      expect(service.getFileMetadata).toHaveBeenCalledWith(mockKey, undefined);
       expect(result.success).toBe(true);
       expect(result.data).toEqual({
         ...mockMetadata,
@@ -183,41 +171,82 @@ describe('StorageController', () => {
         etag: 'test-etag',
         bucket: customBucket,
       };
-      storageService.getFileMetadata.mockResolvedValue(mockMetadata);
+      service.getFileMetadata.mockResolvedValue(mockMetadata);
       await controller.getFileMetadata({ key: mockKey, bucket: customBucket });
-      expect(storageService.getFileMetadata).toHaveBeenCalledWith(mockKey, customBucket);
+      expect(service.getFileMetadata).toHaveBeenCalledWith(mockKey, customBucket);
     });
   });
 
   describe('downloadFile', () => {
-    // Skipped - tested via e2e
-    it.skip('should download file - tested via e2e', () => {});
-    it.skip('should download file with custom bucket - tested via e2e', () => {});
+    const mockFileContent = Buffer.from('test file content');
+    const mockMetadata = {
+      key: mockKey,
+      size: mockFileContent.length,
+      mimeType: 'text/plain',
+      uploadDate: new Date(),
+      etag: 'test-etag',
+      bucket: mockBucket,
+    };
+    const mockDownloadResponse = {
+      buffer: mockFileContent,
+      metadata: mockMetadata,
+    };
+
+    it('should download file successfully', async () => {
+      service.downloadFile.mockResolvedValue(mockDownloadResponse);
+
+      const mockResponse = {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+      } as any;
+
+      await controller.downloadFile({ key: mockKey, bucket: undefined }, mockResponse);
+
+      expect(service.downloadFile).toHaveBeenCalledWith(mockKey, undefined);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', mockMetadata.mimeType);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Disposition', `attachment; filename="${mockKey}"`);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Length', mockMetadata.size);
+      expect(mockResponse.send).toHaveBeenCalledWith(mockFileContent);
+    });
+
+    it('should download file with custom bucket', async () => {
+      const customBucket = 'custom-bucket';
+      service.downloadFile.mockResolvedValue(mockDownloadResponse);
+
+      const mockResponse = {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+      } as any;
+
+      await controller.downloadFile({ key: mockKey, bucket: customBucket }, mockResponse);
+
+      expect(service.downloadFile).toHaveBeenCalledWith(mockKey, customBucket);
+    });
   });
 
   describe('getPresignedUrl', () => {
     it('should generate presigned URL successfully', async () => {
       const mockUrl = 'http://test-bucket.localhost/test-file.txt?token=abc';
-      storageService.getPresignedUrl.mockResolvedValue(mockUrl);
+      service.getPresignedUrl.mockResolvedValue(mockUrl);
       const result = await controller.getPresignedUrl({ key: mockKey, bucket: undefined, expirySeconds: 3600 });
-      expect(storageService.getPresignedUrl).toHaveBeenCalledWith(mockKey, undefined, 3600);
+      expect(service.getPresignedUrl).toHaveBeenCalledWith(mockKey, undefined, 3600);
       expect(result.success).toBe(true);
       expect(result.data).toEqual({ url: mockUrl, key: mockKey, expirySeconds: 3600 });
     });
 
     it('should generate presigned URL with custom expiry', async () => {
       const mockUrl = 'http://test-bucket.localhost/test-file.txt?token=abc';
-      storageService.getPresignedUrl.mockResolvedValue(mockUrl);
+      service.getPresignedUrl.mockResolvedValue(mockUrl);
       await controller.getPresignedUrl({ key: mockKey, bucket: undefined, expirySeconds: 7200 });
-      expect(storageService.getPresignedUrl).toHaveBeenCalledWith(mockKey, undefined, 7200);
+      expect(service.getPresignedUrl).toHaveBeenCalledWith(mockKey, undefined, 7200);
     });
   });
 
   describe('deleteFile', () => {
     it('should delete file successfully', async () => {
-      storageService.deleteFile.mockResolvedValue();
+      service.deleteFile.mockResolvedValue();
       const result = await controller.deleteFile({ key: mockKey, bucket: undefined });
-      expect(storageService.deleteFile).toHaveBeenCalledWith({
+      expect(service.deleteFile).toHaveBeenCalledWith({
         key: mockKey,
         bucket: undefined,
       });
@@ -229,9 +258,9 @@ describe('StorageController', () => {
 
     it('should delete file with custom bucket', async () => {
       const customBucket = 'custom-bucket';
-      storageService.deleteFile.mockResolvedValue();
+      service.deleteFile.mockResolvedValue();
       await controller.deleteFile({ key: mockKey, bucket: customBucket });
-      expect(storageService.deleteFile).toHaveBeenCalledWith({
+      expect(service.deleteFile).toHaveBeenCalledWith({
         key: mockKey,
         bucket: customBucket,
       });

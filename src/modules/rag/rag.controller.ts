@@ -1,6 +1,8 @@
-import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { Tenant } from '@/common/decorators';
-import { TenantContext } from '@/common/types/tenant-context.type';
+import { ApiResponse as AppApiResponse } from '@/common/dto';
+import { AuthGuard } from '@/common/guards';
+import { TenantContext } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 import {
   AddDocumentsResponseDto,
   AddDocumentstDto,
@@ -12,16 +14,15 @@ import {
 } from './dto';
 import { RagService } from './rag.service';
 
-import { Body, Controller, Delete, HttpCode, HttpStatus, Logger, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from '@/core/auth/guards/auth.guard';
 
 @ApiTags('RAG')
 @ApiBearerAuth('JWT')
 @Controller('rag')
 @UseGuards(AuthGuard)
 export class RagController {
-  private readonly logger = new Logger(RagController.name);
+  private readonly logger = new LoggerService(RagController.name);
 
   constructor(private readonly ragService: RagService) {}
 

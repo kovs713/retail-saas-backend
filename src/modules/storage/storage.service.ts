@@ -1,5 +1,5 @@
-import { MinioClient } from '@/common/types/providers.type';
-import { AppLogger } from '@/core/logger/app-logger.service';
+import { MinioClient } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 import {
   DeleteFileRequest,
   DownloadFileResponse,
@@ -25,7 +25,7 @@ interface ListObjectItem {
 
 @Injectable()
 export class StorageService {
-  private readonly logger: AppLogger = new AppLogger(StorageService.name);
+  private readonly logger: LoggerService = new LoggerService(StorageService.name);
 
   constructor(
     @Inject(MinioClient) private readonly minioClient: Client,
@@ -163,6 +163,19 @@ export class StorageService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to generate presigned URL for: ${key}`, errorMessage);
+      throw error;
+    }
+  }
+
+  async getPresignedPutUrl(key: string, bucket?: string, expirySeconds = 3600): Promise<string> {
+    try {
+      const fileBucket = bucket || this.configService.getOrThrow<string>('S3_BUCKET');
+      const url = await this.minioClient.presignedPutObject(fileBucket, key, expirySeconds);
+      this.logger.log(`Generated presigned PUT URL for: ${key}`);
+      return url;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to generate presigned PUT URL for: ${key}`, errorMessage);
       throw error;
     }
   }

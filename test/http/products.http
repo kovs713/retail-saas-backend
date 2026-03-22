@@ -1,0 +1,117 @@
+### Product Module HTTP Tests
+
+
+### 
+
+@accessToken = {{accessToken}}
+@baseUrl = http://localhost:3000
+
+
+### Create Product
+
+# @name CreateProduct
+
+POST {{baseUrl}}/products HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "barcode": "1234567890123",
+  "category": "Electronics",
+  "description": "A test product for API testing",
+  "name": "Test Product",
+  "price": 29.99,
+  "quantity": 100,
+  "sku": "PROD-001"
+}
+
+> {%
+{% 
+    client.global.set("productId", response.body.data.id);
+    client.log("Product ID: " + response.body.data.id);
+%}
+
+
+### Get All Products
+
+GET {{baseUrl}}/products?page=1&limit=10 HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
+### Get Product by ID
+
+GET {{baseUrl}}/products/{{productId}} HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
+### Get Product by SKU
+
+GET {{baseUrl}}/products/sku/PROD-001 HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
+### Get Product by Barcode
+
+GET {{baseUrl}}/products/barcode/1234567890123 HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
+### Update Product
+
+PATCH {{baseUrl}}/products/{{productId}} HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Updated Test Product",
+  "price": 39.99
+}
+
+
+### Update Stock
+
+PATCH {{baseUrl}}/products/{{productId}}/stock HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "quantity": 150
+}
+
+
+### Adjust Stock
+
+PATCH {{baseUrl}}/products/{{productId}}/stock/adjust HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "adjustment": -10
+}
+
+
+### Get Product Stats
+
+GET {{baseUrl}}/products/stats HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
+### Get Low Stock Products
+
+GET {{baseUrl}}/products/low-stock?threshold=10 HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
+### Restore Deleted Product
+
+POST {{baseUrl}}/products/{{productId}}/restore HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
+### Delete Product
+
+
+### 
+
+DELETE {{baseUrl}}/products/{{productId}} HTTP/1.1
+Authorization: Bearer {{accessToken}}

@@ -1,23 +1,14 @@
+import { createMockTenantContext, mockCacheService } from '@/common/utils';
+import { CacheService } from '@/core/cache/cache.service';
 import { Product } from './entities/product.entity';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';
-import { createMockTenantContext } from '@/common/test-utils';
 
+import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { createMock } from '@golevelup/ts-jest';
 import { Repository, UpdateResult } from 'typeorm';
-
-jest.mock('@/core/logger/app-logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
 
 describe('ProductService', () => {
   let service: ProductService;
@@ -33,6 +24,10 @@ describe('ProductService', () => {
         {
           provide: getRepositoryToken(Product),
           useValue: createMock<Repository<Product>>(),
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheService(),
         },
       ],
     }).compile();
@@ -61,7 +56,7 @@ describe('ProductService', () => {
 
       expect(repository.existsBy).toHaveBeenCalledWith({
         sku: 'PROD-001',
-        organizationId: mockTenantContext.organizationId,
+        shopId: mockTenantContext.shopId,
       });
       expect(result).toEqual(mockProduct);
     });

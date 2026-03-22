@@ -1,7 +1,7 @@
 import { EmbeddingsService } from './embeddings.service';
 
-import { ConfigService } from '@nestjs/config';
 import { OllamaEmbeddings } from '@langchain/ollama';
+import { ConfigService } from '@nestjs/config';
 
 describe('EmbeddingsService', () => {
   let service: EmbeddingsService;

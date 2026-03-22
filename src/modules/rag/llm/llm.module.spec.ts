@@ -1,6 +1,6 @@
+import { ChatGroqClient } from '@/common/types';
 import { LLMModule } from './llm.module';
 import { LLMService } from './llm.service';
-import { ChatGroqClient } from '@/common/types/providers.type';
 
 import { ConfigService } from '@nestjs/config';
 
@@ -33,7 +33,7 @@ describe('LLMModule', () => {
     expect((chatGroqProvider as any)?.inject).toContain(ConfigService);
   });
 
-  it('should include AppLogger and LLMService as providers', () => {
+  it('should include LoggerService and LLMService as providers', () => {
     const dynamicModule = LLMModule.forRootAsync();
 
     expect(dynamicModule.providers).toBeDefined();

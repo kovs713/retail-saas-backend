@@ -220,6 +220,131 @@ export class StorageController {
     return { success: true, data: response };
   }
 
+  @Get('presigned-put/:key')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Generate presigned PUT URL for file upload' })
+  @ApiParam({ name: 'key', type: String, description: 'File key (path)', example: 'shops/123/logo.png' })
+  @ApiQuery({ name: 'bucket', required: false, type: String, description: 'Custom bucket name', example: 'my-bucket' })
+  @ApiQuery({
+    name: 'expirySeconds',
+    required: false,
+    type: Number,
+    description: 'URL expiry time in seconds',
+    example: 7200,
+    default: 3600,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Presigned PUT URL generated successfully',
+    type: PresignedUrlResponseDto,
+  })
+  async getPresignedPutUrl(@Param() params: GetPresignedUrlDto): Promise<AppApiResponse<PresignedUrlResponseDto>> {
+    this.logger.log(`Generating presigned PUT URL for: ${params.key}`);
+    const url = await this.storageService.getPresignedPutUrl(params.key, params.bucket, params.expirySeconds);
+    const response: PresignedUrlResponseDto = {
+      url,
+      key: params.key,
+      expirySeconds: params.expirySeconds ?? 3600,
+    };
+    this.logger.log(`Presigned PUT URL generated for: ${params.key}`);
+    return { success: true, data: response };
+  }
+
+  @Get('shops/:shopId/logo/presigned')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Generate presigned URLs for shop logo upload' })
+  @ApiParam({ name: 'shopId', type: String, description: 'Shop ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiQuery({ name: 'filename', required: true, type: String, description: 'Filename', example: 'logo.png' })
+  @ApiResponse({
+    status: 200,
+    description: 'Presigned URLs generated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            uploadUrl: { type: 'string' },
+            publicUrl: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  async getShopLogoPresignedUrl(@Param('shopId') shopId: string, @Query('filename') filename: string): Promise<any> {
+    const key = `shops/${shopId}/logo/${filename}`;
+    const uploadUrl = await this.storageService.getPresignedPutUrl(key);
+    const publicUrl = await this.storageService.getPresignedUrl(key, undefined, 604800);
+    return { success: true, data: { uploadUrl, publicUrl } };
+  }
+
+  @Get('shops/:shopId/banner/presigned')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Generate presigned URLs for shop banner upload' })
+  @ApiParam({ name: 'shopId', type: String, description: 'Shop ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiQuery({ name: 'filename', required: true, type: String, description: 'Filename', example: 'banner.jpg' })
+  @ApiResponse({
+    status: 200,
+    description: 'Presigned URLs generated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            uploadUrl: { type: 'string' },
+            publicUrl: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  async getShopBannerPresignedUrl(@Param('shopId') shopId: string, @Query('filename') filename: string): Promise<any> {
+    const key = `shops/${shopId}/banner/${filename}`;
+    const uploadUrl = await this.storageService.getPresignedPutUrl(key);
+    const publicUrl = await this.storageService.getPresignedUrl(key, undefined, 604800);
+    return { success: true, data: { uploadUrl, publicUrl } };
+  }
+
+  @Get('products/:productId/images/presigned')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Generate presigned URLs for product image upload' })
+  @ApiParam({
+    name: 'productId',
+    type: String,
+    description: 'Product ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiQuery({ name: 'filename', required: true, type: String, description: 'Filename', example: 'product-image.jpg' })
+  @ApiResponse({
+    status: 200,
+    description: 'Presigned URLs generated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            uploadUrl: { type: 'string' },
+            publicUrl: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  async getProductImagePresignedUrl(
+    @Param('productId') productId: string,
+    @Query('filename') filename: string,
+  ): Promise<any> {
+    const key = `products/${productId}/images/${filename}`;
+    const uploadUrl = await this.storageService.getPresignedPutUrl(key);
+    const publicUrl = await this.storageService.getPresignedUrl(key, undefined, 604800);
+    return { success: true, data: { uploadUrl, publicUrl } };
+  }
+
   @Delete('file/:key')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a file from storage' })

@@ -1,5 +1,4 @@
-import { MinioClient } from '@/common/types/providers.type';
-import { AppLogger } from '@/core/logger/app-logger.service';
+import { MinioClient } from '@/common/types';
 import { StorageController } from './storage.controller';
 import { StorageService } from './storage.service';
 
@@ -17,7 +16,7 @@ export class StorageModule {
         {
           provide: MinioClient,
           inject: [ConfigService],
-          useFactory: (configService: ConfigService) => {
+          useFactory: (configService: ConfigService): Client => {
             const host = configService.getOrThrow<string>('S3_HOST');
             const port = configService.getOrThrow<number>('S3_PORT');
             const accessKey = configService.getOrThrow<string>('S3_USERNAME');
@@ -33,8 +32,8 @@ export class StorageModule {
             });
           },
         },
+
         StorageService,
-        AppLogger,
       ],
       exports: [StorageService],
       controllers: [StorageController],

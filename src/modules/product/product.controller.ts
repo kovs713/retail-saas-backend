@@ -1,6 +1,8 @@
-import { ApiResponse as AppApiResponse, Pagination, PaginationApiResponse } from '@/common/dto';
 import { Tenant } from '@/common/decorators';
-import { TenantContext } from '@/common/types/tenant-context.type';
+import { ApiResponse as AppApiResponse, Pagination, PaginationResponse } from '@/common/dto';
+import { AuthGuard } from '@/common/guards';
+import { TenantContext } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 import {
   AdjustStockDto,
   CreateProductDto,
@@ -20,7 +22,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Logger,
   Param,
   Patch,
   Post,
@@ -28,14 +29,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from '@/core/auth/guards/auth.guard';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')
 @Controller('products')
 @UseGuards(AuthGuard)
 export class ProductController {
-  private readonly logger = new Logger(ProductController.name);
+  private readonly logger = new LoggerService(ProductController.name);
 
   constructor(private readonly productService: ProductService) {}
 
@@ -49,9 +49,7 @@ export class ProductController {
     @Body() createProductDto: CreateProductDto,
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductResponseDto>> {
-    this.logger.log(
-      `Creating product with SKU: ${createProductDto.sku} for organization: ${tenantContext.organizationId}`,
-    );
+    this.logger.log(`Creating product with SKU: ${createProductDto.sku} for organization: ${tenantContext.shopId}`);
     const product = await this.productService.create(createProductDto, tenantContext);
     const response = ProductResponseDto.fromEntity(product);
     this.logger.log(`Product created successfully with ID: ${product.id}`);
@@ -69,7 +67,7 @@ export class ProductController {
   async findAll(
     @Query() query: Pagination,
     @Tenant() tenantContext: TenantContext,
-  ): Promise<PaginationApiResponse<ProductResponseDto>> {
+  ): Promise<PaginationResponse<ProductResponseDto>> {
     this.logger.log(`Finding products with query: page=${query.page}, limit=${query.limit}`);
     const result = await this.productService.findAll(query, tenantContext);
     this.logger.log(`Found ${result.data?.length || 0} products (total: ${result.pagination?.total})`);

@@ -1,3 +1,4 @@
+import { createMock } from '@golevelup/ts-jest';
 import { TypeOrmConfigService } from './typeorm-config.service';
 
 import { ConfigService } from '@nestjs/config';
@@ -7,11 +8,7 @@ describe('TypeOrmConfigService', () => {
   let configService: ConfigService;
 
   beforeEach(() => {
-    configService = {
-      getOrThrow: jest.fn(),
-      get: jest.fn(),
-    } as unknown as ConfigService;
-
+    configService = createMock<ConfigService>();
     service = new TypeOrmConfigService(configService);
   });
 

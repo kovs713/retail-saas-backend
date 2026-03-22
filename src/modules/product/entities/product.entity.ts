@@ -1,3 +1,6 @@
+import { Category } from '@/modules/category/entities/category.entity';
+import { Shop } from '@/modules/shop/entities/shop.entity';
+
 import {
   Column,
   CreateDateColumn,
@@ -9,23 +12,25 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Organization } from '../../organization/entities/organization.entity';
 
 @Entity('products')
-@Index(['organizationId', 'sku'], { unique: true })
+@Index(['shopId', 'sku'], { unique: true })
+@Index(['shopId', 'deletedAt'])
+@Index(['shopId', 'categoryId'])
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'uuid' })
   @Index()
-  organizationId: string;
+  shopId: string;
 
-  @ManyToOne(() => Organization, { eager: false })
-  @JoinColumn({ name: 'organizationId' })
-  organization: Organization;
+  @ManyToOne(() => Shop, { eager: false })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop;
 
   @Column()
+  @Index()
   sku: string;
 
   @Column()
@@ -43,11 +48,16 @@ export class Product {
   @Column({ type: 'int', default: 0 })
   quantity: number;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   @Index()
-  category: string | null;
+  categoryId: string | null;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, unique: true })
+  @ManyToOne(() => Category, { eager: false, nullable: true })
+  @JoinColumn({ name: 'categoryId' })
+  category: Category | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  @Index()
   barcode: string | null;
 
   @Column('simple-array', { nullable: true })

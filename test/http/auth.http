@@ -1,0 +1,48 @@
+### Authentication HTTP Tests
+
+
+### 
+
+@baseUrl = http://localhost:3000
+
+
+### 
+
+# @name SignIn
+
+# Authenticate and get access token
+
+POST {{baseUrl}}/auth/sign-in HTTP/1.1
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "id": "user-uuid-here",
+  "organizationId": "org-uuid-here"
+}
+
+> {%
+{% 
+    client.global.set("accessToken", response.body.data.accessToken);
+    client.log("Token: " + response.body.data.accessToken);
+%}
+
+
+### 
+
+
+### 
+
+# @name SignInWithToken
+
+# Reuse token for subsequent requests
+
+POST {{baseUrl}}/auth/sign-in HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "email": "test@example.com",
+  "id": "user-uuid-here",
+  "organizationId": "org-uuid-here"
+}

@@ -1,40 +1,17 @@
-import { MinioClient } from '@/common/types/providers.type';
-import { AppLogger } from '@/core/logger/app-logger.service';
+import { MinioClient } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 import { StorageService } from './storage.service';
 
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Client } from 'minio';
 import { Readable } from 'stream';
 
-type MockedMinioClient = jest.Mocked<
-  Pick<
-    Client,
-    | 'bucketExists'
-    | 'makeBucket'
-    | 'putObject'
-    | 'getObject'
-    | 'removeObject'
-    | 'listObjects'
-    | 'statObject'
-    | 'presignedGetObject'
-  >
->;
-
-jest.mock('@/core/logger/app-logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
-
 describe('StorageService', () => {
   let service: StorageService;
-  let mockMinioClient: MockedMinioClient;
-  let mockConfigService: jest.Mocked<ConfigService>;
+  let mockMinioClient: DeepMocked<Client>;
+  let mockConfigService: DeepMocked<ConfigService>;
 
   const makeMockStream = (objects: Record<string, unknown>[]) => {
     let index = 0;
@@ -50,8 +27,9 @@ describe('StorageService', () => {
         );
       },
     };
-    return stream as unknown as ReturnType<MockedMinioClient['listObjects']>;
+    return stream as unknown as ReturnType<Client['listObjects']>;
   };
+
   const mockBucket = 'test-bucket';
   const mockKey = 'test-file.txt';
   const mockFileBuffer = Buffer.from('test content');
@@ -61,38 +39,37 @@ describe('StorageService', () => {
   };
 
   beforeEach(async () => {
-    mockMinioClient = {
-      bucketExists: jest.fn(),
-      makeBucket: jest.fn(),
-      putObject: jest.fn(),
-      getObject: jest.fn(),
-      removeObject: jest.fn(),
-      listObjects: jest.fn(),
-      statObject: jest.fn(),
-      presignedGetObject: jest.fn(),
-    };
+    mockMinioClient = createMock<Client>();
 
-    mockConfigService = {
-      getOrThrow: jest.fn(<T extends string>(key: string): T => {
-        const config: Record<string, string> = {
-          S3_BUCKET: mockBucket,
-          S3_REGION: 'us-east-1',
-        };
-        return config[key] as T;
-      }),
-      get: jest.fn(),
-    } as unknown as jest.Mocked<ConfigService>;
+    mockConfigService = createMock<ConfigService>();
+    mockConfigService.getOrThrow.mockImplementation((key: string) => {
+      const config: Record<string, string> = {
+        S3_BUCKET: mockBucket,
+        S3_REGION: 'us-east-1',
+      };
+      return config[key];
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StorageService,
-        { provide: MinioClient, useValue: mockMinioClient },
-        { provide: ConfigService, useValue: mockConfigService },
-        { provide: AppLogger, useValue: { log: jest.fn(), error: jest.fn() } },
+        {
+          provide: MinioClient,
+          useValue: mockMinioClient,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+        {
+          provide: LoggerService,
+          useValue: createMock<LoggerService>(),
+        },
       ],
     }).compile();
 
     service = module.get<StorageService>(StorageService);
+    mockMinioClient = module.get<DeepMocked<Client>>(MinioClient);
   });
 
   afterEach(() => {

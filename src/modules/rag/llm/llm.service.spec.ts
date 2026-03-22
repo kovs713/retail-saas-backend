@@ -1,32 +1,18 @@
+import { ChatGroqClient } from '@/common/types';
 import { LLMService } from './llm.service';
-import { ChatGroqClient } from '@/common/types/providers.type';
 
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGroq } from '@langchain/groq';
 import { Test, TestingModule } from '@nestjs/testing';
 
-jest.mock('@/core/logger/app-logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
-
 describe('LLMService', () => {
   let service: LLMService;
-  let chatGroqClient: ChatGroq;
-
-  const mockResponse = {
-    content: 'Test response',
-  };
+  let chatGroqClient: DeepMocked<ChatGroq>;
 
   beforeEach(async () => {
-    chatGroqClient = {
-      invoke: jest.fn().mockResolvedValue(mockResponse),
-    } as unknown as ChatGroq;
+    chatGroqClient = createMock<ChatGroq>();
+    chatGroqClient.invoke = jest.fn().mockResolvedValue({ content: 'Test response' });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -39,6 +25,7 @@ describe('LLMService', () => {
     }).compile();
 
     service = module.get<LLMService>(LLMService);
+    chatGroqClient = module.get<DeepMocked<ChatGroq>>(ChatGroqClient);
   });
 
   afterEach(() => {

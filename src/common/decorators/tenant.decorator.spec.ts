@@ -1,14 +1,14 @@
-import { TenantContext } from '../types/tenant-context.type';
+import { Request, TenantContext } from '../types';
 
-import { ExecutionContext } from '@nestjs/common';
 import { createMock } from '@golevelup/ts-jest';
+import { ExecutionContext } from '@nestjs/common';
 
 describe('Tenant Decorator', () => {
   let mockExecutionContext: ExecutionContext;
   let mockRequest: any;
 
   const mockTenantContext: TenantContext = {
-    organizationId: 'test-org-id',
+    shopId: 'test-shop-id',
   };
 
   beforeEach(() => {
@@ -29,17 +29,17 @@ describe('Tenant Decorator', () => {
 
   describe('decorator factory function', () => {
     const decoratorFactory = (data: unknown, ctx: ExecutionContext): TenantContext => {
-      const request = ctx.switchToHttp().getRequest();
+      const request = ctx.switchToHttp().getRequest<Request>();
       return {
-        organizationId: request.user.organizationId,
+        shopId: request.user.shopId,
       };
     };
 
-    it('should extract organizationId from request.user', () => {
+    it('should extract shopId from request.user', () => {
       const result = decoratorFactory(undefined, mockExecutionContext);
 
       expect(result).toEqual(mockTenantContext);
-      expect(result.organizationId).toBe('test-org-id');
+      expect(result.shopId).toBe('test-shop-id');
     });
 
     it('should handle missing user object gracefully', () => {
@@ -64,10 +64,10 @@ describe('Tenant Decorator', () => {
       expect(mockHttpHost.getRequest).toHaveBeenCalled();
     });
 
-    it('should return TenantContext with organizationId', () => {
+    it('should return TenantContext with shopId', () => {
       const result = decoratorFactory(undefined, mockExecutionContext);
 
-      expect(result).toHaveProperty('organizationId');
+      expect(result).toHaveProperty('shopId');
     });
   });
 });

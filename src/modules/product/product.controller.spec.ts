@@ -1,27 +1,16 @@
-import { AuthGuard } from '@/core/auth/guards/auth.guard';
+import { AuthGuard } from '@/common/guards';
+import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';
 
-import { createMockTenantContext } from '@/common/test-utils';
-
-import { ExecutionContext, NotFoundException } from '@nestjs/common';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMock } from '@golevelup/ts-jest';
-
-jest.mock('@/core/logger/app-logger.service', () => ({
-  AppLogger: jest.fn().mockImplementation(() => ({
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    verbose: jest.fn(),
-  })),
-}));
 
 describe('ProductController', () => {
   let controller: ProductController;
-  let service: ReturnType<typeof createMock<ProductService>>;
+  let service: DeepMocked<ProductService>;
 
   const mockProduct = createProduct({
     id: 'prod_1',
@@ -42,13 +31,14 @@ describe('ProductController', () => {
       ],
     })
       .overrideGuard(AuthGuard)
-      .useValue({
-        canActivate: (context: ExecutionContext) => {
-          const req = context.switchToHttp().getRequest();
-          req.user = { organizationId: 'test-org-id' };
-          return true;
-        },
-      })
+      .useValue(
+        mockAuthGuard({
+          sub: 'user-123',
+          email: 'test@example.com',
+          shopId: 'shop-456',
+          role: 'owner',
+        }),
+      )
       .compile();
 
     controller = module.get<ProductController>(ProductController);

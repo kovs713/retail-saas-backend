@@ -1,5 +1,5 @@
-import { AppLogger } from '@/app/core/logger/app-logger.service';
-import { TenantContext } from '@/common/types/tenant-context.type';
+import { TenantContext } from '@/common/types';
+import { LoggerService } from '@/core/logger/logger.service';
 import { LLMService } from './llm/llm.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
 
@@ -8,7 +8,7 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class RagService {
-  private readonly logger: AppLogger = new AppLogger(RagService.name);
+  private readonly logger: LoggerService = new LoggerService(RagService.name);
 
   constructor(
     private readonly llmService: LLMService,
@@ -17,9 +17,6 @@ export class RagService {
 
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
     const ids = await this.vectorStoreService.addDocuments(documents, tenantContext);
-    this.logger.log(
-      `Added ${documents.length} documents to RAG system for organization: ${tenantContext.organizationId}`,
-    );
     return ids;
   }
 
@@ -39,7 +36,7 @@ export class RagService {
       metadata: Record<string, any>;
     }>;
   }> {
-    this.logger.log(`Processing RAG query: "${query}" for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Processing RAG query: "${query}" for organization: ${tenantContext.shopId}`);
 
     const relevantDocs = await this.vectorStoreService.similaritySearch(query, tenantContext, maxResults);
 
@@ -54,19 +51,19 @@ export class RagService {
     if (systemPrompt) {
       prompt = `${systemPrompt}
 
-Context:
-${context}
+                Context:
+                ${context}
 
-Question: ${query}
+                Question: ${query}
 
-${baseInstructions}`;
+                ${baseInstructions}`;
     } else {
       prompt = `You are a helpful assistant that answers questions based on the provided context. ${baseInstructions}
 
-Context:
-${context}
+                Context:
+                ${context}
 
-Question: ${query}`;
+                Question: ${query}`;
     }
 
     const answer = await this.llmService.generateText(prompt);
@@ -97,7 +94,7 @@ Question: ${query}`;
       score: number;
     }>;
   }> {
-    this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${tenantContext.organizationId}`);
+    this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${tenantContext.shopId}`);
 
     const relevantDocsWithScores = await this.vectorStoreService.similaritySearchWithScore(
       query,
@@ -116,19 +113,19 @@ Question: ${query}`;
     if (systemPrompt) {
       prompt = `${systemPrompt}
 
-Context:
-${context}
+                Context:
+                ${context}
 
-Question: ${query}
+                Question: ${query}
 
-${baseInstructions}`;
+                ${baseInstructions}`;
     } else {
       prompt = `You are a helpful assistant that answers questions based on the provided context. ${baseInstructions}
 
-Context:
-${context}
+                Context:
+                ${context}
 
-Question: ${query}`;
+                Question: ${query}`;
     }
 
     const answer = await this.llmService.generateText(prompt);
@@ -149,9 +146,6 @@ Question: ${query}`;
 
   async addTexts(texts: string[], tenantContext: TenantContext, metadata?: Record<string, any>[]): Promise<string[]> {
     const documentIds = await this.vectorStoreService.addTexts(texts, tenantContext, metadata);
-    this.logger.log(
-      `Added ${texts.length} text documents to RAG system for organization: ${tenantContext.organizationId}`,
-    );
     return documentIds;
   }
 }

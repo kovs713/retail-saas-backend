@@ -1,13 +1,16 @@
-import { UserService, CreateUserDto, UpdateUserDto } from './user.service';
+import { mockCacheService } from '@/common/utils';
+import { CacheService } from '@/core/cache/cache.service';
+import { Shop } from '@/modules/shop/entities/shop.entity';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { CreateUserDto, UpdateUserDto } from './dto';
 import { User } from './entities/user.entity';
-import { Organization } from '../organization/entities/organization.entity';
+import { UserService } from './user.service';
 
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { createMock } from '@golevelup/ts-jest';
-import { Repository } from 'typeorm';
 import * as bcryptjs from 'bcryptjs';
+import { Repository } from 'typeorm';
 
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed-password'),
@@ -16,7 +19,7 @@ jest.mock('bcryptjs', () => ({
 
 describe('UserService', () => {
   let service: UserService;
-  let repository: ReturnType<typeof createMock<Repository<User>>>;
+  let repository: DeepMocked<Repository<User>>;
 
   const mockUser: User = {
     id: 'user-123',
@@ -24,8 +27,8 @@ describe('UserService', () => {
     passwordHash: 'hashed-password',
     role: 'member',
     isActive: true,
-    organizationId: 'org-456',
-    organization: null as unknown as Organization,
+    shopId: 'shop-456',
+    shop: null as unknown as Shop,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -37,6 +40,10 @@ describe('UserService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: createMock<Repository<User>>(),
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheService(),
         },
       ],
     }).compile();
@@ -54,7 +61,7 @@ describe('UserService', () => {
       email: 'test@example.com',
       password: 'password123',
       role: 'member',
-      organizationId: 'org-456',
+      shopId: 'shop-456',
     };
 
     it('should create user with hashed password', async () => {
@@ -69,12 +76,12 @@ describe('UserService', () => {
         email: createDto.email,
         passwordHash: 'hashed-password',
         role: 'member',
-        organizationId: createDto.organizationId,
+        shopId: createDto.shopId,
       });
       expect(result).toEqual(mockUser);
     });
 
-    it('should use default role "member" when not provided', async () => {
+    it('should use default role "owner" when not provided', async () => {
       repository.findOne.mockResolvedValue(null);
       repository.create.mockReturnValue(mockUser);
       repository.save.mockResolvedValue(mockUser);
@@ -83,7 +90,7 @@ describe('UserService', () => {
 
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          role: 'member',
+          role: 'owner',
         }),
       );
     });
@@ -131,16 +138,16 @@ describe('UserService', () => {
     });
   });
 
-  describe('findByOrganization', () => {
-    it('should return all users in organization', async () => {
+  describe('findByShop', () => {
+    it('should return all users in shop', async () => {
       repository.find.mockResolvedValue([mockUser]);
 
-      const result = await service.findByOrganization('org-456');
+      const result = await service.findByShop('shop-456');
 
       expect(result).toHaveLength(1);
       expect(repository.find).toHaveBeenCalledWith({
-        where: { organizationId: 'org-456' },
-        relations: ['organization'],
+        where: { shopId: 'shop-456' },
+        relations: ['shop'],
       });
     });
   });
