@@ -2,13 +2,14 @@ import { AuthModule } from '@/core/auth/auth.module';
 import { RagModule } from '@/modules/rag/rag.module';
 import { ShopModule } from '@/modules/shop/shop.module';
 import { UserModule } from '@/modules/user/user.module';
+import { postgresVersion } from '../env.const';
 
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import request from 'supertest';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import request from 'supertest';
 import { StartedTestContainer } from 'testcontainers';
 
 describe('RAG E2E Tests', () => {
@@ -16,11 +17,9 @@ describe('RAG E2E Tests', () => {
   let postgresContainer: StartedTestContainer;
 
   let accessToken: string;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let _shopId: string;
 
   beforeAll(async () => {
-    postgresContainer = await new PostgreSqlContainer('postgres:18-alpine')
+    postgresContainer = await new PostgreSqlContainer(postgresVersion)
       .withDatabase('test_db')
       .withUsername('test')
       .withPassword('test')
@@ -77,7 +76,6 @@ describe('RAG E2E Tests', () => {
       .expect(201);
 
     accessToken = registerResponse.body.data.accessToken;
-    _shopId = registerResponse.body.data.shopId;
   });
 
   afterAll(async () => {

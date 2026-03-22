@@ -1,13 +1,14 @@
 import { AuthModule } from '@/core/auth/auth.module';
 import { ShopModule } from '@/modules/shop/shop.module';
 import { UserModule } from '@/modules/user/user.module';
+import { postgresVersion } from '../env.const';
 
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import request from 'supertest';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import request from 'supertest';
 import { StartedTestContainer } from 'testcontainers';
 
 describe('Shop E2E Tests', () => {
@@ -19,7 +20,7 @@ describe('Shop E2E Tests', () => {
   let shopId: string;
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:18-alpine')
+    container = await new PostgreSqlContainer(postgresVersion)
       .withDatabase('test_db')
       .withUsername('test')
       .withPassword('test')
@@ -172,8 +173,6 @@ describe('Shop E2E Tests', () => {
   });
 
   describe('Shop Owner Transfer', () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    let _newOwnerAccessToken: string;
     let newOwnerId: string;
 
     beforeAll(async () => {
@@ -187,7 +186,6 @@ describe('Shop E2E Tests', () => {
         })
         .expect(201);
 
-      _newOwnerAccessToken = registerResponse.body.data.accessToken;
       newOwnerId = registerResponse.body.data.userId;
     });
 

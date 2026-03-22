@@ -1,12 +1,13 @@
 import { AuthModule } from '@/core/auth/auth.module';
 import { StorageModule } from '@/modules/storage/storage.module';
+import { postgresVersion } from '../env.const';
 
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import request from 'supertest';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import request from 'supertest';
 import { StartedTestContainer } from 'testcontainers';
 
 describe('Storage E2E Tests', () => {
@@ -17,7 +18,7 @@ describe('Storage E2E Tests', () => {
   let bucketName: string;
 
   beforeAll(async () => {
-    postgresContainer = await new PostgreSqlContainer('postgres:18-alpine')
+    postgresContainer = await new PostgreSqlContainer(postgresVersion)
       .withDatabase('test_db')
       .withUsername('test')
       .withPassword('test')
