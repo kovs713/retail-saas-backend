@@ -1,15 +1,15 @@
+import { AuthGuard, RolesGuard } from '@/common/guards';
+import { User } from '@/modules/user/entities/user.entity';
+import { CreateShopDto } from './dto/create-shop.dto';
+import { UpdateShopDto } from './dto/update-shop.dto';
 import { Shop } from './entities/shop.entity';
 import { ShopController } from './shop.controller';
 import { ShopService } from './shop.service';
-import { CreateShopDto } from './dto/create-shop.dto';
-import { UpdateShopDto } from './dto/update-shop.dto';
-import { User } from '@/modules/user/entities/user.entity';
-import { AuthGuard, RolesGuard } from '@/common/guards';
 
-import { Test, TestingModule } from '@nestjs/testing';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
+import { JwtService } from '@nestjs/jwt';
+import { Test, TestingModule } from '@nestjs/testing';
 
 describe('ShopController', () => {
   let controller: ShopController;

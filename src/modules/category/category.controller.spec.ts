@@ -1,16 +1,16 @@
-import { Category } from './entities/category.entity';
+import { RolesGuard } from '@/common/guards';
+import { Shop } from '@/modules/shop/entities/shop.entity';
+import { User } from '@/modules/user/entities/user.entity';
 import { CategoryController } from './category.controller';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto';
-import { Shop } from '@/modules/shop/entities/shop.entity';
-import { User } from '@/modules/user/entities/user.entity';
-import { RolesGuard } from '@/common/guards';
+import { Category } from './entities/category.entity';
 
-import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
+import { JwtService } from '@nestjs/jwt';
+import { Test, TestingModule } from '@nestjs/testing';
 
 describe('CategoryController', () => {
   let controller: CategoryController;

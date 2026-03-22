@@ -37,7 +37,7 @@ export class CreateShopDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  ownerId: string;
+  ownerId?: string;
 }

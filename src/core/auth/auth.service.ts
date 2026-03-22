@@ -25,7 +25,6 @@ export class AuthService {
       phone: registerDto.shopPhone ?? undefined,
       workingHours: registerDto.shopWorkingHours ?? undefined,
       isActive: registerDto.isActive ?? true,
-      ownerId: '',
     });
 
     const user = await this.userService.create({

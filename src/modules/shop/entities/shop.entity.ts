@@ -7,8 +7,8 @@ export class Shop {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid', unique: true })
-  ownerId: string;
+  @Column({ type: 'uuid', unique: true, nullable: true })
+  ownerId: string | null;
 
   @OneToOne(() => User, { eager: false })
   @JoinColumn({ name: 'ownerId' })

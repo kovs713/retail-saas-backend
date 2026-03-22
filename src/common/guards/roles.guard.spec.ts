@@ -1,11 +1,11 @@
-import { RolesGuard } from './roles.guard';
 import { Role } from '../enums';
 import { Request } from '../types';
+import { RolesGuard } from './roles.guard';
 
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
+import { JwtService } from '@nestjs/jwt';
 
 describe('RolesGuard', () => {
   let guard: RolesGuard;

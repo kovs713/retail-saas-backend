@@ -2,7 +2,6 @@ import { StorageController } from './storage.controller';
 import { StorageService } from './storage.service';
 
 import { Test, TestingModule } from '@nestjs/testing';
-import type { Response } from 'express';
 
 jest.mock('@/core/logger/logger.service', () => ({
   LoggerService: jest.fn().mockImplementation(() => ({

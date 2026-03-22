@@ -3,9 +3,9 @@ import { UserService } from '@/modules/user/user.service';
 import { AuthService } from './auth.service';
 import { AuthOutputDto } from './dto';
 
+import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 describe('AuthService', () => {
   let service: AuthService;

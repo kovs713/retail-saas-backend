@@ -1,5 +1,5 @@
-import { Roles, ROLES_KEY } from './roles.decorator';
 import { Role } from '../enums';
+import { Roles, ROLES_KEY } from './roles.decorator';
 
 describe('Roles Decorator', () => {
   it('should set roles metadata', () => {

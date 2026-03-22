@@ -1,6 +1,6 @@
+import { User } from '@/modules/user/entities/user.entity';
 import { Shop } from './entities/shop.entity';
 import { ShopService } from './shop.service';
-import { User } from '@/modules/user/entities/user.entity';
 
 import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
