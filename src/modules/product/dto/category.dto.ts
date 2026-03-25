@@ -1,4 +1,4 @@
-import { Category } from '../entities/category.entity';
+import { Category } from '../entities';
 
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Transform, plainToInstance } from 'class-transformer';

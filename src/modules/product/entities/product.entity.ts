@@ -1,5 +1,5 @@
-import { Category } from './category.entity';
 import { Shop } from '@/modules/shop/entities/shop.entity';
+import { Category } from './';
 
 import {
   Column,

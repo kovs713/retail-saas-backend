@@ -1,7 +1,6 @@
 import { createMockTenantContext, mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { Category } from './entities/category.entity';
-import { Product } from './entities/product.entity';
+import { Category, Product } from './entities';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';
 

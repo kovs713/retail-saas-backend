@@ -3,30 +3,19 @@ import { TenantContext } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { CreateCategoryDto, CreateProductDto, UpdateCategoryDto, UpdateProductDto } from './dto';
-import { Category } from './entities/category.entity';
-import { Product } from './entities/product.entity';
+import { Category, Product } from './entities';
+import { ProductRepository } from './repositories';
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  FindManyOptions,
-  FindOptionsWhere,
-  ILike,
-  IsNull,
-  LessThan,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  QueryDeepPartialEntity,
-  Repository,
-} from 'typeorm';
+import { FindOptionsWhere, QueryDeepPartialEntity, Repository } from 'typeorm';
 
 @Injectable()
 export class ProductService {
   private readonly logger: LoggerService = new LoggerService(ProductService.name);
 
   constructor(
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
+    private readonly productRepository: ProductRepository,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
     private readonly cacheService: CacheService,
@@ -35,10 +24,7 @@ export class ProductService {
   async create(createProductDto: CreateProductDto, tenantContext: TenantContext): Promise<Product> {
     this.logger.log(`Creating product with SKU: ${createProductDto.sku} for shop: ${tenantContext.shopId}`);
 
-    const existingProduct = await this.productRepository.existsBy({
-      sku: createProductDto.sku,
-      shopId: tenantContext.shopId,
-    });
+    const existingProduct = await this.productRepository.existsBySkuAndShop(createProductDto.sku, tenantContext.shopId);
 
     if (existingProduct) {
       this.logger.warn(
@@ -81,51 +67,8 @@ export class ProductService {
 
     const page = query.page ?? 1;
     const limit = Math.min(query.limit ?? 10, 100);
-    const skip = (page - 1) * limit;
 
-    const where: FindOptionsWhere<Product> = {
-      shopId: tenantContext.shopId,
-      deletedAt: IsNull(),
-    };
-
-    if (query.category) {
-      where.categoryId = query.category;
-    }
-
-    if (query.minPrice !== undefined) {
-      where.price = MoreThanOrEqual(query.minPrice);
-    }
-    if (query.maxPrice !== undefined) {
-      where.price = LessThanOrEqual(query.maxPrice);
-    }
-
-    let searchWhere: FindOptionsWhere<Product> | null = null;
-    if (query.search) {
-      const escapedSearch = query.search.replace(/([%_\\])/g, '\\$1');
-      searchWhere = {
-        ...where,
-        name: ILike(`%${escapedSearch}%`),
-      } as FindOptionsWhere<Product>;
-    }
-
-    const searchValue = query.search ?? '';
-    const escapedSkuSearch = searchValue.replace(/([%_\\])/g, '\\$1');
-    const options: FindManyOptions<Product> = {
-      where: searchWhere
-        ? [
-            searchWhere,
-            {
-              ...where,
-              sku: ILike(`%${escapedSkuSearch}%`),
-            } as FindOptionsWhere<Product>,
-          ]
-        : where,
-      skip,
-      take: limit,
-      order: this.getOrderOptions(query.sortBy, query.sortOrder),
-    };
-
-    const [data, total] = await this.productRepository.findAndCount(options);
+    const [data, total] = await this.productRepository.findAll(tenantContext.shopId, query);
 
     this.logger.log(`Found ${data.length} products (total: ${total}, page: ${page})`);
 
@@ -154,13 +97,7 @@ export class ProductService {
 
     this.logger.log(`Finding product by ID: ${id} for shop: ${tenantContext.shopId}`);
 
-    const product = await this.productRepository.findOne({
-      where: {
-        id,
-        shopId: tenantContext.shopId,
-        deletedAt: IsNull(),
-      } as FindOptionsWhere<Product>,
-    });
+    const product = await this.productRepository.findById(id, tenantContext.shopId);
 
     if (!product) {
       this.logger.warn(`Product with ID ${id} not found in organization ${tenantContext.shopId}`);
@@ -182,13 +119,7 @@ export class ProductService {
 
     this.logger.log(`Finding product by SKU: ${sku} for shop: ${tenantContext.shopId}`);
 
-    const product = await this.productRepository.findOne({
-      where: {
-        sku,
-        shopId: tenantContext.shopId,
-        deletedAt: IsNull(),
-      } as FindOptionsWhere<Product>,
-    });
+    const product = await this.productRepository.findBySku(sku, tenantContext.shopId);
 
     if (!product) {
       this.logger.warn(`Product with SKU ${sku} not found in organization ${tenantContext.shopId}`);
@@ -207,10 +138,10 @@ export class ProductService {
     const product = await this.findOne(id, tenantContext);
 
     if (updateProductDto.sku && updateProductDto.sku !== product.sku) {
-      const existingProduct = await this.productRepository.existsBy({
-        sku: updateProductDto.sku,
-        shopId: tenantContext.shopId,
-      });
+      const existingProduct = await this.productRepository.existsBySkuAndShop(
+        updateProductDto.sku,
+        tenantContext.shopId,
+      );
 
       if (existingProduct) {
         this.logger.warn(
@@ -232,7 +163,7 @@ export class ProductService {
     this.logger.log(`Soft deleting product ID: ${id} for shop: ${tenantContext.shopId}`);
 
     await this.findOne(id, tenantContext);
-    await this.productRepository.softDelete(id);
+    await this.productRepository.softDeleteById(id);
     await this.invalidateProductCache(tenantContext.shopId, id);
 
     this.logger.log(`Product ${id} soft deleted successfully`);
@@ -241,17 +172,14 @@ export class ProductService {
   async restore(id: string, tenantContext: TenantContext): Promise<{ message: string }> {
     this.logger.log(`Restoring product ID: ${id} for shop: ${tenantContext.shopId}`);
 
-    const product = await this.productRepository.findOne({
-      where: { id, shopId: tenantContext.shopId } as FindOptionsWhere<Product>,
-      withDeleted: true,
-    });
+    const product = await this.productRepository.findOneWithDeleted(id, tenantContext.shopId);
 
     if (!product) {
       this.logger.warn(`Product ${id} not found in organization ${tenantContext.shopId}`);
       throw new NotFoundException('Product not found');
     }
 
-    const result = await this.productRepository.restore({ id });
+    const result = await this.productRepository.restoreById(id);
 
     if (result.affected === 0) {
       this.logger.warn(`Product ${id} not found or already active`);
@@ -267,7 +195,7 @@ export class ProductService {
   async updateStock(id: string, quantity: number, tenantContext: TenantContext): Promise<Product> {
     this.logger.log(`Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${tenantContext.shopId}`);
 
-    await this.productRepository.update(id, { quantity });
+    await this.productRepository.updateQuantity(id, quantity);
     await this.invalidateProductCache(tenantContext.shopId, id);
     const updatedProduct = await this.findOne(id, tenantContext);
 
@@ -281,7 +209,7 @@ export class ProductService {
     );
 
     await this.findOne(id, tenantContext);
-    await this.productRepository.increment({ id }, 'quantity', adjustment);
+    await this.productRepository.incrementQuantity(id, adjustment);
     await this.invalidateProductCache(tenantContext.shopId, id);
     const updatedProduct = await this.findOne(id, tenantContext);
 
@@ -290,30 +218,14 @@ export class ProductService {
   }
 
   async count(tenantContext: TenantContext, where?: FindOptionsWhere<Product>): Promise<number> {
-    const countWhere: FindOptionsWhere<Product> = where
-      ? ({
-          ...where,
-          shopId: tenantContext.shopId,
-          deletedAt: IsNull() as unknown as Date,
-        } as FindOptionsWhere<Product>)
-      : ({
-          shopId: tenantContext.shopId,
-          deletedAt: IsNull() as unknown as Date,
-        } as FindOptionsWhere<Product>);
-    const count = await this.productRepository.count({ where: countWhere });
+    const count = await this.productRepository.countByShop(tenantContext.shopId, where);
     this.logger.log(`Product count for organization ${tenantContext.shopId}: ${count}`);
     return count;
   }
 
-  async countByCategory(category: string, tenantContext: TenantContext): Promise<number> {
-    const count = await this.productRepository.count({
-      where: {
-        category,
-        shopId: tenantContext.shopId,
-        deletedAt: IsNull() as unknown as Date,
-      } as FindOptionsWhere<Product>,
-    });
-    this.logger.log(`Product count for category ${category} in organization ${tenantContext.shopId}: ${count}`);
+  async countByCategory(categoryId: string, tenantContext: TenantContext): Promise<number> {
+    const count = await this.productRepository.countByCategory(tenantContext.shopId, categoryId);
+    this.logger.log(`Product count for category ${categoryId} in organization ${tenantContext.shopId}: ${count}`);
     return count;
   }
 
@@ -326,13 +238,7 @@ export class ProductService {
 
     this.logger.log(`Finding product by barcode: ${barcode} for shop: ${tenantContext.shopId}`);
 
-    const product = await this.productRepository.findOne({
-      where: {
-        barcode,
-        shopId: tenantContext.shopId,
-        deletedAt: IsNull() as unknown as Date,
-      } as FindOptionsWhere<Product>,
-    });
+    const product = await this.productRepository.findByBarcode(barcode, tenantContext.shopId);
 
     if (!product) {
       this.logger.warn(`Product with barcode ${barcode} not found in organization ${tenantContext.shopId}`);
@@ -354,13 +260,7 @@ export class ProductService {
 
     this.logger.log(`Finding products with low stock (threshold: ${threshold}) for shop: ${tenantContext.shopId}`);
 
-    const products = await this.productRepository.find({
-      where: {
-        shopId: tenantContext.shopId,
-        quantity: LessThan(threshold) as unknown as number,
-        deletedAt: IsNull() as unknown as Date,
-      } as FindOptionsWhere<Product>,
-    });
+    const products = await this.productRepository.findLowStock(tenantContext.shopId, threshold);
 
     this.logger.log(`Found ${products.length} products with low stock`);
 
