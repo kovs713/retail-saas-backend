@@ -2,7 +2,8 @@ import { Pagination, PaginationResponse } from '@/common/dto';
 import { TenantContext } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
-import { CreateProductDto, UpdateProductDto } from './dto';
+import { CreateCategoryDto, CreateProductDto, UpdateCategoryDto, UpdateProductDto } from './dto';
+import { Category } from './entities/category.entity';
 import { Product } from './entities/product.entity';
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
@@ -26,6 +27,8 @@ export class ProductService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -364,6 +367,135 @@ export class ProductService {
     await this.cacheService.set(cacheKey, products, 120);
 
     return products;
+  }
+
+  async getCategories(shopId: string): Promise<Category[]> {
+    const cacheKey = this.cacheService.generateKey('categories', 'shop', shopId);
+    const cached = await this.cacheService.get<Category[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    this.logger.log(`Finding categories for shop: ${shopId}`);
+
+    const categories = await this.categoryRepository.find({
+      where: { shopId },
+      order: { name: 'ASC' },
+    });
+
+    this.logger.log(`Found ${categories.length} categories`);
+
+    await this.cacheService.set(cacheKey, categories, 300);
+
+    return categories;
+  }
+
+  async createCategory(shopId: string, createCategoryDto: CreateCategoryDto): Promise<Category> {
+    try {
+      const existingCategory = await this.categoryRepository.findOne({
+        where: {
+          shopId,
+          slug: createCategoryDto.slug,
+        },
+      });
+
+      if (existingCategory) {
+        throw new ConflictException(`Category with slug "${createCategoryDto.slug}" already exists for this shop`);
+      }
+
+      const category = this.categoryRepository.create({
+        ...createCategoryDto,
+        shopId,
+      });
+
+      const savedCategory = await this.categoryRepository.save(category);
+      await this.invalidateCategoryCache(shopId);
+      this.logger.log(`Category created successfully with ID: ${savedCategory.id}`);
+      return savedCategory;
+    } catch (error: unknown) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create category: ${errorMessage}`, errorStack);
+      throw error;
+    }
+  }
+
+  async updateCategory(id: string, shopId: string, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
+    try {
+      const category = await this.categoryRepository.findOne({
+        where: { id, shopId },
+      });
+
+      if (!category) {
+        throw new NotFoundException(`Category with ID "${id}" not found`);
+      }
+
+      if (updateCategoryDto.slug) {
+        const existingCategory = await this.categoryRepository.findOne({
+          where: {
+            shopId,
+            slug: updateCategoryDto.slug,
+          },
+        });
+
+        if (existingCategory && existingCategory.id !== id) {
+          throw new ConflictException(`Category with slug "${updateCategoryDto.slug}" already exists for this shop`);
+        }
+      }
+
+      Object.assign(category, updateCategoryDto);
+      const updated = await this.categoryRepository.save(category);
+      await this.invalidateCategoryCache(shopId);
+      this.logger.log(`Category updated successfully: ${updated.name}`);
+      return updated;
+    } catch (error: unknown) {
+      if (error instanceof NotFoundException || error instanceof ConflictException) {
+        throw error;
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to update category: ${errorMessage}`, errorStack);
+      throw error;
+    }
+  }
+
+  async deleteCategory(id: string, shopId: string): Promise<void> {
+    try {
+      const category = await this.categoryRepository.findOne({
+        where: { id, shopId },
+      });
+
+      if (!category) {
+        throw new NotFoundException(`Category with ID "${id}" not found`);
+      }
+
+      const productsWithCategory = await this.productRepository.count({
+        where: { categoryId: id },
+      });
+
+      if (productsWithCategory > 0) {
+        throw new ConflictException(`Cannot delete category with ${productsWithCategory} associated products`);
+      }
+
+      await this.categoryRepository.remove(category);
+      await this.invalidateCategoryCache(shopId);
+      this.logger.log(`Category ${id} deleted successfully`);
+    } catch (error: unknown) {
+      if (error instanceof NotFoundException || error instanceof ConflictException) {
+        throw error;
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to delete category: ${errorMessage}`, errorStack);
+      throw error;
+    }
+  }
+
+  private async invalidateCategoryCache(shopId: string): Promise<void> {
+    await this.cacheService.del(this.cacheService.generateKey('categories', 'shop', shopId));
   }
 
   private getOrderOptions(sortBy?: string, sortOrder?: 'ASC' | 'DESC'): Record<string, 'ASC' | 'DESC'> {

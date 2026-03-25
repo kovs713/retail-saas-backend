@@ -1,4 +1,5 @@
 export * from './adjust-stock.dto';
+export * from './category/';
 export * from './create-product.dto';
 export * from './product-list-response.dto';
 export * from './product-response.dto';

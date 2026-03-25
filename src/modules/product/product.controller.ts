@@ -1,6 +1,7 @@
-import { Tenant } from '@/common/decorators';
+import { Roles, Tenant } from '@/common/decorators';
 import { ApiResponse as AppApiResponse, Pagination, PaginationResponse } from '@/common/dto';
-import { AuthGuard } from '@/common/guards';
+import { Role } from '@/common/enums';
+import { AuthGuard, RolesGuard } from '@/common/guards';
 import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import {
@@ -13,6 +14,8 @@ import {
   UpdateProductDto,
   UpdateStockDto,
 } from './dto';
+import { CreateCategoryDto, UpdateCategoryDto } from './dto/category';
+import { Category } from './entities/category.entity';
 import { ProductService } from './product.service';
 
 import {
@@ -33,7 +36,7 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags }
 @ApiTags('Products')
 @ApiBearerAuth('JWT')
 @Controller('products')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class ProductController {
   private readonly logger = new LoggerService(ProductController.name);
 
@@ -241,5 +244,64 @@ export class ProductController {
     const response = products.map((product) => ProductResponseDto.fromEntity(product));
     this.logger.log(`Found ${products.length} products with low stock`);
     return { success: true, data: response };
+  }
+
+  @Get('categories')
+  @ApiOperation({ summary: 'Get all categories for a shop' })
+  @ApiResponse({ status: 200, description: 'Categories retrieved successfully' })
+  async getCategories(@Tenant() tenantContext: TenantContext): Promise<AppApiResponse<Category[]>> {
+    this.logger.log(`Finding categories for shop: ${tenantContext.shopId}`);
+    const categories = await this.productService.getCategories(tenantContext.shopId);
+    this.logger.log(`Found ${categories.length} categories`);
+    return { success: true, data: categories };
+  }
+
+  @Post('categories')
+  @Roles(Role.OWNER)
+  @ApiOperation({ summary: 'Create a new category' })
+  @ApiResponse({ status: 201, description: 'Category created successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
+  @ApiResponse({ status: 409, description: 'Conflict - Category slug already exists' })
+  async createCategory(
+    @Body() createCategoryDto: CreateCategoryDto,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<Category>> {
+    this.logger.log(`Creating category: ${createCategoryDto.name} for shop: ${tenantContext.shopId}`);
+    const category = await this.productService.createCategory(tenantContext.shopId, createCategoryDto);
+    this.logger.log(`Category created successfully with ID: ${category.id}`);
+    return { success: true, data: category, message: 'Category created successfully' };
+  }
+
+  @Patch('categories/:id')
+  @Roles(Role.OWNER)
+  @ApiOperation({ summary: 'Update a category' })
+  @ApiParam({ name: 'id', type: String, description: 'Category ID' })
+  @ApiResponse({ status: 200, description: 'Category updated successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
+  @ApiResponse({ status: 404, description: 'Category not found' })
+  @ApiResponse({ status: 409, description: 'Conflict - Category slug already exists' })
+  async updateCategory(
+    @Param('id') id: string,
+    @Body() updateCategoryDto: UpdateCategoryDto,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<Category>> {
+    this.logger.log(`Updating category ID: ${id}`);
+    const category = await this.productService.updateCategory(id, tenantContext.shopId, updateCategoryDto);
+    this.logger.log(`Category updated successfully: ${category.name}`);
+    return { success: true, data: category, message: 'Category updated successfully' };
+  }
+
+  @Delete('categories/:id')
+  @Roles(Role.OWNER)
+  @ApiOperation({ summary: 'Delete a category' })
+  @ApiParam({ name: 'id', type: String, description: 'Category ID' })
+  @ApiResponse({ status: 200, description: 'Category deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Category not found' })
+  @ApiResponse({ status: 409, description: 'Conflict - Category has associated products' })
+  async deleteCategory(@Param('id') id: string, @Tenant() tenantContext: TenantContext): Promise<AppApiResponse<void>> {
+    this.logger.log(`Deleting category ID: ${id}`);
+    await this.productService.deleteCategory(id, tenantContext.shopId);
+    this.logger.log(`Category ${id} deleted successfully`);
+    return { success: true, message: 'Category deleted successfully' };
   }
 }

@@ -3,7 +3,6 @@ import { TypeOrmConfigService } from './common/configs';
 import { AuthModule } from './core/auth/auth.module';
 import { CacheModule } from './core/cache/cache.module';
 import { LoggerModule } from './core/logger/logger.module';
-import { CategoryModule } from './modules/category/category.module';
 import { ProductModule } from './modules/product/product.module';
 import { RagModule } from './modules/rag/rag.module';
 import { ShopModule } from './modules/shop/shop.module';
@@ -27,7 +26,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     RagModule,
     StorageModule.forRoot(),
     ProductModule,
-    CategoryModule,
     ShopModule,
     UserModule,
   ],

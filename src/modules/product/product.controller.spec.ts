@@ -1,4 +1,4 @@
-import { AuthGuard } from '@/common/guards';
+import { AuthGuard, RolesGuard } from '@/common/guards';
 import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
@@ -39,6 +39,8 @@ describe('ProductController', () => {
           role: 'owner',
         }),
       )
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
       .compile();
 
     controller = module.get<ProductController>(ProductController);
