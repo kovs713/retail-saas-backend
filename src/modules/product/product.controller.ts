@@ -70,6 +70,60 @@ export class ProductController {
     };
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get product statistics' })
+  @ApiResponse({ status: 200, description: 'Statistics retrieved successfully' })
+  async getStats(
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<{ totalProducts: number; lowStockCount: number }>> {
+    this.logger.log('Getting product statistics');
+    const totalProducts = await this.productService.count(tenantContext);
+    const lowStockProducts = await this.productService.findLowStock(10, tenantContext);
+    this.logger.log(`Statistics: ${totalProducts} total, ${lowStockProducts.length} low stock`);
+    return { success: true, data: { totalProducts, lowStockCount: lowStockProducts.length } };
+  }
+
+  @Get('low-stock')
+  @ApiOperation({ summary: 'Get products with low stock' })
+  @ApiQuery({ name: 'threshold', required: false, type: Number, example: 10 })
+  @ApiResponse({ status: 200, description: 'Low stock products retrieved', type: [ProductDto] })
+  async getLowStock(
+    @Query('threshold') threshold: number = 10,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<ProductDto[]>> {
+    this.logger.log(`Finding products with low stock (threshold: ${threshold})`);
+    const products = await this.productService.findLowStock(threshold, tenantContext);
+    const response = products.map((product) => ProductDto.fromEntity(product));
+    this.logger.log(`Found ${products.length} products with low stock`);
+    return { success: true, data: response };
+  }
+
+  @Get('categories')
+  @ApiOperation({ summary: 'Get all categories for a shop' })
+  @ApiResponse({ status: 200, description: 'Categories retrieved successfully' })
+  async getCategories(@Tenant() tenantContext: TenantContext): Promise<AppApiResponse<Category[]>> {
+    this.logger.log(`Finding categories for shop: ${tenantContext.shopId}`);
+    const categories = await this.productService.getCategories(tenantContext.shopId);
+    this.logger.log(`Found ${categories.length} categories`);
+    return { success: true, data: categories };
+  }
+
+  @Get('barcode/:barcode')
+  @ApiOperation({ summary: 'Find product by barcode' })
+  @ApiParam({ name: 'barcode', type: String, description: 'Product barcode' })
+  @ApiResponse({ status: 200, description: 'Product found', type: ProductDto })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  async findByBarcode(
+    @Param('barcode') barcode: string,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<ProductDto>> {
+    this.logger.log(`Finding product by barcode: ${barcode}`);
+    const product = await this.productService.findByBarcode(barcode, tenantContext);
+    const response = ProductDto.fromEntity(product);
+    this.logger.log(`Product found: ${product.name}`);
+    return { success: true, data: response };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a product by ID' })
   @ApiParam({ name: 'id', type: String, description: 'Product ID' })
@@ -177,60 +231,6 @@ export class ProductController {
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Stock adjusted for product ${id}: ${product.quantity}`);
     return { success: true, data: response, message: 'Stock adjusted successfully' };
-  }
-
-  @Get('barcode/:barcode')
-  @ApiOperation({ summary: 'Find product by barcode' })
-  @ApiParam({ name: 'barcode', type: String, description: 'Product barcode' })
-  @ApiResponse({ status: 200, description: 'Product found', type: ProductDto })
-  @ApiResponse({ status: 404, description: 'Product not found' })
-  async findByBarcode(
-    @Param('barcode') barcode: string,
-    @Tenant() tenantContext: TenantContext,
-  ): Promise<AppApiResponse<ProductDto>> {
-    this.logger.log(`Finding product by barcode: ${barcode}`);
-    const product = await this.productService.findByBarcode(barcode, tenantContext);
-    const response = ProductDto.fromEntity(product);
-    this.logger.log(`Product found: ${product.name}`);
-    return { success: true, data: response };
-  }
-
-  @Get('stats')
-  @ApiOperation({ summary: 'Get product statistics' })
-  @ApiResponse({ status: 200, description: 'Statistics retrieved successfully' })
-  async getStats(
-    @Tenant() tenantContext: TenantContext,
-  ): Promise<AppApiResponse<{ totalProducts: number; lowStockCount: number }>> {
-    this.logger.log('Getting product statistics');
-    const totalProducts = await this.productService.count(tenantContext);
-    const lowStockProducts = await this.productService.findLowStock(10, tenantContext);
-    this.logger.log(`Statistics: ${totalProducts} total, ${lowStockProducts.length} low stock`);
-    return { success: true, data: { totalProducts, lowStockCount: lowStockProducts.length } };
-  }
-
-  @Get('low-stock')
-  @ApiOperation({ summary: 'Get products with low stock' })
-  @ApiQuery({ name: 'threshold', required: false, type: Number, example: 10 })
-  @ApiResponse({ status: 200, description: 'Low stock products retrieved', type: [ProductDto] })
-  async getLowStock(
-    @Query('threshold') threshold: number = 10,
-    @Tenant() tenantContext: TenantContext,
-  ): Promise<AppApiResponse<ProductDto[]>> {
-    this.logger.log(`Finding products with low stock (threshold: ${threshold})`);
-    const products = await this.productService.findLowStock(threshold, tenantContext);
-    const response = products.map((product) => ProductDto.fromEntity(product));
-    this.logger.log(`Found ${products.length} products with low stock`);
-    return { success: true, data: response };
-  }
-
-  @Get('categories')
-  @ApiOperation({ summary: 'Get all categories for a shop' })
-  @ApiResponse({ status: 200, description: 'Categories retrieved successfully' })
-  async getCategories(@Tenant() tenantContext: TenantContext): Promise<AppApiResponse<Category[]>> {
-    this.logger.log(`Finding categories for shop: ${tenantContext.shopId}`);
-    const categories = await this.productService.getCategories(tenantContext.shopId);
-    this.logger.log(`Found ${categories.length} categories`);
-    return { success: true, data: categories };
   }
 
   @Post('categories')

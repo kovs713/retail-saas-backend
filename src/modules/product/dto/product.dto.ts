@@ -1,7 +1,6 @@
-import { Product } from '../entities/product.entity';
-
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose, Transform, plainToInstance } from 'class-transformer';
+import { Product } from '../entities/product.entity';
 
 export class ProductDto {
   @ApiProperty({ description: 'Product ID', example: '123e4567-e89b-12d3-a456-426614174000' })
