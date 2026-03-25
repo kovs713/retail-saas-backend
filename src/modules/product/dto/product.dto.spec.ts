@@ -1,6 +1,6 @@
-import { ProductResponseDto } from './product-response.dto';
+import { ProductDto } from './product.dto';
 
-describe('ProductResponseDto', () => {
+describe('ProductDto', () => {
   const mockProductEntity = {
     id: '123e4567-e89b-12d3-a456-426614174000',
     sku: 'PROD-001',
@@ -19,7 +19,7 @@ describe('ProductResponseDto', () => {
 
   describe('fromEntity', () => {
     it('should convert entity to DTO', () => {
-      const dto = ProductResponseDto.fromEntity(mockProductEntity as any);
+      const dto = ProductDto.fromEntity(mockProductEntity as any);
 
       expect(dto.id).toBe(mockProductEntity.id);
       expect(dto.sku).toBe(mockProductEntity.sku);
@@ -35,7 +35,7 @@ describe('ProductResponseDto', () => {
     });
 
     it('should transform dates to ISO strings', () => {
-      const dto = ProductResponseDto.fromEntity(mockProductEntity as any);
+      const dto = ProductDto.fromEntity(mockProductEntity as any);
 
       expect(dto.createdAt).toBe('2024-01-01T00:00:00.000Z');
       expect(dto.updatedAt).toBe('2024-01-02T00:00:00.000Z');
@@ -52,7 +52,7 @@ describe('ProductResponseDto', () => {
         metadata: null,
       };
 
-      const dto = ProductResponseDto.fromEntity(entityWithNulls as any);
+      const dto = ProductDto.fromEntity(entityWithNulls as any);
 
       expect(dto.description).toBeNull();
       expect(dto.cost).toBeNull();
@@ -67,7 +67,7 @@ describe('ProductResponseDto', () => {
     it('should convert multiple entities to DTOs', () => {
       const entities = [mockProductEntity, { ...mockProductEntity, id: '2', sku: 'PROD-002' }];
 
-      const dtos = ProductResponseDto.fromEntities(entities as any);
+      const dtos = ProductDto.fromEntities(entities as any);
 
       expect(dtos).toHaveLength(2);
       expect(dtos[0].id).toBe(mockProductEntity.id);
@@ -75,7 +75,7 @@ describe('ProductResponseDto', () => {
     });
 
     it('should return empty array for empty input', () => {
-      const dtos = ProductResponseDto.fromEntities([]);
+      const dtos = ProductDto.fromEntities([]);
 
       expect(dtos).toHaveLength(0);
     });

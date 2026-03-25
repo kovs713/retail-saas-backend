@@ -1,8 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Expose, Transform, plainToInstance } from 'class-transformer';
 import { Product } from '../entities/product.entity';
 
-export class ProductResponseDto {
+import { ApiProperty } from '@nestjs/swagger';
+import { Expose, Transform, plainToInstance } from 'class-transformer';
+
+export class ProductDto {
   @ApiProperty({ description: 'Product ID', example: '123e4567-e89b-12d3-a456-426614174000' })
   @Expose()
   id: string;
@@ -67,11 +68,11 @@ export class ProductResponseDto {
   @Transform(({ value }) => (value as Date)?.toISOString())
   updatedAt: Date;
 
-  static fromEntity(entity: Product): ProductResponseDto {
-    return plainToInstance(ProductResponseDto, entity, { excludeExtraneousValues: true });
+  static fromEntity(entity: Product): ProductDto {
+    return plainToInstance(ProductDto, entity, { excludeExtraneousValues: true });
   }
 
-  static fromEntities(entities: Product[]): ProductResponseDto[] {
+  static fromEntities(entities: Product[]): ProductDto[] {
     return entities.map((entity) => this.fromEntity(entity));
   }
 }
