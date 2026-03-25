@@ -1,5 +1,5 @@
 import { Pagination } from '@/common/dto';
-import { Product } from '../entities/product.entity';
+import { Product } from '../entities';
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';

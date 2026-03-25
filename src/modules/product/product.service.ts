@@ -4,11 +4,10 @@ import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { CreateCategoryDto, CreateProductDto, UpdateCategoryDto, UpdateProductDto } from './dto';
 import { Category, Product } from './entities';
-import { ProductRepository } from './repositories';
+import { CategoryRepository, ProductRepository } from './repositories';
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, QueryDeepPartialEntity, Repository } from 'typeorm';
+import { FindOptionsWhere, QueryDeepPartialEntity } from 'typeorm';
 
 @Injectable()
 export class ProductService {
@@ -16,8 +15,7 @@ export class ProductService {
 
   constructor(
     private readonly productRepository: ProductRepository,
-    @InjectRepository(Category)
-    private readonly categoryRepository: Repository<Category>,
+    private readonly categoryRepository: CategoryRepository,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -278,10 +276,7 @@ export class ProductService {
 
     this.logger.log(`Finding categories for shop: ${shopId}`);
 
-    const categories = await this.categoryRepository.find({
-      where: { shopId },
-      order: { name: 'ASC' },
-    });
+    const categories = await this.categoryRepository.findAllByShop(shopId);
 
     this.logger.log(`Found ${categories.length} categories`);
 
@@ -292,12 +287,7 @@ export class ProductService {
 
   async createCategory(shopId: string, createCategoryDto: CreateCategoryDto): Promise<Category> {
     try {
-      const existingCategory = await this.categoryRepository.findOne({
-        where: {
-          shopId,
-          slug: createCategoryDto.slug,
-        },
-      });
+      const existingCategory = await this.categoryRepository.findBySlug(shopId, createCategoryDto.slug);
 
       if (existingCategory) {
         throw new ConflictException(`Category with slug "${createCategoryDto.slug}" already exists for this shop`);
@@ -325,23 +315,16 @@ export class ProductService {
 
   async updateCategory(id: string, shopId: string, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
     try {
-      const category = await this.categoryRepository.findOne({
-        where: { id, shopId },
-      });
+      const category = await this.categoryRepository.findByIdAndShop(id, shopId);
 
       if (!category) {
         throw new NotFoundException(`Category with ID "${id}" not found`);
       }
 
       if (updateCategoryDto.slug) {
-        const existingCategory = await this.categoryRepository.findOne({
-          where: {
-            shopId,
-            slug: updateCategoryDto.slug,
-          },
-        });
+        const existingCategory = await this.categoryRepository.existsBySlugAndShop(shopId, updateCategoryDto.slug);
 
-        if (existingCategory && existingCategory.id !== id) {
+        if (existingCategory) {
           throw new ConflictException(`Category with slug "${updateCategoryDto.slug}" already exists for this shop`);
         }
       }
@@ -372,9 +355,7 @@ export class ProductService {
         throw new NotFoundException(`Category with ID "${id}" not found`);
       }
 
-      const productsWithCategory = await this.productRepository.count({
-        where: { categoryId: id },
-      });
+      const productsWithCategory = await this.productRepository.countByCategory(shopId, id);
 
       if (productsWithCategory > 0) {
         throw new ConflictException(`Cannot delete category with ${productsWithCategory} associated products`);

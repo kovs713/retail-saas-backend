@@ -6,6 +6,7 @@ import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import {
   AdjustStockDto,
+  CategoryDto,
   CreateCategoryDto,
   CreateProductDto,
   ProductDto,
@@ -13,7 +14,6 @@ import {
   UpdateProductDto,
   UpdateStockDto,
 } from './dto';
-import { CategoryDto } from './dto/category.dto';
 import { ProductService } from './product.service';
 
 import {
