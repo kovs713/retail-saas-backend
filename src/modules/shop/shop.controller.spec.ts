@@ -1,9 +1,8 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { mockAuthGuard, mockGuard } from '@/common/utils';
-import { User } from '@/modules/user/entities/user.entity';
-import { CreateShopDto } from './dto/create-shop.dto';
-import { UpdateShopDto } from './dto/update-shop.dto';
-import { Shop } from './entities/shop.entity';
+import { User } from '@/modules/user/entities';
+import { CreateShopDto, ShopDto, UpdateShopDto } from './dto';
+import { Shop } from './entities';
 import { ShopController } from './shop.controller';
 import { ShopService } from './shop.service';
 
@@ -82,33 +81,39 @@ describe('ShopController', () => {
 
     it('should create a shop successfully', async () => {
       jest.spyOn(service, 'create').mockResolvedValue(mockShop);
+      const expectedDto = ShopDto.fromEntity(mockShop);
+      const expectedResult = { success: true, data: expectedDto, message: 'Shop created successfully' };
 
       const result = await controller.create(createDto);
 
       expect(service.create).toHaveBeenCalledWith(createDto);
-      expect(result).toEqual(mockShop);
+      expect(result).toEqual(expectedResult);
     });
   });
 
   describe('findBySlug', () => {
     it('should return a shop by slug', async () => {
       jest.spyOn(service, 'findBySlug').mockResolvedValue(mockShop);
+      const expectedDto = ShopDto.fromEntity(mockShop);
+      const expectedResult = { success: true, data: expectedDto };
 
       const result = await controller.findBySlug('test-shop');
 
       expect(service.findBySlug).toHaveBeenCalledWith('test-shop');
-      expect(result).toEqual(mockShop);
+      expect(result).toEqual(expectedResult);
     });
   });
 
   describe('findById', () => {
     it('should return a shop by id', async () => {
       jest.spyOn(service, 'findById').mockResolvedValue(mockShop);
+      const expectedDto = ShopDto.fromEntity(mockShop);
+      const expectedResult = { success: true, data: expectedDto };
 
       const result = await controller.findById('shop-1');
 
       expect(service.findById).toHaveBeenCalledWith('shop-1');
-      expect(result).toEqual(mockShop);
+      expect(result).toEqual(expectedResult);
     });
   });
 
@@ -121,11 +126,13 @@ describe('ShopController', () => {
     it('should update a shop successfully', async () => {
       const updatedShop = { ...mockShop, ...updateDto };
       jest.spyOn(service, 'update').mockResolvedValue(updatedShop);
+      const expectedDto = ShopDto.fromEntity(updatedShop);
+      const expectedResult = { success: true, data: expectedDto, message: 'Shop updated successfully' };
 
       const result = await controller.update('shop-1', updateDto);
 
       expect(service.update).toHaveBeenCalledWith('shop-1', updateDto);
-      expect(result).toEqual(updatedShop);
+      expect(result).toEqual(expectedResult);
     });
   });
 
@@ -134,22 +141,26 @@ describe('ShopController', () => {
       const logoUrl = 'https://example.com/logo.png';
       const updatedShop = { ...mockShop, logoUrl };
       jest.spyOn(service, 'updateMediaUrls').mockResolvedValue(updatedShop);
+      const expectedDto = ShopDto.fromEntity(updatedShop);
+      const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
 
       const result = await controller.updateMedia('shop-1', logoUrl);
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', logoUrl, undefined);
-      expect(result).toEqual(updatedShop);
+      expect(result).toEqual(expectedResult);
     });
 
     it('should update shop banner URL', async () => {
       const bannerUrl = 'https://example.com/banner.png';
       const updatedShop = { ...mockShop, bannerUrl };
       jest.spyOn(service, 'updateMediaUrls').mockResolvedValue(updatedShop);
+      const expectedDto = ShopDto.fromEntity(updatedShop);
+      const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
 
       const result = await controller.updateMedia('shop-1', undefined, bannerUrl);
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', undefined, bannerUrl);
-      expect(result).toEqual(updatedShop);
+      expect(result).toEqual(expectedResult);
     });
 
     it('should update both logo and banner URLs', async () => {
@@ -157,11 +168,13 @@ describe('ShopController', () => {
       const bannerUrl = 'https://example.com/banner.png';
       const updatedShop = { ...mockShop, logoUrl, bannerUrl };
       jest.spyOn(service, 'updateMediaUrls').mockResolvedValue(updatedShop);
+      const expectedDto = ShopDto.fromEntity(updatedShop);
+      const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
 
       const result = await controller.updateMedia('shop-1', logoUrl, bannerUrl);
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', logoUrl, bannerUrl);
-      expect(result).toEqual(updatedShop);
+      expect(result).toEqual(expectedResult);
     });
   });
 });

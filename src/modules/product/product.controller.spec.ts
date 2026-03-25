@@ -1,5 +1,6 @@
-import { AuthGuard } from '@/common/guards';
+import { AuthGuard, RolesGuard } from '@/common/guards';
 import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
+import { Category, Product } from './entities';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';
@@ -7,6 +8,8 @@ import { createProduct } from './util/product.factory';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 describe('ProductController', () => {
   let controller: ProductController;
@@ -28,6 +31,14 @@ describe('ProductController', () => {
           provide: ProductService,
           useValue: createMock<ProductService>(),
         },
+        {
+          provide: getRepositoryToken(Product),
+          useValue: createMock<Repository<Product>>(),
+        },
+        {
+          provide: getRepositoryToken(Category),
+          useValue: createMock<Repository<Category>>(),
+        },
       ],
     })
       .overrideGuard(AuthGuard)
@@ -39,6 +50,8 @@ describe('ProductController', () => {
           role: 'owner',
         }),
       )
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
       .compile();
 
     controller = module.get<ProductController>(ProductController);
@@ -142,8 +155,8 @@ describe('ProductController', () => {
         message: 'Product restored successfully',
       });
       const result = await controller.restore('prod_1', tenantContext);
-      expect(result.data).toBeDefined();
-      expect(result.data?.message).toBe('Product restored successfully');
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Product restored successfully');
     });
   });
 
@@ -153,7 +166,7 @@ describe('ProductController', () => {
       const result = await controller.updateStock('prod_1', { quantity: 150 }, tenantContext);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data?.data.quantity).toBe(150);
+      expect(result.data!.quantity).toBe(150);
     });
   });
 
@@ -163,6 +176,7 @@ describe('ProductController', () => {
       const result = await controller.adjustStock('prod_1', { adjustment: 50 }, tenantContext);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
+      expect(result.data!.quantity).toBe(150);
     });
   });
 
@@ -188,8 +202,8 @@ describe('ProductController', () => {
       const result = await controller.getStats(tenantContext);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data?.totalProducts).toBe(100);
-      expect(result.data?.lowStockCount).toBe(1);
+      expect(result.data!.totalProducts).toBe(100);
+      expect(result.data!.lowStockCount).toBe(1);
     });
   });
 

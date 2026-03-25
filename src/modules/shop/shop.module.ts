@@ -1,4 +1,5 @@
-import { Shop } from './entities/shop.entity';
+import { Shop } from './entities';
+import { ShopRepository } from './repository';
 import { ShopController } from './shop.controller';
 import { ShopService } from './shop.service';
 
@@ -7,7 +8,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Shop])],
-  providers: [ShopService],
+  providers: [ShopService, ShopRepository],
   exports: [ShopService],
   controllers: [ShopController],
 })

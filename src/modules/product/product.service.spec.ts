@@ -1,18 +1,18 @@
 import { createMockTenantContext, mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { Product } from './entities/product.entity';
+import { Product } from './entities';
 import { ProductService } from './product.service';
+import { CategoryRepository, ProductRepository } from './repositories';
 import { createProduct } from './util/product.factory';
 
-import { createMock } from '@golevelup/ts-jest';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, UpdateResult } from 'typeorm';
+import { UpdateResult } from 'typeorm';
 
 describe('ProductService', () => {
   let service: ProductService;
-  let repository: ReturnType<typeof createMock<Repository<Product>>>;
+  let productRepository: DeepMocked<ProductRepository>;
 
   const mockProduct: Product = createProduct({ id: 'prod_1', index: 1 });
   const mockTenantContext = createMockTenantContext();
@@ -22,8 +22,12 @@ describe('ProductService', () => {
       providers: [
         ProductService,
         {
-          provide: getRepositoryToken(Product),
-          useValue: createMock<Repository<Product>>(),
+          provide: ProductRepository,
+          useValue: createMock<ProductRepository>(),
+        },
+        {
+          provide: CategoryRepository,
+          useValue: createMock<CategoryRepository>(),
         },
         {
           provide: CacheService,
@@ -33,7 +37,7 @@ describe('ProductService', () => {
     }).compile();
 
     service = module.get<ProductService>(ProductService);
-    repository = module.get(getRepositoryToken(Product));
+    productRepository = module.get(ProductRepository);
   });
 
   afterEach(() => {
@@ -48,21 +52,18 @@ describe('ProductService', () => {
         price: 99.99,
         quantity: 100,
       };
-      repository.existsBy.mockResolvedValue(false);
-      repository.create.mockReturnValue(mockProduct);
-      repository.save.mockResolvedValue(mockProduct);
+      productRepository.existsBySkuAndShop.mockResolvedValue(false);
+      productRepository.create.mockReturnValue(mockProduct);
+      productRepository.save.mockResolvedValue(mockProduct);
 
       const result = await service.create(createDto, mockTenantContext);
 
-      expect(repository.existsBy).toHaveBeenCalledWith({
-        sku: 'PROD-001',
-        shopId: mockTenantContext.shopId,
-      });
+      expect(productRepository.existsBySkuAndShop).toHaveBeenCalledWith('PROD-001', mockTenantContext.shopId);
       expect(result).toEqual(mockProduct);
     });
 
     it('should throw ConflictException when SKU exists', async () => {
-      repository.existsBy.mockResolvedValue(true);
+      productRepository.existsBySkuAndShop.mockResolvedValue(true);
       await expect(
         service.create(
           {
@@ -79,81 +80,78 @@ describe('ProductService', () => {
 
   describe('findOne', () => {
     it('should return a product by id', async () => {
-      repository.findOne.mockResolvedValue(mockProduct);
+      productRepository.findById.mockResolvedValue(mockProduct);
       const result = await service.findOne('prod_1', mockTenantContext);
       expect(result).toEqual(mockProduct);
     });
 
     it('should throw NotFoundException when not found', async () => {
-      repository.findOne.mockResolvedValue(null);
+      productRepository.findById.mockResolvedValue(null);
       await expect(service.findOne('non-existent', mockTenantContext)).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('update', () => {
     it('should update a product successfully', async () => {
-      repository.findOne.mockResolvedValue(mockProduct);
-      repository.existsBy.mockResolvedValue(false);
+      productRepository.findById.mockResolvedValue(mockProduct);
+      productRepository.existsBySkuAndShop.mockResolvedValue(false);
       const mockUpdateResult: UpdateResult = { affected: 1, generatedMaps: [], raw: [] };
-      repository.update.mockResolvedValue(mockUpdateResult);
-      repository.findOne.mockResolvedValue({ ...mockProduct, name: 'Updated' });
+      productRepository.update.mockResolvedValue(mockUpdateResult);
+      productRepository.findById.mockResolvedValue({ ...mockProduct, name: 'Updated' });
 
       const result = await service.update('prod_1', { name: 'Updated' }, mockTenantContext);
-      expect(repository.update).toHaveBeenCalled();
+      expect(productRepository.update).toHaveBeenCalled();
       expect(result.name).toBe('Updated');
     });
 
     it('should throw NotFoundException for non-existent product', async () => {
-      repository.findOne.mockResolvedValue(null);
+      productRepository.findById.mockResolvedValue(null);
       await expect(service.update('non-existent', { name: 'Updated' }, mockTenantContext)).rejects.toThrow(
         NotFoundException,
       );
     });
 
     it('should throw ConflictException for duplicate SKU', async () => {
-      repository.findOne.mockResolvedValue(mockProduct);
-      repository.existsBy.mockResolvedValue(true);
+      productRepository.findById.mockResolvedValue(mockProduct);
+      productRepository.existsBySkuAndShop.mockResolvedValue(true);
       await expect(service.update('prod_1', { sku: 'EXISTING' }, mockTenantContext)).rejects.toThrow(ConflictException);
     });
   });
 
   describe('remove', () => {
     it('should soft delete a product', async () => {
-      repository.findOne.mockResolvedValue(mockProduct);
-      const mockDeleteResult: UpdateResult = { affected: 1, generatedMaps: [], raw: [] };
-      repository.softDelete.mockResolvedValue(mockDeleteResult);
+      productRepository.findById.mockResolvedValue(mockProduct);
+      productRepository.softDeleteById.mockResolvedValue();
       await service.remove('prod_1', mockTenantContext);
-      expect(repository.softDelete).toHaveBeenCalledWith('prod_1');
+      expect(productRepository.softDeleteById).toHaveBeenCalledWith('prod_1');
     });
 
     it('should throw NotFoundException for non-existent product', async () => {
-      repository.findOne.mockResolvedValue(null);
+      productRepository.findById.mockResolvedValue(null);
       await expect(service.remove('non-existent', mockTenantContext)).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('restore', () => {
     it('should restore a soft deleted product', async () => {
-      repository.findOne.mockResolvedValue(mockProduct);
+      productRepository.findOneWithDeleted.mockResolvedValue(mockProduct);
       const mockRestoreResult: UpdateResult = { affected: 1, generatedMaps: [], raw: [] };
-      repository.restore.mockResolvedValue(mockRestoreResult);
+      productRepository.restoreById.mockResolvedValue(mockRestoreResult);
       const result = await service.restore('prod_1', mockTenantContext);
       expect(result.message).toBe('Product restored successfully');
     });
 
     it('should throw NotFoundException when nothing restored', async () => {
       const mockRestoreResult: UpdateResult = { affected: 0, generatedMaps: [], raw: [] };
-      repository.restore.mockResolvedValue(mockRestoreResult);
+      productRepository.restoreById.mockResolvedValue(mockRestoreResult);
       await expect(service.restore('non-existent', mockTenantContext)).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('updateStock', () => {
     it('should update stock quantity', async () => {
-      repository.findOne.mockResolvedValue(mockProduct);
-      const mockUpdateResult: UpdateResult = { affected: 1, generatedMaps: [], raw: [] };
-      repository.update.mockResolvedValue(mockUpdateResult);
-      repository.findOne.mockResolvedValue({ ...mockProduct, quantity: 150 });
+      productRepository.updateQuantity.mockResolvedValue();
+      productRepository.findById.mockResolvedValue({ ...mockProduct, quantity: 150 });
 
       const result = await service.updateStock('prod_1', 150, mockTenantContext);
       expect(result.quantity).toBe(150);
@@ -162,10 +160,9 @@ describe('ProductService', () => {
 
   describe('adjustStock', () => {
     it('should increase stock', async () => {
-      repository.findOne.mockResolvedValue(mockProduct);
-      const mockUpdateResult: UpdateResult = { affected: 1, generatedMaps: [], raw: [] };
-      repository.increment.mockResolvedValue(mockUpdateResult);
-      repository.findOne.mockResolvedValue({ ...mockProduct, quantity: 150 });
+      productRepository.findById.mockResolvedValue(mockProduct);
+      productRepository.incrementQuantity.mockResolvedValue();
+      productRepository.findById.mockResolvedValue({ ...mockProduct, quantity: 150 });
 
       const result = await service.adjustStock('prod_1', 50, mockTenantContext);
       expect(result.quantity).toBe(150);
@@ -174,7 +171,7 @@ describe('ProductService', () => {
 
   describe('findAll', () => {
     it('should return paginated products', async () => {
-      repository.findAndCount.mockResolvedValue([[mockProduct], 1]);
+      productRepository.findAll.mockResolvedValue([[mockProduct], 1]);
 
       const result = await service.findAll({ page: 1, limit: 10 }, mockTenantContext);
       expect(result.data).toHaveLength(1);
@@ -182,7 +179,7 @@ describe('ProductService', () => {
     });
 
     it('should filter by category', async () => {
-      repository.findAndCount.mockResolvedValue([[mockProduct], 1]);
+      productRepository.findAll.mockResolvedValue([[mockProduct], 1]);
 
       const result = await service.findAll(
         {
@@ -196,7 +193,7 @@ describe('ProductService', () => {
     });
 
     it('should search by name', async () => {
-      repository.findAndCount.mockResolvedValue([[mockProduct], 1]);
+      productRepository.findAll.mockResolvedValue([[mockProduct], 1]);
 
       const result = await service.findAll(
         {
@@ -216,20 +213,20 @@ describe('ProductService', () => {
         index: 1,
         overrides: { sku: 'TEST-001' },
       });
-      repository.findOne.mockResolvedValue(productWithSku);
+      productRepository.findBySku.mockResolvedValue(productWithSku);
       const result = await service.findOneBySku('TEST-001', mockTenantContext);
       expect(result.sku).toBe('TEST-001');
     });
 
     it('should throw NotFoundException for non-existent SKU', async () => {
-      repository.findOne.mockResolvedValue(null);
+      productRepository.findBySku.mockResolvedValue(null);
       await expect(service.findOneBySku('NON-EXISTENT', mockTenantContext)).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('count', () => {
     it('should return total product count', async () => {
-      repository.count.mockResolvedValue(50);
+      productRepository.countByShop.mockResolvedValue(50);
       const result = await service.count(mockTenantContext);
       expect(result).toBe(50);
     });
@@ -237,7 +234,7 @@ describe('ProductService', () => {
 
   describe('countByCategory', () => {
     it('should return count for specific category', async () => {
-      repository.count.mockResolvedValue(25);
+      productRepository.countByCategory.mockResolvedValue(25);
       const result = await service.countByCategory('Electronics', mockTenantContext);
       expect(result).toBe(25);
     });
@@ -249,13 +246,13 @@ describe('ProductService', () => {
         index: 1,
         overrides: { barcode: '5901234123457' },
       });
-      repository.findOne.mockResolvedValue(productWithBarcode);
+      productRepository.findByBarcode.mockResolvedValue(productWithBarcode);
       const result = await service.findByBarcode('5901234123457', mockTenantContext);
       expect(result.barcode).toBe('5901234123457');
     });
 
     it('should throw NotFoundException for invalid barcode', async () => {
-      repository.findOne.mockResolvedValue(null);
+      productRepository.findByBarcode.mockResolvedValue(null);
       await expect(service.findByBarcode('invalid', mockTenantContext)).rejects.toThrow(NotFoundException);
     });
   });
@@ -266,7 +263,7 @@ describe('ProductService', () => {
         index: 1,
         overrides: { quantity: 5 },
       });
-      repository.find.mockResolvedValue([lowStockProduct]);
+      productRepository.findLowStock.mockResolvedValue([lowStockProduct]);
 
       const result = await service.findLowStock(10, mockTenantContext);
       expect(result).toHaveLength(1);

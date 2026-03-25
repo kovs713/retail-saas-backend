@@ -1,6 +1,6 @@
-import { createMock } from '@golevelup/ts-jest';
 import { TypeOrmConfigService } from './typeorm-config.service';
 
+import { createMock } from '@golevelup/ts-jest';
 import { ConfigService } from '@nestjs/config';
 
 describe('TypeOrmConfigService', () => {
