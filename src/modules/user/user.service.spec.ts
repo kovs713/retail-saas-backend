@@ -227,7 +227,6 @@ describe('UserService', () => {
     });
 
     it('should throw ConflictException for duplicate email', async () => {
-      const existingUser = { ...mockUser, id: 'user-456' };
       repository.findById.mockResolvedValueOnce(mockUser);
       repository.existsByEmailAndNotId.mockResolvedValueOnce(true);
 

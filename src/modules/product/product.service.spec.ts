@@ -121,7 +121,6 @@ describe('ProductService', () => {
   describe('remove', () => {
     it('should soft delete a product', async () => {
       productRepository.findById.mockResolvedValue(mockProduct);
-      const mockDeleteResult: UpdateResult = { affected: 1, generatedMaps: [], raw: [] };
       productRepository.softDeleteById.mockResolvedValue();
       await service.remove('prod_1', mockTenantContext);
       expect(productRepository.softDeleteById).toHaveBeenCalledWith('prod_1');

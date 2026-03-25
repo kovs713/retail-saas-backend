@@ -1,4 +1,3 @@
-import { TenantContext } from '@/common/types';
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { Category, Product } from '@/modules/product/entities';
@@ -116,7 +115,7 @@ describe('ProductService Integration', () => {
       const result = await productService.findAll({ page: 1, limit: 10, search: 'Test' }, { shopId });
 
       expect(result.data).toHaveLength(2);
-      expect(result.data.every((p) => p.name.includes('Test'))).toBe(true);
+      expect(result.data?.every((p) => p.name.includes('Test'))).toBe(true);
     });
 
     it('should escape special characters in search', async () => {
@@ -127,7 +126,7 @@ describe('ProductService Integration', () => {
 
       const result = await productService.findAll({ page: 1, limit: 10, search: '%_' }, { shopId });
 
-      expect(result.data.some((p) => p.id === special.id)).toBe(true);
+      expect(result.data?.some((p) => p.id === special.id)).toBe(true);
     });
 
     it('should filter by category', async () => {
@@ -148,16 +147,16 @@ describe('ProductService Integration', () => {
 
       const result = await productService.findAll({ page: 1, limit: 10, category: category.id }, { shopId });
 
-      expect(result.data.every((p) => p.categoryId === category.id)).toBe(true);
+      expect(result.data?.every((p) => p.categoryId === category.id)).toBe(true);
     });
 
     it('should return paginated results', async () => {
       const result = await productService.findAll({ page: 1, limit: 2 }, { shopId });
 
       expect(result.data).toHaveLength(2);
-      expect(result.pagination.total).toBe(3);
-      expect(result.pagination.page).toBe(1);
-      expect(result.pagination.limit).toBe(2);
+      expect(result.pagination?.total).toBe(3);
+      expect(result.pagination?.page).toBe(1);
+      expect(result.pagination?.limit).toBe(2);
     });
   });
 
