@@ -4,9 +4,16 @@ import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
-import { AdjustStockDto, CreateProductDto, ProductDto, UpdateProductDto, UpdateStockDto } from './dto';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category';
-import { Category } from './entities/category.entity';
+import {
+  AdjustStockDto,
+  CreateCategoryDto,
+  CreateProductDto,
+  ProductDto,
+  UpdateCategoryDto,
+  UpdateProductDto,
+  UpdateStockDto,
+} from './dto';
+import { CategoryDto } from './dto/category.dto';
 import { ProductService } from './product.service';
 
 import {
@@ -100,12 +107,13 @@ export class ProductController {
 
   @Get('categories')
   @ApiOperation({ summary: 'Get all categories for a shop' })
-  @ApiResponse({ status: 200, description: 'Categories retrieved successfully' })
-  async getCategories(@Tenant() tenantContext: TenantContext): Promise<AppApiResponse<Category[]>> {
+  @ApiResponse({ status: 200, description: 'Categories retrieved successfully', type: [CategoryDto] })
+  async getCategories(@Tenant() tenantContext: TenantContext): Promise<AppApiResponse<CategoryDto[]>> {
     this.logger.log(`Finding categories for shop: ${tenantContext.shopId}`);
     const categories = await this.productService.getCategories(tenantContext.shopId);
+    const response = CategoryDto.fromEntities(categories);
     this.logger.log(`Found ${categories.length} categories`);
-    return { success: true, data: categories };
+    return { success: true, data: response };
   }
 
   @Get('barcode/:barcode')
@@ -236,24 +244,25 @@ export class ProductController {
   @Post('categories')
   @Roles(Role.OWNER)
   @ApiOperation({ summary: 'Create a new category' })
-  @ApiResponse({ status: 201, description: 'Category created successfully' })
+  @ApiResponse({ status: 201, description: 'Category created successfully', type: CategoryDto })
   @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
   @ApiResponse({ status: 409, description: 'Conflict - Category slug already exists' })
   async createCategory(
     @Body() createCategoryDto: CreateCategoryDto,
     @Tenant() tenantContext: TenantContext,
-  ): Promise<AppApiResponse<Category>> {
+  ): Promise<AppApiResponse<CategoryDto>> {
     this.logger.log(`Creating category: ${createCategoryDto.name} for shop: ${tenantContext.shopId}`);
     const category = await this.productService.createCategory(tenantContext.shopId, createCategoryDto);
+    const response = CategoryDto.fromEntity(category);
     this.logger.log(`Category created successfully with ID: ${category.id}`);
-    return { success: true, data: category, message: 'Category created successfully' };
+    return { success: true, data: response, message: 'Category created successfully' };
   }
 
   @Patch('categories/:id')
   @Roles(Role.OWNER)
   @ApiOperation({ summary: 'Update a category' })
   @ApiParam({ name: 'id', type: String, description: 'Category ID' })
-  @ApiResponse({ status: 200, description: 'Category updated successfully' })
+  @ApiResponse({ status: 200, description: 'Category updated successfully', type: CategoryDto })
   @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
   @ApiResponse({ status: 404, description: 'Category not found' })
   @ApiResponse({ status: 409, description: 'Conflict - Category slug already exists' })
@@ -261,11 +270,12 @@ export class ProductController {
     @Param('id') id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
     @Tenant() tenantContext: TenantContext,
-  ): Promise<AppApiResponse<Category>> {
+  ): Promise<AppApiResponse<CategoryDto>> {
     this.logger.log(`Updating category ID: ${id}`);
     const category = await this.productService.updateCategory(id, tenantContext.shopId, updateCategoryDto);
+    const response = CategoryDto.fromEntity(category);
     this.logger.log(`Category updated successfully: ${category.name}`);
-    return { success: true, data: category, message: 'Category updated successfully' };
+    return { success: true, data: response, message: 'Category updated successfully' };
   }
 
   @Delete('categories/:id')

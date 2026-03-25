@@ -1,6 +1,5 @@
 import { CacheService } from '@/core/cache/cache.service';
-import { CreateShopDto } from './dto/create-shop.dto';
-import { UpdateShopDto } from './dto/update-shop.dto';
+import { CreateShopDto, UpdateShopDto } from './dto';
 import { Shop } from './entities/shop.entity';
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
