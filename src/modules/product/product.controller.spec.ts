@@ -1,5 +1,6 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
+import { Category, Product } from './entities';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
 import { createProduct } from './util/product.factory';
@@ -7,6 +8,8 @@ import { createProduct } from './util/product.factory';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 describe('ProductController', () => {
   let controller: ProductController;
@@ -27,6 +30,14 @@ describe('ProductController', () => {
         {
           provide: ProductService,
           useValue: createMock<ProductService>(),
+        },
+        {
+          provide: getRepositoryToken(Product),
+          useValue: createMock<Repository<Product>>(),
+        },
+        {
+          provide: getRepositoryToken(Category),
+          useValue: createMock<Repository<Category>>(),
         },
       ],
     })
