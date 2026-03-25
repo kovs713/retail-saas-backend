@@ -2,7 +2,7 @@ import { User } from '../entities';
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 
 @Injectable()
 export class UserRepository extends Repository<User> {
@@ -36,7 +36,7 @@ export class UserRepository extends Repository<User> {
   async existsByEmailAndNotId(email: string, id: string): Promise<boolean> {
     return this.repository.existsBy({
       email,
-      id: id as unknown as never,
+      id: Not(id),
     });
   }
 }
