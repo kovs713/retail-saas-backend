@@ -1,24 +1,20 @@
 import { CacheService } from '@/core/cache/cache.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
-import { User } from './entities/user.entity';
+import { User } from './entities';
+import { UserRepository } from './repositories';
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { compare, hash } from 'bcryptjs';
-import { Repository } from 'typeorm';
 
 @Injectable()
 export class UserService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private readonly userRepository: UserRepository,
     private readonly cacheService: CacheService,
   ) {}
 
   async create(createDto: CreateUserDto): Promise<User> {
-    const existing = await this.userRepository.findOne({
-      where: { email: createDto.email },
-    });
+    const existing = await this.userRepository.existsByEmail(createDto.email);
 
     if (existing) {
       throw new ConflictException(`User with email "${createDto.email}" already exists`);
@@ -46,7 +42,7 @@ export class UserService {
       return cached;
     }
 
-    const user = await this.userRepository.findOne({ where: { email } });
+    const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
       throw new NotFoundException(`User with email "${email}" not found`);
@@ -64,7 +60,7 @@ export class UserService {
       return cached;
     }
 
-    const user = await this.userRepository.findOne({ where: { id } });
+    const user = await this.userRepository.findById(id);
 
     if (!user) {
       throw new NotFoundException(`User with ID "${id}" not found`);
@@ -76,10 +72,7 @@ export class UserService {
   }
 
   async findByShop(shopId: string): Promise<User[]> {
-    return this.userRepository.find({
-      where: { shopId },
-      relations: ['shop'],
-    });
+    return this.userRepository.findByShopId(shopId);
   }
 
   async updateRole(id: string, role: string): Promise<User> {
@@ -114,9 +107,7 @@ export class UserService {
     const user = await this.findById(id);
 
     if (updateDto.email && updateDto.email !== user.email) {
-      const existing = await this.userRepository.findOne({
-        where: { email: updateDto.email },
-      });
+      const existing = await this.userRepository.existsByEmailAndNotId(updateDto.email, id);
 
       if (existing) {
         throw new ConflictException(`User with email "${updateDto.email}" already exists`);

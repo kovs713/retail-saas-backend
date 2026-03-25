@@ -1,23 +1,19 @@
 import { CacheService } from '@/core/cache/cache.service';
 import { CreateShopDto, UpdateShopDto } from './dto';
-import { Shop } from './entities/shop.entity';
+import { Shop } from './entities';
+import { ShopRepository } from './repository';
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
 @Injectable()
 export class ShopService {
   constructor(
-    @InjectRepository(Shop)
-    private readonly shopRepository: Repository<Shop>,
+    private readonly shopRepository: ShopRepository,
     private readonly cacheService: CacheService,
   ) {}
 
   async create(createShopDto: CreateShopDto): Promise<Shop> {
-    const existingShop = await this.shopRepository.findOne({
-      where: { slug: createShopDto.slug },
-    });
+    const existingShop = await this.shopRepository.existsBySlug(createShopDto.slug);
 
     if (existingShop) {
       throw new ConflictException('Shop with this slug already exists');
@@ -38,7 +34,7 @@ export class ShopService {
       return cached;
     }
 
-    const shop = await this.shopRepository.findOne({ where: { slug } });
+    const shop = await this.shopRepository.findBySlug(slug);
 
     if (!shop) {
       throw new NotFoundException('Shop not found');
@@ -56,7 +52,7 @@ export class ShopService {
       return cached;
     }
 
-    const shop = await this.shopRepository.findOne({ where: { id } });
+    const shop = await this.shopRepository.findById(id);
 
     if (!shop) {
       throw new NotFoundException('Shop not found');
@@ -74,7 +70,7 @@ export class ShopService {
       return cached;
     }
 
-    const shop = await this.shopRepository.findOne({ where: { ownerId } });
+    const shop = await this.shopRepository.findByOwnerId(ownerId);
 
     if (shop) {
       await this.cacheService.set(cacheKey, shop, 600);

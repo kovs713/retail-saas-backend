@@ -1,4 +1,4 @@
-import { User } from '@/modules/user/entities/user.entity';
+import { User } from '@/modules/user/entities';
 
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 

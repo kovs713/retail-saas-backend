@@ -3,14 +3,13 @@ import { CacheService } from '@/core/cache/cache.service';
 import { Shop } from '@/modules/shop/entities/shop.entity';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { CreateUserDto, UpdateUserDto } from './dto';
-import { User } from './entities/user.entity';
+import { User } from './entities';
+import { UserRepository } from './repositories/user.repository';
 import { UserService } from './user.service';
 
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcryptjs from 'bcryptjs';
-import { Repository } from 'typeorm';
 
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed-password'),
@@ -19,7 +18,7 @@ jest.mock('bcryptjs', () => ({
 
 describe('UserService', () => {
   let service: UserService;
-  let repository: DeepMocked<Repository<User>>;
+  let repository: DeepMocked<UserRepository>;
 
   const mockUser: User = {
     id: 'user-123',
@@ -38,8 +37,8 @@ describe('UserService', () => {
       providers: [
         UserService,
         {
-          provide: getRepositoryToken(User),
-          useValue: createMock<Repository<User>>(),
+          provide: UserRepository,
+          useValue: createMock<UserRepository>(),
         },
         {
           provide: CacheService,
@@ -49,7 +48,7 @@ describe('UserService', () => {
     }).compile();
 
     service = module.get<UserService>(UserService);
-    repository = module.get(getRepositoryToken(User));
+    repository = module.get(UserRepository);
   });
 
   afterEach(() => {
@@ -65,7 +64,7 @@ describe('UserService', () => {
     };
 
     it('should create user with hashed password', async () => {
-      repository.findOne.mockResolvedValue(null);
+      repository.existsByEmail.mockResolvedValue(false);
       repository.create.mockReturnValue(mockUser);
       repository.save.mockResolvedValue(mockUser);
 
@@ -82,7 +81,7 @@ describe('UserService', () => {
     });
 
     it('should use default role "owner" when not provided', async () => {
-      repository.findOne.mockResolvedValue(null);
+      repository.existsByEmail.mockResolvedValue(false);
       repository.create.mockReturnValue(mockUser);
       repository.save.mockResolvedValue(mockUser);
 
@@ -96,7 +95,7 @@ describe('UserService', () => {
     });
 
     it('should throw ConflictException for duplicate email', async () => {
-      repository.findOne.mockResolvedValue(mockUser);
+      repository.existsByEmail.mockResolvedValue(true);
 
       await expect(service.create(createDto)).rejects.toThrow(ConflictException);
       await expect(service.create(createDto)).rejects.toThrow(`User with email "${createDto.email}" already exists`);
@@ -105,18 +104,16 @@ describe('UserService', () => {
 
   describe('findByEmail', () => {
     it('should return user by email', async () => {
-      repository.findOne.mockResolvedValue(mockUser);
+      repository.findByEmail.mockResolvedValue(mockUser);
 
       const result = await service.findByEmail('test@example.com');
 
       expect(result).toEqual(mockUser);
-      expect(repository.findOne).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
-      });
+      expect(repository.findByEmail).toHaveBeenCalledWith('test@example.com');
     });
 
     it('should throw NotFoundException for non-existent email', async () => {
-      repository.findOne.mockResolvedValue(null);
+      repository.findByEmail.mockResolvedValue(null);
 
       await expect(service.findByEmail('nonexistent@example.com')).rejects.toThrow(NotFoundException);
     });
@@ -124,7 +121,7 @@ describe('UserService', () => {
 
   describe('findById', () => {
     it('should return user by ID', async () => {
-      repository.findOne.mockResolvedValue(mockUser);
+      repository.findById.mockResolvedValue(mockUser);
 
       const result = await service.findById('user-123');
 
@@ -132,7 +129,7 @@ describe('UserService', () => {
     });
 
     it('should throw NotFoundException for invalid ID', async () => {
-      repository.findOne.mockResolvedValue(null);
+      repository.findById.mockResolvedValue(null);
 
       await expect(service.findById('invalid-id')).rejects.toThrow(NotFoundException);
     });
@@ -140,21 +137,18 @@ describe('UserService', () => {
 
   describe('findByShop', () => {
     it('should return all users in shop', async () => {
-      repository.find.mockResolvedValue([mockUser]);
+      repository.findByShopId.mockResolvedValue([mockUser]);
 
       const result = await service.findByShop('shop-456');
 
       expect(result).toHaveLength(1);
-      expect(repository.find).toHaveBeenCalledWith({
-        where: { shopId: 'shop-456' },
-        relations: ['shop'],
-      });
+      expect(repository.findByShopId).toHaveBeenCalledWith('shop-456');
     });
   });
 
   describe('updateRole', () => {
     it('should update user role', async () => {
-      repository.findOne.mockResolvedValue(mockUser);
+      repository.findById.mockResolvedValue(mockUser);
       repository.save.mockResolvedValue({ ...mockUser, role: 'admin' });
 
       const result = await service.updateRole('user-123', 'admin');
@@ -164,7 +158,7 @@ describe('UserService', () => {
     });
 
     it('should throw NotFoundException for non-existent user', async () => {
-      repository.findOne.mockResolvedValue(null);
+      repository.findById.mockResolvedValue(null);
 
       await expect(service.updateRole('invalid-id', 'admin')).rejects.toThrow(NotFoundException);
     });
@@ -172,7 +166,7 @@ describe('UserService', () => {
 
   describe('deactivate', () => {
     it('should set isActive to false', async () => {
-      repository.findOne.mockResolvedValue(mockUser);
+      repository.findById.mockResolvedValue(mockUser);
       repository.save.mockResolvedValue({ ...mockUser, isActive: false });
 
       const result = await service.deactivate('user-123');
@@ -181,7 +175,7 @@ describe('UserService', () => {
     });
 
     it('should throw NotFoundException for non-existent user', async () => {
-      repository.findOne.mockResolvedValue(null);
+      repository.findById.mockResolvedValue(null);
 
       await expect(service.deactivate('invalid-id')).rejects.toThrow(NotFoundException);
     });
@@ -190,7 +184,7 @@ describe('UserService', () => {
   describe('activate', () => {
     it('should set isActive to true', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
-      repository.findOne.mockResolvedValue(inactiveUser);
+      repository.findById.mockResolvedValue(inactiveUser);
       repository.save.mockResolvedValue({ ...mockUser, isActive: true });
 
       const result = await service.activate('user-123');
@@ -222,8 +216,8 @@ describe('UserService', () => {
     };
 
     it('should update user email', async () => {
-      repository.findOne.mockResolvedValueOnce(mockUser);
-      repository.findOne.mockResolvedValueOnce(null);
+      repository.findById.mockResolvedValueOnce(mockUser);
+      repository.existsByEmailAndNotId.mockResolvedValueOnce(false);
       repository.save.mockResolvedValue({ ...mockUser, email: updateDto.email! });
 
       const result = await service.update('user-123', updateDto);
@@ -234,14 +228,14 @@ describe('UserService', () => {
 
     it('should throw ConflictException for duplicate email', async () => {
       const existingUser = { ...mockUser, id: 'user-456' };
-      repository.findOne.mockResolvedValueOnce(mockUser);
-      repository.findOne.mockResolvedValueOnce(existingUser);
+      repository.findById.mockResolvedValueOnce(mockUser);
+      repository.existsByEmailAndNotId.mockResolvedValueOnce(true);
 
       await expect(service.update('user-123', { email: 'duplicate@example.com' })).rejects.toThrow(ConflictException);
     });
 
     it('should throw NotFoundException for non-existent user', async () => {
-      repository.findOne.mockResolvedValue(null);
+      repository.findById.mockResolvedValue(null);
 
       await expect(service.update('invalid-id', updateDto)).rejects.toThrow(NotFoundException);
     });

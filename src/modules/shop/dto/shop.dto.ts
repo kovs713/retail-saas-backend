@@ -1,6 +1,7 @@
+import { Shop } from '../entities';
+
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Transform, plainToInstance } from 'class-transformer';
-import { Shop } from '../entities/shop.entity';
 
 export class ShopDto {
   @ApiProperty({ description: 'Shop ID', example: '123e4567-e89b-12d3-a456-426614174000' })

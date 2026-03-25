@@ -1,3 +1,5 @@
+import { Shop } from '@/modules/shop/entities/shop.entity';
+
 import {
   Column,
   CreateDateColumn,
@@ -8,8 +10,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-
-import { Shop } from '../../shop/entities/shop.entity';
 
 @Entity('users')
 @Index(['email'], { unique: true })

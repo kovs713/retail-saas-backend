@@ -1,8 +1,8 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { mockAuthGuard, mockGuard } from '@/common/utils';
-import { User } from '@/modules/user/entities/user.entity';
+import { User } from '@/modules/user/entities';
 import { CreateShopDto, ShopDto, UpdateShopDto } from './dto';
-import { Shop } from './entities/shop.entity';
+import { Shop } from './entities';
 import { ShopController } from './shop.controller';
 import { ShopService } from './shop.service';
 
