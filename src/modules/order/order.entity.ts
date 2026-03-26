@@ -1,4 +1,4 @@
-import { Shop } from './';
+import { Shop } from '@/modules/shop/entities';
 
 import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 

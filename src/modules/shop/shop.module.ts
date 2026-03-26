@@ -5,13 +5,12 @@ import { PublicShopController } from './public-shop.controller';
 import { ShopRepository } from './repository';
 import { ShopController } from './shop.controller';
 import { ShopService } from './shop.service';
-import { Order } from './entities/order.entity';
 
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Shop, Order]), ProductModule, AnalyticsModule],
+  imports: [TypeOrmModule.forFeature([Shop]), ProductModule, AnalyticsModule],
   providers: [ShopService, ShopRepository],
   exports: [ShopService],
   controllers: [ShopController, PublicShopController],
