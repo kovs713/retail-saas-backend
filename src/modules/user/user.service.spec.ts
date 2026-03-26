@@ -4,7 +4,7 @@ import { Shop } from '@/modules/shop/entities/shop.entity';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { User } from './entities';
-import { UserRepository } from './repositories/user.repository';
+import { UserRepository } from './repositories';
 import { UserService } from './user.service';
 
 import { ConflictException, NotFoundException } from '@nestjs/common';
