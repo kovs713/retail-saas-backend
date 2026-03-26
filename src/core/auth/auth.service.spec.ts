@@ -3,7 +3,7 @@ import { CacheService } from '@/core/cache/cache.service';
 import { ShopService } from '@/modules/shop/shop.service';
 import { UserService } from '@/modules/user/user.service';
 import { AuthService } from './auth.service';
-import { AuthOutputDto } from './dto';
+import { AuthResponseDto } from './dto';
 
 import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
@@ -84,7 +84,7 @@ describe('AuthService', () => {
 
       const result = await service.signIn(mockSignInDto as any);
 
-      expect(result).toEqual<AuthOutputDto>({
+      expect(result).toEqual<AuthResponseDto>({
         email: mockSignInDto.email,
         accessToken: mockAccessToken,
         refreshToken: mockRefreshToken,

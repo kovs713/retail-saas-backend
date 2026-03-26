@@ -1,12 +1,10 @@
-import { Request, TokenPayload } from '../types';
+import { TokenPayload } from '../types';
+import { userFactory } from './user.decorator';
 
 import { createMock } from '@golevelup/ts-jest';
 import { ExecutionContext } from '@nestjs/common';
 
 describe('User Decorator', () => {
-  let mockExecutionContext: ExecutionContext;
-  let mockRequest: any;
-
   const mockUser: TokenPayload = {
     sub: 'user-123',
     email: 'test@example.com',
@@ -14,78 +12,46 @@ describe('User Decorator', () => {
     shopId: 'shop-1',
   };
 
-  beforeEach(() => {
-    mockRequest = {
-      user: mockUser,
-    };
-
-    mockExecutionContext = createMock<ExecutionContext>({
-      switchToHttp: jest.fn().mockReturnValue({
-        getRequest: jest.fn().mockReturnValue(mockRequest),
-      }),
+  const buildContext = (user: TokenPayload = mockUser): ExecutionContext => {
+    const mockRequest = { user } as never;
+    return createMock<ExecutionContext>({
+      switchToHttp: () => ({ getRequest: () => mockRequest }),
     });
+  };
+
+  it('should extract user from request context', () => {
+    const ctx = buildContext();
+    const result = userFactory(undefined, ctx);
+
+    expect(result).toEqual(mockUser);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  it('should return user with all properties', () => {
+    const ctx = buildContext();
+    const result = userFactory(undefined, ctx);
+
+    expect(result.sub).toBe('user-123');
+    expect(result.email).toBe('test@example.com');
+    expect(result.role).toBe('owner');
+    expect(result.shopId).toBe('shop-1');
   });
 
-  describe('decorator factory function', () => {
-    const decoratorFactory = (data: unknown, ctx: ExecutionContext): TokenPayload => {
-      const request = ctx.switchToHttp().getRequest<Request>();
-      return request.user;
-    };
+  it('should handle different roles', () => {
+    const admin: TokenPayload = { sub: 'admin-1', email: 'a@b.c', role: 'super_admin', shopId: 'shop-1' };
+    const ctx = buildContext(admin);
+    const result = userFactory(undefined, ctx);
 
-    it('should extract user from request context', () => {
-      const result = decoratorFactory(undefined, mockExecutionContext);
+    expect(result.role).toBe('super_admin');
+  });
 
-      expect(result).toEqual(mockUser);
-      expect(mockExecutionContext.switchToHttp).toHaveBeenCalled();
-    });
+  it('should call switchToHttp and getRequest', () => {
+    const getRequest = jest.fn().mockReturnValue({ user: mockUser });
+    const switchToHttp = jest.fn().mockReturnValue({ getRequest });
+    const ctx = createMock<ExecutionContext>({ switchToHttp });
 
-    it('should return user with all required properties', () => {
-      const result = decoratorFactory(undefined, mockExecutionContext);
+    userFactory(undefined, ctx);
 
-      expect(result.sub).toBe('user-123');
-      expect(result.email).toBe('test@example.com');
-      expect(result.role).toBe('owner');
-      expect(result.shopId).toBe('shop-1');
-    });
-
-    it('should handle different roles', () => {
-      mockRequest.user = {
-        sub: 'admin-1',
-        email: 'admin@example.com',
-        role: 'super_admin',
-        shopId: 'shop-1',
-      };
-
-      const result = decoratorFactory(undefined, mockExecutionContext);
-
-      expect(result.role).toBe('super_admin');
-      expect(result.shopId).toBe('shop-1');
-    });
-
-    it('should return user object reference', () => {
-      const result = decoratorFactory(undefined, mockExecutionContext);
-
-      expect(result).toBe(mockRequest.user);
-    });
-
-    it('should work with ExecutionContext context switch', () => {
-      const mockHttpHost = {
-        getRequest: jest.fn().mockReturnValue(mockRequest),
-      };
-
-      const mockContext = createMock<ExecutionContext>({
-        switchToHttp: jest.fn().mockReturnValue(mockHttpHost),
-      });
-
-      const result = decoratorFactory(undefined, mockContext);
-
-      expect(result).toEqual(mockUser);
-      expect(mockContext.switchToHttp).toHaveBeenCalled();
-      expect(mockHttpHost.getRequest).toHaveBeenCalled();
-    });
+    expect(switchToHttp).toHaveBeenCalled();
+    expect(getRequest).toHaveBeenCalled();
   });
 });

@@ -2,7 +2,7 @@ import { TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { ShopService } from '@/modules/shop/shop.service';
 import { UserService } from '@/modules/user/user.service';
-import { AuthOutputDto, RegisterDto, SignInDto } from './dto';
+import { AuthResponseDto, RegisterDto, SignInDto } from './dto';
 
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -19,7 +19,7 @@ export class AuthService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<AuthOutputDto> {
+  async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
     const shop = await this.shopService.create({
       name: registerDto.shopName,
       slug: registerDto.shopSlug,
@@ -62,7 +62,7 @@ export class AuthService {
     };
   }
 
-  async signIn(signInDto: SignInDto): Promise<AuthOutputDto> {
+  async signIn(signInDto: SignInDto): Promise<AuthResponseDto> {
     const user = await this.userService.findByEmail(signInDto.email);
 
     const isValid = await this.userService.validatePassword(user, signInDto.password);
@@ -96,7 +96,7 @@ export class AuthService {
     };
   }
 
-  async refreshToken(refreshToken: string): Promise<AuthOutputDto> {
+  async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
     try {
       const payload = await this.jwtService.verifyAsync<TokenPayload>(refreshToken);
 

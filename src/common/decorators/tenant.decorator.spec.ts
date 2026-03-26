@@ -1,73 +1,44 @@
-import { Request, TenantContext } from '../types';
+import { TenantContext } from '../types';
+import { tenantFactory } from './tenant.decorator';
 
 import { createMock } from '@golevelup/ts-jest';
 import { ExecutionContext } from '@nestjs/common';
 
 describe('Tenant Decorator', () => {
-  let mockExecutionContext: ExecutionContext;
-  let mockRequest: any;
-
   const mockTenantContext: TenantContext = {
     shopId: 'test-shop-id',
   };
 
-  beforeEach(() => {
-    mockRequest = {
-      user: mockTenantContext,
-    };
-
-    mockExecutionContext = createMock<ExecutionContext>({
-      switchToHttp: jest.fn().mockReturnValue({
-        getRequest: jest.fn().mockReturnValue(mockRequest),
-      }),
+  const buildContext = (user: unknown = mockTenantContext): ExecutionContext => {
+    const mockRequest = { user } as never;
+    return createMock<ExecutionContext>({
+      switchToHttp: () => ({ getRequest: () => mockRequest }),
     });
+  };
+
+  it('should extract shopId from request.user', () => {
+    const ctx = buildContext();
+    const result = tenantFactory(undefined, ctx);
+
+    expect(result).toEqual({ shopId: 'test-shop-id' });
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  it('should return TenantContext with shopId property', () => {
+    const ctx = buildContext({ shopId: 'other-shop' });
+    const result = tenantFactory(undefined, ctx);
+
+    expect(result).toHaveProperty('shopId');
+    expect(result.shopId).toBe('other-shop');
   });
 
-  describe('decorator factory function', () => {
-    const decoratorFactory = (data: unknown, ctx: ExecutionContext): TenantContext => {
-      const request = ctx.switchToHttp().getRequest<Request>();
-      return {
-        shopId: request.user.shopId,
-      };
-    };
+  it('should call switchToHttp and getRequest', () => {
+    const getRequest = jest.fn().mockReturnValue({ user: mockTenantContext });
+    const switchToHttp = jest.fn().mockReturnValue({ getRequest });
+    const ctx = createMock<ExecutionContext>({ switchToHttp });
 
-    it('should extract shopId from request.user', () => {
-      const result = decoratorFactory(undefined, mockExecutionContext);
+    tenantFactory(undefined, ctx);
 
-      expect(result).toEqual(mockTenantContext);
-      expect(result.shopId).toBe('test-shop-id');
-    });
-
-    it('should handle missing user object gracefully', () => {
-      mockRequest.user = undefined;
-
-      expect(() => decoratorFactory(undefined, mockExecutionContext)).toThrow();
-    });
-
-    it('should work with ExecutionContext context switch', () => {
-      const mockHttpHost = {
-        getRequest: jest.fn().mockReturnValue(mockRequest),
-      };
-
-      const mockContext = createMock<ExecutionContext>({
-        switchToHttp: jest.fn().mockReturnValue(mockHttpHost),
-      });
-
-      const result = decoratorFactory(undefined, mockContext);
-
-      expect(result).toEqual(mockTenantContext);
-      expect(mockContext.switchToHttp).toHaveBeenCalled();
-      expect(mockHttpHost.getRequest).toHaveBeenCalled();
-    });
-
-    it('should return TenantContext with shopId', () => {
-      const result = decoratorFactory(undefined, mockExecutionContext);
-
-      expect(result).toHaveProperty('shopId');
-    });
+    expect(switchToHttp).toHaveBeenCalled();
+    expect(getRequest).toHaveBeenCalled();
   });
 });

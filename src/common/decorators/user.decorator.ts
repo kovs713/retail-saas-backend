@@ -2,9 +2,9 @@ import { Request, TokenPayload } from '../types';
 
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
-export const User = createParamDecorator((data: unknown, ctx: ExecutionContext): TokenPayload => {
+export const userFactory = (_data: unknown, ctx: ExecutionContext): TokenPayload => {
   const request = ctx.switchToHttp().getRequest<Request>();
-  const user: TokenPayload = request.user;
+  return request.user;
+};
 
-  return user;
-});
+export const User = createParamDecorator(userFactory);

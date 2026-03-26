@@ -1,20 +1,26 @@
-# Retail Analytics Platform Backend
+# Retail SaaS Backend
 
-A comprehensive backend system for retail analytics, providing transaction processing, customer insights, and AI-powered document analysis for retail stores.
+Multi-tenant SaaS backend for micro-business storefronts with RAG-powered AI chatbot and file storage.
 
 ## Overview
 
-This platform serves as the backend for retail point-of-sale systems, integrating with payment terminals, managing transaction data, and providing analytics capabilities. It includes AI-powered document analysis for intelligent querying of retail and transaction data.
+A platform enabling small retail businesses (pet shops, garden centers, etc.) to quickly launch a public storefront with a product catalog and an AI chatbot trained on their business documents.
+
+### Key Features
+
+- **Public Storefront** — product catalog at `platform/shop/:slug`
+- **RAG Chatbot** — AI assistant answering customer questions based on uploaded documents
+- **Admin Panel API** — shop management, analytics, and knowledge base administration
 
 ## Technology Stack
 
-- **Framework**: NestJS (Node.js)
-- **Language**: TypeScript
+- **Framework**: NestJS (Node.js) + TypeScript
 - **Database**: PostgreSQL with TypeORM
-- **Cache**: Redis
+- **Cache**: Redis (ioredis)
 - **Vector Database**: ChromaDB
 - **Object Storage**: MinIO S3
-- **AI/ML**: LangChain framework, HuggingFace Transformers, Groq API
+- **AI/ML**: LangChain, HuggingFace Transformers, Groq API
+- **Auth**: JWT + bcryptjs
 
 ## Getting Started
 
@@ -29,8 +35,8 @@ This platform serves as the backend for retail point-of-sale systems, integratin
 
 ```bash
 # Clone repository
-git clone https://github.com/kovs713/retail-analytics-platform-backend.git
-cd retail-analytics-platform-backend
+git clone https://github.com/kovs713/retail-saas-backend.git
+cd retail-saas-backend
 
 # Install dependencies
 pnpm install
@@ -38,8 +44,6 @@ pnpm install
 # Copy environment configuration
 cp .env.example .env
 ```
-
-## Configure environment variables (see Configuration section)
 
 ### Database Setup
 
@@ -61,6 +65,10 @@ pnpm run start:dev
 pnpm run build
 pnpm run start:prod
 ```
+
+### API Documentation
+
+Swagger UI available at `http://localhost:3000/api` when the application is running.
 
 ## Configuration
 
@@ -92,24 +100,25 @@ pnpm run start:prod
 ```
 src/
 ├── modules/
-│   ├── auth/              # Authentication module
-│   ├── rag/               # RAG system
-│   │   ├── embeddings/    # Vector embeddings
-│   │   ├── llm/          # AI integration
-│   │   └── vector-store/  # ChromaDB integration
-│   ├── analytics/         # Business analytics
-│   ├── third-party/       # External integrations
-│   ├── admin/            # Administrative functions
-│   └── gamification/     # Customer engagement
-├── database/             # Database configuration
-├── api/                  # REST API controllers
-├── common/               # Shared utilities
-└── config/               # Configuration management
+│   ├── product/          # Product catalog and categories
+│   ├── rag/              # RAG system (embeddings, LLM, vector store)
+│   ├── shop/             # Shop profile management
+│   ├── storage/          # MinIO S3 file storage
+│   └── user/             # User management
+├── core/
+│   ├── auth/             # JWT authentication and authorization
+│   ├── cache/            # Redis caching
+│   └── logger/           # Logging service
+├── common/               # Shared decorators, DTOs, guards, types, utils
+├── database/
+│   └── seeds/            # Database seeding
+├── app.module.ts         # Root application module
+└── main.ts               # Entry point (Swagger, CORS, ValidationPipe)
 
 test/
-├── unit/                 # Unit tests
-├── integration/          # Integration tests
-└── e2e/                  # End-to-end tests
+├── http/                 # HTTP request tests (*.http)
+└── integration/          # Integration tests
+    └── modules/          # Module-specific integration tests
 ```
 
 ## License

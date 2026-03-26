@@ -1,48 +1,62 @@
 ### Authentication HTTP Tests
 
-
-### 
-
 @baseUrl = http://localhost:3000
 
 
-### 
+### Register New User
 
-# @name SignIn
+# @name Register
 
-# Authenticate and get access token
-
-POST {{baseUrl}}/auth/sign-in HTTP/1.1
+POST {{baseUrl}}/auth/register HTTP/1.1
 Content-Type: application/json
 
 {
   "email": "test@example.com",
-  "id": "user-uuid-here",
-  "organizationId": "org-uuid-here"
+  "password": "TestPassword123!",
+  "shopName": "Test Shop",
+  "shopSlug": "test-shop"
 }
 
 > {%
-{% 
-    client.global.set("accessToken", response.body.data.accessToken);
-    client.log("Token: " + response.body.data.accessToken);
+  client.global.set('accessToken', response.body.data.accessToken);
+  client.global.set('refreshToken', response.body.data.refreshToken);
+  client.global.set('userId', response.body.data.user.id);
+  client.global.set('shopId', response.body.data.shop.id);
+  client.log('Registered - Token: ' + response.body.data.accessToken);
 %}
 
 
-### 
+### Login
 
+# @name Login
 
-### 
-
-# @name SignInWithToken
-
-# Reuse token for subsequent requests
-
-POST {{baseUrl}}/auth/sign-in HTTP/1.1
+POST {{baseUrl}}/auth/login HTTP/1.1
 Content-Type: application/json
-Authorization: Bearer {{accessToken}}
 
 {
   "email": "test@example.com",
-  "id": "user-uuid-here",
-  "organizationId": "org-uuid-here"
+  "password": "TestPassword123!"
 }
+
+> {%
+  client.global.set('accessToken', response.body.data.accessToken);
+  client.global.set('refreshToken', response.body.data.refreshToken);
+  client.log('Logged in - Token: ' + response.body.data.accessToken);
+%}
+
+
+### Refresh Access Token
+
+# @name RefreshToken
+
+POST {{baseUrl}}/auth/refresh HTTP/1.1
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+> {%
+  client.global.set('accessToken', response.body.data.accessToken);
+  client.log('Token refreshed: ' + response.body.data.accessToken);
+%}

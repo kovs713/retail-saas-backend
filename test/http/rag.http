@@ -4,11 +4,9 @@
 @baseUrl = http://localhost:3000
 
 
-### 
+### Chat with AI using RAG
 
 # @name Chat
-
-# Send a chat message to the RAG system
 
 POST {{baseUrl}}/rag/chat HTTP/1.1
 Content-Type: application/json
@@ -21,11 +19,9 @@ Authorization: Bearer {{accessToken}}
 }
 
 
-### 
+### Chat with AI and Get Relevance Scores
 
 # @name ChatWithScores
-
-# Send a chat message and get relevance scores
 
 POST {{baseUrl}}/rag/chat-with-scores HTTP/1.1
 Content-Type: application/json
@@ -37,11 +33,9 @@ Authorization: Bearer {{accessToken}}
 }
 
 
-### 
+### Add Documents to RAG System
 
 # @name AddDocuments
-
-# Add documents to the RAG system
 
 POST {{baseUrl}}/rag/documents HTTP/1.1
 Content-Type: application/json
@@ -68,11 +62,9 @@ Authorization: Bearer {{accessToken}}
 }
 
 
-### 
+### Add Texts to RAG System
 
 # @name AddTexts
-
-# Add plain texts to the RAG system
 
 POST {{baseUrl}}/rag/texts HTTP/1.1
 Content-Type: application/json
@@ -90,11 +82,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 
-### 
-
-# @name ClearDocuments
-
-# Clear all documents from the RAG system
+### Clear All Documents from RAG System
 
 DELETE {{baseUrl}}/rag/documents HTTP/1.1
 Authorization: Bearer {{accessToken}}

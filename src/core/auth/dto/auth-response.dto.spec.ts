@@ -1,10 +1,10 @@
-import { AuthOutputDto } from './auth-output.dto';
+import { AuthResponseDto } from './auth-response.dto';
 
 import { validate } from 'class-validator';
 
-describe('AuthOutputDto', () => {
+describe('AuthResponseDto', () => {
   it('should pass validation with valid data', async () => {
-    const dto = new AuthOutputDto();
+    const dto = new AuthResponseDto();
     dto.email = 'test@example.com';
     dto.accessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
     dto.refreshToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh';
@@ -15,7 +15,7 @@ describe('AuthOutputDto', () => {
   });
 
   it('should pass validation without refreshToken', async () => {
-    const dto = new AuthOutputDto();
+    const dto = new AuthResponseDto();
     dto.email = 'test@example.com';
     dto.accessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
 
@@ -25,7 +25,7 @@ describe('AuthOutputDto', () => {
   });
 
   it('should fail validation without email', async () => {
-    const dto = new AuthOutputDto();
+    const dto = new AuthResponseDto();
     dto.accessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
     dto.refreshToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh';
 
@@ -39,7 +39,7 @@ describe('AuthOutputDto', () => {
   });
 
   it('should fail validation with invalid email', async () => {
-    const dto = new AuthOutputDto();
+    const dto = new AuthResponseDto();
     dto.email = 'invalid-email';
     dto.accessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
     dto.refreshToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh';
@@ -51,7 +51,7 @@ describe('AuthOutputDto', () => {
   });
 
   it('should fail validation without accessToken', async () => {
-    const dto = new AuthOutputDto();
+    const dto = new AuthResponseDto();
     dto.email = 'test@example.com';
     dto.refreshToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh';
 
@@ -65,7 +65,7 @@ describe('AuthOutputDto', () => {
   });
 
   it('should fail validation with non-string accessToken', async () => {
-    const dto = new AuthOutputDto();
+    const dto = new AuthResponseDto();
     dto.email = 'test@example.com';
     dto.refreshToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh';
 

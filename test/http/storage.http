@@ -1,17 +1,15 @@
 ### Storage Module HTTP Tests
 
-
-### 
-
 @accessToken = {{accessToken}}
 @baseUrl = http://localhost:3000
+@fileKey = {{fileKey}}
+@productId = {{productId}}
+@shopId = {{shopId}}
 
 
 ### Upload File
 
 # @name UploadFile
-
-# Note: In VS Code REST Client, use actual file path
 
 POST {{baseUrl}}/storage/upload?bucket=test-bucket HTTP/1.1
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -25,9 +23,8 @@ Test file content for upload testing
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 > {%
-{% 
-    client.global.set("fileKey", response.body.data.key);
-    client.log("File Key: " + response.body.data.key);
+  client.global.set('fileKey', response.body.data.key);
+  client.log('File Key: ' + response.body.data.key);
 %}
 
 
@@ -49,16 +46,37 @@ GET {{baseUrl}}/storage/download/{{fileKey}}?bucket=test-bucket HTTP/1.1
 Authorization: Bearer {{accessToken}}
 
 
-### Generate Presigned URL
+### Generate Presigned URL (GET)
 
 GET {{baseUrl}}/storage/presigned/{{fileKey}}?bucket=test-bucket&expirySeconds=3600 HTTP/1.1
 Authorization: Bearer {{accessToken}}
 
 
+### Generate Presigned PUT URL
+
+GET {{baseUrl}}/storage/presigned-put/{{fileKey}}?bucket=test-bucket&expirySeconds=3600 HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
+### Generate Presigned URLs for Shop Logo
+
+GET {{baseUrl}}/storage/shops/{{shopId}}/logo/presigned?filename=logo.png HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
+### Generate Presigned URLs for Shop Banner
+
+GET {{baseUrl}}/storage/shops/{{shopId}}/banner/presigned?filename=banner.jpg HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
+### Generate Presigned URLs for Product Image
+
+GET {{baseUrl}}/storage/products/{{productId}}/images/presigned?filename=product-image.jpg HTTP/1.1
+Authorization: Bearer {{accessToken}}
+
+
 ### Delete File
-
-
-### 
 
 DELETE {{baseUrl}}/storage/file/{{fileKey}}?bucket=test-bucket HTTP/1.1
 Authorization: Bearer {{accessToken}}
