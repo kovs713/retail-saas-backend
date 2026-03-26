@@ -55,7 +55,7 @@ describe('TypeOrmConfigService', () => {
       expect(() => service.createTypeOrmOptions()).toThrow();
     });
 
-    it('should enable entities synchronization in dev', () => {
+    it('should enable entities synchronization in development', () => {
       jest.spyOn(configService, 'getOrThrow').mockImplementation((key: string) => {
         const config: Record<string, any> = {
           DB_HOST: 'localhost',
@@ -63,7 +63,7 @@ describe('TypeOrmConfigService', () => {
           DB_USERNAME: 'user',
           DB_PASSWORD: 'pass',
           DB_DATABASE: 'db',
-          NODE_ENV: 'DEV',
+          NODE_ENV: 'DEVELOPMENT',
         };
         return config[key];
       });
@@ -91,7 +91,7 @@ describe('TypeOrmConfigService', () => {
       expect(result.synchronize).toBe(false);
     });
 
-    it('should enable logging in DEV mode', () => {
+    it('should enable logging in DEVELOPMENT mode', () => {
       jest.spyOn(configService, 'getOrThrow').mockImplementation((key: string) => {
         const config: Record<string, any> = {
           DB_HOST: 'localhost',
@@ -99,7 +99,7 @@ describe('TypeOrmConfigService', () => {
           DB_USERNAME: 'user',
           DB_PASSWORD: 'pass',
           DB_DATABASE: 'db',
-          NODE_ENV: 'DEV',
+          NODE_ENV: 'DEVELOPMENT',
         };
         return config[key];
       });
