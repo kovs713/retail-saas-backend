@@ -109,17 +109,16 @@ src/
 │   ├── auth/             # JWT authentication and authorization
 │   ├── cache/            # Redis caching
 │   └── logger/           # Logging service
-├── common/               # Shared decorators, DTOs, guards, types
-├── database/             # Database configuration, seeds, migrations
-├── config/               # Configuration management
+├── common/               # Shared decorators, DTOs, guards, types, utils
+├── database/
+│   └── seeds/            # Database seeding
 ├── app.module.ts         # Root application module
 └── main.ts               # Entry point (Swagger, CORS, ValidationPipe)
 
 test/
-├── unit/                 # Unit tests (*.spec.ts)
-├── integration/          # Integration tests (*.integration.spec.ts)
-├── e2e/                  # End-to-end tests (*.e2e-spec.ts)
-└── __mocks__/            # Jest mocks
+├── http/                 # HTTP request tests (*.http)
+└── integration/          # Integration tests
+    └── modules/          # Module-specific integration tests
 ```
 
 ## License
