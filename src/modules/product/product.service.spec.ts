@@ -1,6 +1,6 @@
 import { createMockTenantContext, mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { Product } from './entities';
+import { Category, Product } from './entities';
 import { ProductService } from './product.service';
 import { CategoryRepository, ProductRepository } from './repositories';
 import { createProduct } from './util/product.factory';
@@ -13,9 +13,21 @@ import { UpdateResult } from 'typeorm';
 describe('ProductService', () => {
   let service: ProductService;
   let productRepository: DeepMocked<ProductRepository>;
+  let categoryRepository: DeepMocked<CategoryRepository>;
+  let cacheService: DeepMocked<CacheService>;
 
   const mockProduct: Product = createProduct({ id: 'prod_1', index: 1 });
   const mockTenantContext = createMockTenantContext();
+
+  const mockCategory: Category = {
+    id: 'cat-1',
+    shopId: 'shop-1',
+    name: 'Electronics',
+    slug: 'electronics',
+    shop: null as any,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -38,6 +50,8 @@ describe('ProductService', () => {
 
     service = module.get<ProductService>(ProductService);
     productRepository = module.get(ProductRepository);
+    categoryRepository = module.get(CategoryRepository);
+    cacheService = module.get(CacheService);
   });
 
   afterEach(() => {
@@ -240,23 +254,6 @@ describe('ProductService', () => {
     });
   });
 
-  describe('findByBarcode', () => {
-    it('should find product by barcode', async () => {
-      const productWithBarcode = createProduct({
-        index: 1,
-        overrides: { barcode: '5901234123457' },
-      });
-      productRepository.findByBarcode.mockResolvedValue(productWithBarcode);
-      const result = await service.findByBarcode('5901234123457', mockTenantContext);
-      expect(result.barcode).toBe('5901234123457');
-    });
-
-    it('should throw NotFoundException for invalid barcode', async () => {
-      productRepository.findByBarcode.mockResolvedValue(null);
-      await expect(service.findByBarcode('invalid', mockTenantContext)).rejects.toThrow(NotFoundException);
-    });
-  });
-
   describe('findLowStock', () => {
     it('should return products below threshold', async () => {
       const lowStockProduct = createProduct({
@@ -267,6 +264,189 @@ describe('ProductService', () => {
 
       const result = await service.findLowStock(10, mockTenantContext);
       expect(result).toHaveLength(1);
+    });
+
+    it('should return cached result when available', async () => {
+      const cached = [createProduct({ index: 1 })];
+      cacheService.get.mockResolvedValue(cached);
+
+      const result = await service.findLowStock(10, mockTenantContext);
+
+      expect(result).toEqual(cached);
+      expect(productRepository.findLowStock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findAll cache', () => {
+    it('should return cached result when available', async () => {
+      const cached = {
+        success: true,
+        data: [mockProduct],
+        pagination: { total: 1, page: 1, limit: 10, totalPages: 1 },
+      };
+      cacheService.get.mockResolvedValue(cached);
+
+      const result = await service.findAll({ page: 1, limit: 10 }, mockTenantContext);
+
+      expect(result).toEqual(cached);
+      expect(productRepository.findAll).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findOne cache', () => {
+    it('should return cached product when available', async () => {
+      cacheService.get.mockResolvedValue(mockProduct);
+
+      const result = await service.findOne('prod_1', mockTenantContext);
+
+      expect(result).toEqual(mockProduct);
+      expect(productRepository.findById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findOneBySku cache', () => {
+    it('should return cached product when available', async () => {
+      cacheService.get.mockResolvedValue(mockProduct);
+
+      const result = await service.findOneBySku('TEST-001', mockTenantContext);
+
+      expect(result).toEqual(mockProduct);
+      expect(productRepository.findBySku).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findByBarcode', () => {
+    it('should find product by barcode', async () => {
+      const productWithBarcode = createProduct({ index: 1, overrides: { barcode: '5901234123457' } });
+      productRepository.findByBarcode.mockResolvedValue(productWithBarcode);
+
+      const result = await service.findByBarcode('5901234123457', mockTenantContext);
+      expect(result.barcode).toBe('5901234123457');
+    });
+
+    it('should throw NotFoundException for invalid barcode', async () => {
+      productRepository.findByBarcode.mockResolvedValue(null);
+      await expect(service.findByBarcode('invalid', mockTenantContext)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return cached product when available', async () => {
+      cacheService.get.mockResolvedValue(mockProduct);
+
+      const result = await service.findByBarcode('5901234123457', mockTenantContext);
+
+      expect(result).toEqual(mockProduct);
+      expect(productRepository.findByBarcode).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('restore', () => {
+    it('should throw NotFoundException when product not in deleted set', async () => {
+      productRepository.findOneWithDeleted.mockResolvedValue(null);
+      await expect(service.restore('non-existent', mockTenantContext)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getCategories', () => {
+    it('should return categories for shop', async () => {
+      categoryRepository.findAllByShop.mockResolvedValue([mockCategory]);
+
+      const result = await service.getCategories('shop-1');
+
+      expect(categoryRepository.findAllByShop).toHaveBeenCalledWith('shop-1');
+      expect(result).toEqual([mockCategory]);
+    });
+
+    it('should return cached categories when available', async () => {
+      cacheService.get.mockResolvedValue([mockCategory]);
+
+      const result = await service.getCategories('shop-1');
+
+      expect(result).toEqual([mockCategory]);
+      expect(categoryRepository.findAllByShop).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createCategory', () => {
+    it('should create a category successfully', async () => {
+      categoryRepository.findBySlug.mockResolvedValue(null);
+      categoryRepository.create.mockReturnValue(mockCategory);
+      categoryRepository.save.mockResolvedValue(mockCategory);
+
+      const result = await service.createCategory('shop-1', { name: 'Electronics', slug: 'electronics' });
+
+      expect(categoryRepository.findBySlug).toHaveBeenCalledWith('shop-1', 'electronics');
+      expect(result).toEqual(mockCategory);
+    });
+
+    it('should throw ConflictException when slug exists', async () => {
+      categoryRepository.findBySlug.mockResolvedValue(mockCategory);
+
+      await expect(service.createCategory('shop-1', { name: 'Electronics', slug: 'electronics' })).rejects.toThrow(
+        ConflictException,
+      );
+    });
+  });
+
+  describe('updateCategory', () => {
+    it('should update a category successfully', async () => {
+      categoryRepository.findByIdAndShop.mockResolvedValue(mockCategory);
+      categoryRepository.save.mockResolvedValue({ ...mockCategory, name: 'Updated' });
+
+      const result = await service.updateCategory('cat-1', 'shop-1', { name: 'Updated' });
+
+      expect(result.name).toBe('Updated');
+    });
+
+    it('should throw NotFoundException for non-existent category', async () => {
+      categoryRepository.findByIdAndShop.mockResolvedValue(null);
+
+      await expect(service.updateCategory('missing', 'shop-1', { name: 'X' })).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ConflictException when new slug exists', async () => {
+      categoryRepository.findByIdAndShop.mockResolvedValue(mockCategory);
+      categoryRepository.existsBySlugAndShop.mockResolvedValue(true);
+
+      await expect(service.updateCategory('cat-1', 'shop-1', { slug: 'existing-slug' })).rejects.toThrow(
+        ConflictException,
+      );
+    });
+  });
+
+  describe('deleteCategory', () => {
+    it('should delete a category successfully', async () => {
+      categoryRepository.findOne.mockResolvedValue(mockCategory);
+      productRepository.countByCategory.mockResolvedValue(0);
+
+      await service.deleteCategory('cat-1', 'shop-1');
+
+      expect(categoryRepository.remove).toHaveBeenCalledWith(mockCategory);
+    });
+
+    it('should throw NotFoundException for non-existent category', async () => {
+      categoryRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.deleteCategory('missing', 'shop-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ConflictException when category has products', async () => {
+      categoryRepository.findOne.mockResolvedValue(mockCategory);
+      productRepository.countByCategory.mockResolvedValue(5);
+
+      await expect(service.deleteCategory('cat-1', 'shop-1')).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('update SKU conflict', () => {
+    it('should skip SKU check when sku not changed', async () => {
+      productRepository.findById.mockResolvedValue(mockProduct);
+      const mockUpdateResult: UpdateResult = { affected: 1, generatedMaps: [], raw: [] };
+      productRepository.update.mockResolvedValue(mockUpdateResult);
+      productRepository.findById.mockResolvedValue(mockProduct);
+
+      await service.update('prod_1', { name: 'Same SKU' }, mockTenantContext);
+
+      expect(productRepository.existsBySkuAndShop).not.toHaveBeenCalled();
     });
   });
 });
