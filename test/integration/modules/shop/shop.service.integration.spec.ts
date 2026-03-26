@@ -3,6 +3,8 @@ import { CacheService } from '@/core/cache/cache.service';
 import { Shop } from '@/modules/shop/entities';
 import { ShopRepository } from '@/modules/shop/repository';
 import { ShopService } from '@/modules/shop/shop.service';
+import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
+import { Order } from '@/modules/order/order.entity';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
 
@@ -32,7 +34,7 @@ describe('ShopService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, User]),
+        TypeOrmModule.forFeature([Shop, User, ChatEvent, StorefrontView, Order]),
       ],
       providers: [
         ShopService,

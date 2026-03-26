@@ -6,6 +6,8 @@ import { CategoryRepository, ProductRepository } from '@/modules/product/reposit
 import { Shop } from '@/modules/shop/entities';
 import { ShopRepository } from '@/modules/shop/repository';
 import { ShopService } from '@/modules/shop/shop.service';
+import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
+import { Order } from '@/modules/order/order.entity';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
 
@@ -36,7 +38,7 @@ describe('ProductService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, User, Product, Category]),
+        TypeOrmModule.forFeature([Shop, User, Product, Category, ChatEvent, StorefrontView, Order]),
       ],
       providers: [
         ProductService,
