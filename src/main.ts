@@ -19,12 +19,16 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('Retail Analytics Platform API')
-    .setDescription('Backend API for retail analytics with RAG-based document analysis and file storage')
+    .setTitle('Retail SaaS API')
+    .setDescription(
+      'Multi-tenant SaaS backend for micro-business storefronts with RAG-powered AI chatbot and file storage',
+    )
     .setVersion('1.0')
+    .addTag('Auth', 'User authentication and authorization')
+    .addTag('Shops', 'Shop profile management')
+    .addTag('Products', 'Product catalog CRUD operations')
     .addTag('RAG', 'AI-powered document analysis and chat')
     .addTag('Storage', 'File storage operations')
-    .addTag('Products', 'CRUD pruducts operations')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
     .addServer('http://localhost:3000', 'Development')
     .build();
