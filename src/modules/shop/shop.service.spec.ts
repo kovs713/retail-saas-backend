@@ -27,6 +27,9 @@ describe('ShopService', () => {
     bannerUrl: null,
     isActive: true,
     createdAt: new Date(),
+    chatEvents: [],
+    storefrontViews: [],
+    orders: [],
   };
 
   beforeEach(async () => {

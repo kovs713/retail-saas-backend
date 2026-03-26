@@ -5,6 +5,8 @@ import { CacheModule } from './core/cache/cache.module';
 import { LoggerModule } from './core/logger/logger.module';
 import { ProductModule } from './modules/product/product.module';
 import { RagModule } from './modules/rag/rag.module';
+import { PublicRagModule } from './modules/rag/public-rag.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { UserModule } from './modules/user/user.module';
@@ -24,6 +26,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
     AuthModule,
     RagModule,
+    PublicRagModule,
+    AnalyticsModule,
     StorageModule.forRoot(),
     ProductModule,
     ShopModule,
