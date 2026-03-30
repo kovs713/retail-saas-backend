@@ -26,8 +26,8 @@ describe('ShopModule', () => {
         { provide: ConfigService, useValue: createMock<ConfigService>() },
         Reflector,
       ],
-      controllers: [ShopController],
       exports: [ShopService],
+      controllers: [ShopController],
     }).compile();
   });
 

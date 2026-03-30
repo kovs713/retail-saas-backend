@@ -26,8 +26,8 @@ describe('ProductModule', () => {
         { provide: ConfigService, useValue: createMock<ConfigService>() },
         Reflector,
       ],
-      controllers: [ProductController],
       exports: [ProductService],
+      controllers: [ProductController],
     }).compile();
   });
 

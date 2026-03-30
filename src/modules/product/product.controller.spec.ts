@@ -25,7 +25,6 @@ describe('ProductController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [ProductController],
       providers: [
         {
           provide: ProductService,
@@ -40,6 +39,7 @@ describe('ProductController', () => {
           useValue: createMock<Repository<Category>>(),
         },
       ],
+      controllers: [ProductController],
     })
       .overrideGuard(AuthGuard)
       .useValue(

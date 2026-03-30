@@ -18,8 +18,8 @@ describe('RagModule', () => {
         { provide: LLMService, useValue: createMock<LLMService>() },
         { provide: VectorStoreService, useValue: createMock<VectorStoreService>() },
       ],
-      controllers: [RagController],
       exports: [RagService],
+      controllers: [RagController],
     })
       .overrideGuard(AuthGuard)
       .useValue(mockGuard())

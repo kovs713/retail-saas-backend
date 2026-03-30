@@ -44,13 +44,13 @@ describe('PublicRagController', () => {
     cacheService = createMock<DeepMocked<CacheService>>();
 
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [PublicRagController],
       providers: [
         { provide: RagService, useValue: ragService },
         { provide: ShopService, useValue: shopService },
         { provide: AnalyticsService, useValue: analyticsService },
         { provide: CacheService, useValue: cacheService },
       ],
+      controllers: [PublicRagController],
     }).compile();
 
     controller = module.get<PublicRagController>(PublicRagController);

@@ -16,8 +16,8 @@ describe('StorageModule', () => {
         { provide: MinioClient, useValue: createMock() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
       ],
-      controllers: [StorageController],
       exports: [StorageService],
+      controllers: [StorageController],
     }).compile();
   });
 
