@@ -1,9 +1,9 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
+import { createProduct } from '@/core/database/factories';
 import { Category, Product } from './entities';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
-import { createProduct } from './util/product.factory';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';

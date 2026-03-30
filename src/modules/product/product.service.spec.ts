@@ -1,9 +1,9 @@
 import { createMockTenantContext, mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
+import { createProduct } from '@/core/database/factories';
 import { Category, Product } from './entities';
 import { ProductService } from './product.service';
 import { CategoryRepository, ProductRepository } from './repositories';
-import { createProduct } from './util/product.factory';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';

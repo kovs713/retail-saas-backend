@@ -1,6 +1,6 @@
 import { AppModule } from '@/app/app.module';
-import { Shop } from '@/modules/shop/entities/shop.entity';
-import { User } from '@/modules/user/entities/user.entity';
+import { Shop } from '@/modules/shop/entities';
+import { User } from '@/modules/user/entities';
 
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';

@@ -1,12 +1,12 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { Shop } from '@/modules/shop/entities/shop.entity';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { Shop } from '@/modules/shop/entities';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { User } from './entities';
 import { UserRepository } from './repositories';
 import { UserService } from './user.service';
 
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcryptjs from 'bcryptjs';

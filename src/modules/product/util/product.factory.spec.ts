@@ -19,7 +19,7 @@ import {
   generateRandomSku,
   PRICE_RANGE_TEST_PRODUCTS,
   SAMPLE_PRODUCTS,
-} from './product.factory';
+} from '@/core/database/factories/product.factory';
 
 describe('ProductFactory', () => {
   describe('createProductDto', () => {

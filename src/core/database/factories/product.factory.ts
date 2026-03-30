@@ -1,6 +1,5 @@
-import { CreateProductDto } from '../dto/create-product.dto';
-import { UpdateProductDto } from '../dto/update-product.dto';
-import { Product } from '../entities/product.entity';
+import { CreateProductDto, UpdateProductDto } from '@/modules/product/dto';
+import { Product } from '@/modules/product/entities';
 
 const DEFAULTS = {
   skuPrefix: 'TEST',

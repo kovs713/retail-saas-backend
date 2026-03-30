@@ -1,7 +1,7 @@
 import { CommonModule } from './common/common.module';
-import { TypeOrmConfigService } from './common/configs';
 import { AuthModule } from './core/auth/auth.module';
 import { CacheModule } from './core/cache/cache.module';
+import { TypeOrmConfigService } from './core/database/config';
 import { LoggerModule } from './core/logger/logger.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { OrderModule } from './modules/order/order.module';
@@ -21,18 +21,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({ useClass: TypeOrmConfigService }),
 
-    LoggerModule,
-    CacheModule.forRootAsync(),
     CommonModule,
     AuthModule,
+    CacheModule.forRootAsync(),
+    LoggerModule,
 
-    RagModule,
-    PublicRagModule,
-    StorageModule.forRoot(),
-    ProductModule,
-    ShopModule,
-    OrderModule,
     AnalyticsModule,
+    OrderModule,
+    ProductModule,
+    PublicRagModule,
+    RagModule,
+    ShopModule,
+    StorageModule.forRoot(),
     UserModule,
   ],
 })
