@@ -1,9 +1,15 @@
 import { ApiResponse as AppApiResponse } from '@/common/dto';
+import { AuthGuard } from '@/common/guards';
+import { Request } from '@/common/types';
 import { AuthService } from './auth.service';
-import { AuthResponseDto, RefreshTokenDto, RegisterDto, SignInDto } from './dto';
+import { AuthResponseDto, RegisterDto, SignInDto, UserInfoDto } from './dto';
 
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
+
+const REFRESH_TOKEN_COOKIE = 'refreshToken';
+const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -16,8 +22,13 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User registered successfully', type: AuthResponseDto })
   @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
   @ApiResponse({ status: 409, description: 'Conflict - Email or shop slug already exists' })
-  async register(@Body() registerDto: RegisterDto): Promise<AppApiResponse<AuthResponseDto>> {
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AppApiResponse<AuthResponseDto>> {
     const result = await this.authService.register(registerDto);
+    this.setRefreshTokenCookie(res, result.refreshToken);
+
     return { success: true, data: result, message: 'User registered successfully' };
   }
 
@@ -26,18 +37,70 @@ export class AuthController {
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, description: 'Login successful', type: AuthResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized - Invalid credentials' })
-  async login(@Body() signInDto: SignInDto): Promise<AppApiResponse<AuthResponseDto>> {
+  async login(
+    @Body() signInDto: SignInDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AppApiResponse<AuthResponseDto>> {
     const result = await this.authService.signIn(signInDto);
+    this.setRefreshTokenCookie(res, result.refreshToken);
+
     return { success: true, data: result, message: 'Login successful' };
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiOperation({ summary: 'Refresh access token using httpOnly cookie' })
+  @ApiCookieAuth()
   @ApiResponse({ status: 200, description: 'Token refreshed successfully', type: AuthResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized - Invalid refresh token' })
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto): Promise<AppApiResponse<AuthResponseDto>> {
-    const result = await this.authService.refreshToken(refreshTokenDto.refreshToken);
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AppApiResponse<AuthResponseDto>> {
+    const refreshToken = this.extractCookie(req, REFRESH_TOKEN_COOKIE);
+
+    if (!refreshToken) {
+      const { UnauthorizedException } = await import('@nestjs/common');
+      throw new UnauthorizedException('Refresh token not found');
+    }
+
+    const result = await this.authService.refreshToken(refreshToken);
+    this.setRefreshTokenCookie(res, result.refreshToken);
+
     return { success: true, data: result, message: 'Token refreshed successfully' };
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: 'User profile retrieved', type: UserInfoDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing token' })
+  async me(@Req() req: Request): Promise<AppApiResponse<UserInfoDto>> {
+    const payload = req.user;
+    const user = await this.authService.getProfile(payload.sub);
+
+    return { success: true, data: user };
+  }
+
+  private setRefreshTokenCookie(res: Response, refreshToken?: string): void {
+    if (!refreshToken) return;
+
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: REFRESH_TOKEN_MAX_AGE,
+      path: '/auth',
+    });
+  }
+
+  private extractCookie(req: Request, name: string): string | undefined {
+    const cookieHeader = req.headers.cookie;
+    if (!cookieHeader) return undefined;
+
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+    return match?.[1];
   }
 }

@@ -60,12 +60,28 @@ export class OrderResponseDto {
 
   @ApiProperty({ description: 'Created at timestamp' })
   @Expose()
-  @Transform(({ value }) => (value as Date)?.toISOString())
+  @Transform(({ value }) => {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return undefined;
+  })
   createdAt: string;
 
   @ApiProperty({ description: 'Updated at timestamp' })
   @Expose()
-  @Transform(({ value }) => (value as Date)?.toISOString())
+  @Transform(({ value }) => {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return undefined;
+  })
   updatedAt: string;
 }
 

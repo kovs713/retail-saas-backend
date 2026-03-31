@@ -26,6 +26,7 @@ describe('AuthService', () => {
     passwordHash: 'hashed-password',
     role: 'owner',
     shopId: 'shop-456',
+    isActive: true,
   };
 
   const mockShop = {
@@ -33,6 +34,14 @@ describe('AuthService', () => {
     ownerId: 'user-123',
     name: 'Test Shop',
     slug: 'test-shop',
+  };
+
+  const expectedUserInfo = {
+    id: mockUser.id,
+    email: mockUser.email,
+    role: mockUser.role,
+    shopId: mockShop.id,
+    isActive: mockUser.isActive,
   };
 
   beforeEach(async () => {
@@ -75,7 +84,7 @@ describe('AuthService', () => {
       password: 'password123',
     };
 
-    it('should return accessToken and email', async () => {
+    it('should return accessToken, email, and user info', async () => {
       jest.spyOn(userService, 'findByEmail').mockResolvedValue(mockUser as any);
       jest.spyOn(userService, 'validatePassword').mockResolvedValue(true);
       jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(mockShop as any);
@@ -88,6 +97,7 @@ describe('AuthService', () => {
         email: mockSignInDto.email,
         accessToken: mockAccessToken,
         refreshToken: mockRefreshToken,
+        user: expectedUserInfo,
       });
     });
 
@@ -113,11 +123,11 @@ describe('AuthService', () => {
 
       const result = await service.signIn(mockSignInDto as any);
 
-      expect(result).toEqual({
-        email: mockSignInDto.email,
-        accessToken: mockAccessToken,
-        refreshToken: mockRefreshToken,
-      });
+      expect(result.email).toBe(mockSignInDto.email);
+      expect(result.accessToken).toBe(mockAccessToken);
+      expect(result.refreshToken).toBe(mockRefreshToken);
+      expect(result.user.id).toBe(mockUser.id);
+      expect(result.user.shopId).toBe('');
     });
   });
 
@@ -148,11 +158,11 @@ describe('AuthService', () => {
         }),
       );
       expect(shopService.updateOwner).toHaveBeenCalledWith(mockShop.id, mockUser.id);
-      expect(result).toEqual({
-        email: mockRegisterDto.email,
-        accessToken: mockAccessToken,
-        refreshToken: mockRefreshToken,
-      });
+      expect(result.email).toBe(mockRegisterDto.email);
+      expect(result.accessToken).toBe(mockAccessToken);
+      expect(result.refreshToken).toBe(mockRefreshToken);
+      expect(result.user).toBeDefined();
+      expect(result.user.id).toBe(mockUser.id);
     });
 
     it('should throw ConflictException when shop creation fails', async () => {
@@ -172,7 +182,7 @@ describe('AuthService', () => {
   describe('refreshToken', () => {
     const mockRefreshTokenString = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refreshToken';
 
-    it('should return new accessToken and refreshToken', async () => {
+    it('should return new accessToken, refreshToken, and user info', async () => {
       const mockPayload = {
         sub: 'user-123',
         email: 'test@example.com',
@@ -193,6 +203,8 @@ describe('AuthService', () => {
       expect(result.email).toBe(mockPayload.email);
       expect(result.accessToken).toBe(mockAccessToken);
       expect(result.refreshToken).toBe('new-refresh-token');
+      expect(result.user).toBeDefined();
+      expect(result.user.id).toBe(mockUser.id);
     });
 
     it('should throw UnauthorizedException when refresh token invalid', async () => {
@@ -219,6 +231,23 @@ describe('AuthService', () => {
       jest.spyOn(userService, 'findById').mockRejectedValue(new NotFoundException('User not found'));
 
       await expect(service.refreshToken(mockRefreshTokenString)).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('getProfile', () => {
+    it('should return user info', async () => {
+      jest.spyOn(userService, 'findById').mockResolvedValue(mockUser as any);
+      jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(mockShop as any);
+
+      const result = await service.getProfile('user-123');
+
+      expect(result).toEqual(expectedUserInfo);
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      jest.spyOn(userService, 'findById').mockRejectedValue(new NotFoundException('User not found'));
+
+      await expect(service.getProfile('nonexistent')).rejects.toThrow(NotFoundException);
     });
   });
 });

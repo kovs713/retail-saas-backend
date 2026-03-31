@@ -2,10 +2,11 @@ import { TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { ShopService } from '@/modules/shop/shop.service';
 import { UserService } from '@/modules/user/user.service';
-import { AuthResponseDto, RegisterDto, SignInDto } from './dto';
+import { AuthResponseDto, RegisterDto, SignInDto, UserInfoDto } from './dto';
 
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class AuthService {
@@ -57,8 +58,9 @@ export class AuthService {
 
     return {
       email: user.email,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
+      accessToken,
+      refreshToken,
+      user: plainToInstance(UserInfoDto, { ...user, shopId: shop.id }, { excludeExtraneousValues: true }),
     };
   }
 
@@ -91,8 +93,9 @@ export class AuthService {
 
     return {
       email: user.email,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
+      accessToken,
+      refreshToken,
+      user: plainToInstance(UserInfoDto, { ...user, shopId: shop?.id || '' }, { excludeExtraneousValues: true }),
     };
   }
 
@@ -131,10 +134,18 @@ export class AuthService {
         email: user.email,
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
+        user: plainToInstance(UserInfoDto, { ...user, shopId: shop?.id || '' }, { excludeExtraneousValues: true }),
       };
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
+  }
+
+  async getProfile(userId: string): Promise<UserInfoDto> {
+    const user = await this.userService.findById(userId);
+    const shop = await this.shopService.findByOwnerId(user.id);
+
+    return plainToInstance(UserInfoDto, { ...user, shopId: shop?.id || '' }, { excludeExtraneousValues: true });
   }
 
   async revokeRefreshToken(userId: string): Promise<void> {

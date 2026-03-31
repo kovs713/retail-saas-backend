@@ -30,13 +30,29 @@ export class CategoryDto {
 
   @ApiProperty({ description: 'Created at timestamp', example: '2024-01-01T00:00:00.000Z' })
   @Expose()
-  @Transform(({ value }) => (value as Date)?.toISOString())
-  createdAt: Date;
+  @Transform(({ value }) => {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return undefined;
+  })
+  createdAt: string;
 
   @ApiProperty({ description: 'Updated at timestamp', example: '2024-01-01T00:00:00.000Z' })
   @Expose()
-  @Transform(({ value }) => (value as Date)?.toISOString())
-  updatedAt: Date;
+  @Transform(({ value }) => {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return undefined;
+  })
+  updatedAt: string;
 
   static fromEntity(entity: Category): CategoryDto {
     return plainToInstance(CategoryDto, entity, { excludeExtraneousValues: true });

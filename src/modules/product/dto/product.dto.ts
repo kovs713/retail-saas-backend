@@ -1,6 +1,7 @@
+import { Product } from '../entities';
+
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose, Transform, plainToInstance } from 'class-transformer';
-import { Product } from '../entities/product.entity';
 
 export class ProductDto {
   @ApiProperty({ description: 'Product ID', example: '123e4567-e89b-12d3-a456-426614174000' })
@@ -59,13 +60,29 @@ export class ProductDto {
 
   @ApiProperty({ description: 'Created at timestamp', example: '2024-01-01T00:00:00.000Z' })
   @Expose()
-  @Transform(({ value }) => (value as Date)?.toISOString())
-  createdAt: Date;
+  @Transform(({ value }) => {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return undefined;
+  })
+  createdAt: string;
 
   @ApiProperty({ description: 'Updated at timestamp', example: '2024-01-01T00:00:00.000Z' })
   @Expose()
-  @Transform(({ value }) => (value as Date)?.toISOString())
-  updatedAt: Date;
+  @Transform(({ value }) => {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return undefined;
+  })
+  updatedAt: string;
 
   static fromEntity(entity: Product): ProductDto {
     return plainToInstance(ProductDto, entity, { excludeExtraneousValues: true });

@@ -1,9 +1,5 @@
 import { Category } from '@/modules/product/entities';
 
-import { Faker, en } from '@faker-js/faker';
-
-const faker = new Faker({ locale: [en] });
-
 export interface CreateCategoryOptions {
   name?: string;
   slug?: string;
@@ -11,11 +7,11 @@ export interface CreateCategoryOptions {
 }
 
 export function createCategory(options: CreateCategoryOptions = {}): Partial<Category> {
-  const name = options.name || faker.commerce.department();
+  const name = options.name || 'Test Category';
 
   return {
     name,
-    slug: options.slug || faker.helpers.slugify(name).toLowerCase(),
+    slug: options.slug || name.toLowerCase().replace(/\s+/g, '-'),
     shopId: options.shopId || '',
   };
 }
@@ -33,7 +29,7 @@ export function createNamedCategories(names: { name: string; slug?: string }[], 
   return names.map((item) =>
     createCategory({
       name: item.name,
-      slug: item.slug || faker.helpers.slugify(item.name).toLowerCase(),
+      slug: item.slug || item.name.toLowerCase().replace(/\s+/g, '-'),
       shopId,
     }),
   );

@@ -1,14 +1,18 @@
 import { AppModule } from './app.module';
 
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+
+  const corsOrigins = configService.getOrThrow<string>('CORS_ORIGINS', 'http://localhost:5173');
 
   app.enableCors({
-    origin: ['http://localhost:5173'],
+    origin: corsOrigins.split(',').map((o) => o.trim()),
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Accept, Authorization',
     credentials: true,
@@ -35,6 +39,7 @@ async function bootstrap() {
     .addTag('RAG', 'AI-powered document analysis and chat')
     .addTag('Storage', 'File storage operations')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
+    .addCookieAuth('refreshToken')
     .addServer('http://localhost:3000', 'Development')
     .build();
 

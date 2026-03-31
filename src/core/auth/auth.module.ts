@@ -7,8 +7,8 @@ import { Module } from '@nestjs/common';
 
 @Module({
   imports: [UserModule, ShopModule],
-  controllers: [AuthController],
   providers: [AuthService],
   exports: [AuthService],
+  controllers: [AuthController],
 })
 export class AuthModule {}

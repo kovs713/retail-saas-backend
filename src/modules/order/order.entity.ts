@@ -22,7 +22,7 @@ export class Order {
   @Column('jsonb')
   items: { productId: string; quantity: number; price: number }[];
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column({ type: 'int', default: 0 })
   totalAmount: number;
 
   @Column({ type: 'enum', enum: ['PENDING', 'CONFIRMED', 'READY', 'COMPLETED', 'CANCELLED'], default: 'PENDING' })

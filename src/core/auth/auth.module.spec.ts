@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
 import { createMock } from '@golevelup/ts-jest';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 
@@ -20,9 +21,10 @@ describe('AuthModule', () => {
         { provide: UserService, useValue: createMock<UserService>() },
         { provide: ShopService, useValue: createMock<ShopService>() },
         { provide: CacheService, useValue: mockCacheService() },
+        { provide: ConfigService, useValue: createMock<ConfigService>() },
       ],
-      controllers: [AuthController],
       exports: [AuthService],
+      controllers: [AuthController],
     }).compile();
   });
 

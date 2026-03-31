@@ -50,12 +50,28 @@ export class ShopDto {
 
   @ApiProperty({ description: 'Created at timestamp', example: '2024-01-01T00:00:00.000Z' })
   @Expose()
-  @Transform(({ value }) => (value as Date)?.toISOString())
+  @Transform(({ value }) => {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return undefined;
+  })
   createdAt: string;
 
   @ApiPropertyOptional({ description: 'Updated at timestamp', example: '2024-01-01T00:00:00.000Z' })
   @Expose()
-  @Transform(({ value }) => (value as Date)?.toISOString())
+  @Transform(({ value }) => {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return undefined;
+  })
   updatedAt?: string;
 
   static fromEntity(entity: Shop): ShopDto {

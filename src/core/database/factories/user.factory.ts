@@ -1,9 +1,5 @@
 import { User } from '@/modules/user/entities';
 
-import { Faker, en } from '@faker-js/faker';
-
-const faker = new Faker({ locale: [en] });
-
 export type UserRole = 'owner' | 'manager' | 'admin';
 
 export interface CreateUserOptions {
@@ -16,7 +12,7 @@ export interface CreateUserOptions {
 
 export function createUser(options: CreateUserOptions = {}): Partial<User> {
   return {
-    email: options.email || faker.internet.email(),
+    email: options.email || 'test@example.com',
     passwordHash: options.passwordHash || '',
     role: options.role || 'owner',
     isActive: options.isActive ?? true,
@@ -30,7 +26,7 @@ export function createUsers(count: number, options: CreateUserOptions = {}): Par
 
 export function createOwnerUser(shopId: string, passwordHash: string, email?: string): Partial<User> {
   return createUser({
-    email: email || faker.internet.email(),
+    email: email || 'owner@example.com',
     passwordHash,
     role: 'owner',
     shopId,
@@ -39,7 +35,7 @@ export function createOwnerUser(shopId: string, passwordHash: string, email?: st
 
 export function createManagerUser(shopId: string, passwordHash: string, email?: string): Partial<User> {
   return createUser({
-    email: email || faker.internet.email(),
+    email: email || 'manager@example.com',
     passwordHash,
     role: 'manager',
     shopId,
