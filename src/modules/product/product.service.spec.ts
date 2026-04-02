@@ -1,12 +1,14 @@
 import { createMockTenantContext, mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { createProduct } from '@/core/database/factories';
+import { StorageService } from '@/modules/storage/storage.service';
 import { Category, Product } from './entities';
 import { ProductService } from './product.service';
 import { CategoryRepository, ProductRepository } from './repositories';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UpdateResult } from 'typeorm';
 
@@ -15,6 +17,8 @@ describe('ProductService', () => {
   let productRepository: DeepMocked<ProductRepository>;
   let categoryRepository: DeepMocked<CategoryRepository>;
   let cacheService: DeepMocked<CacheService>;
+  let storageService: DeepMocked<StorageService>;
+  let configService: DeepMocked<ConfigService>;
 
   const mockProduct: Product = createProduct({ id: 'prod_1', index: 1 });
   const mockTenantContext = createMockTenantContext();
@@ -45,6 +49,14 @@ describe('ProductService', () => {
           provide: CacheService,
           useValue: mockCacheService(),
         },
+        {
+          provide: StorageService,
+          useValue: createMock<StorageService>(),
+        },
+        {
+          provide: ConfigService,
+          useValue: createMock<ConfigService>(),
+        },
       ],
     }).compile();
 
@@ -52,6 +64,14 @@ describe('ProductService', () => {
     productRepository = module.get(ProductRepository);
     categoryRepository = module.get(CategoryRepository);
     cacheService = module.get(CacheService);
+    storageService = module.get(StorageService);
+    configService = module.get(ConfigService);
+    configService.get.mockImplementation((key: string, defaultValue?: any) => {
+      const config: Record<string, any> = {
+        MEDIA_UPLOAD_PRESIGNED_TTL: 900,
+      };
+      return key in config ? config[key] : defaultValue;
+    });
   });
 
   afterEach(() => {
@@ -336,6 +356,51 @@ describe('ProductService', () => {
 
       expect(result).toEqual(mockProduct);
       expect(productRepository.findBySku).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createImageUploadUrl', () => {
+    it('should return upload and public URLs', async () => {
+      const productWithShop = {
+        ...mockProduct,
+        id: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        shop: { slug: 'my-shop' } as any,
+      } as Product;
+      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
+      storageService.getPresignedPutUrl.mockResolvedValue('https://upload-url');
+
+      const result = await service.createImageUploadUrl('prod_1', 'image-1.jpg', mockTenantContext);
+
+      expect(storageService.getPresignedPutUrl).toHaveBeenCalledWith('products/prod_1/images/image-1.jpg', 900);
+      expect(result.uploadUrl).toBe('https://upload-url');
+      expect(result.publicUrl).toBe('/public/media/my-shop/products/prod_1/image-1.jpg');
+      expect(result.key).toBe('products/prod_1/images/image-1.jpg');
+    });
+
+    it('should throw for invalid file name', async () => {
+      const productWithShop = {
+        ...mockProduct,
+        id: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        shop: { slug: 'my-shop' } as any,
+      } as Product;
+      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
+
+      await expect(service.createImageUploadUrl('prod_1', '../evil.jpg', mockTenantContext)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('deleteImage', () => {
+    it('should delete image by deterministic key', async () => {
+      productRepository.findById.mockResolvedValue(mockProduct);
+      storageService.deleteObject.mockResolvedValue();
+
+      await service.deleteImage('prod_1', 'photo.jpg', mockTenantContext);
+
+      expect(storageService.deleteObject).toHaveBeenCalledWith('products/prod_1/images/photo.jpg');
     });
   });
 

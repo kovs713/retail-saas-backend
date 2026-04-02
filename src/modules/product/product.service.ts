@@ -2,11 +2,13 @@ import { Pagination, PaginationResponse } from '@/common/dto';
 import { TenantContext } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
+import { StorageService } from '@/modules/storage/storage.service';
 import { CreateCategoryDto, CreateProductDto, UpdateCategoryDto, UpdateProductDto } from './dto';
 import { Category, Product } from './entities';
 import { CategoryRepository, ProductRepository } from './repositories';
 
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FindOptionsWhere, QueryDeepPartialEntity } from 'typeorm';
 
 @Injectable()
@@ -17,7 +19,49 @@ export class ProductService {
     private readonly productRepository: ProductRepository,
     private readonly categoryRepository: CategoryRepository,
     private readonly cacheService: CacheService,
+    private readonly storageService: StorageService,
+    private readonly configService: ConfigService,
   ) {}
+
+  async createImageUploadUrl(
+    productId: string,
+    fileName: string,
+    tenantContext: TenantContext,
+  ): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
+    const product = await this.productRepository.findByIdWithShop(productId, tenantContext.shopId);
+
+    if (!product || !product.shop) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const safeFileName = this.sanitizeImageFileName(fileName);
+    const key = this.buildProductImageKey(productId, safeFileName);
+    const expirySeconds = this.configService.get<number>('MEDIA_UPLOAD_PRESIGNED_TTL', 900);
+    const uploadUrl = await this.storageService.getPresignedPutUrl(key, expirySeconds);
+    const publicUrl = this.buildPublicProductImageUrl(product.shop.slug, productId, safeFileName);
+
+    return { uploadUrl, publicUrl, key };
+  }
+
+  async deleteImage(productId: string, imageName: string, tenantContext: TenantContext): Promise<void> {
+    const product = await this.productRepository.findById(productId, tenantContext.shopId);
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const safeFileName = this.sanitizeImageFileName(imageName);
+    const key = this.buildProductImageKey(productId, safeFileName);
+
+    await this.storageService.deleteObject(key);
+  }
+
+  async findPublicByShopSlugAndId(shopSlug: string, productId: string): Promise<Product | null> {
+    return this.productRepository.findByIdAndShopSlug(productId, shopSlug);
+  }
+
+  buildProductImageObjectKey(productId: string, imageName: string): string {
+    return this.buildProductImageKey(productId, imageName);
+  }
 
   async create(createProductDto: CreateProductDto, tenantContext: TenantContext): Promise<Product> {
     this.logger.log(`Creating product with SKU: ${createProductDto.sku} for shop: ${tenantContext.shopId}`);
@@ -396,5 +440,29 @@ export class ProductService {
       await this.cacheService.del(this.cacheService.generateKey('product', 'sku', shopId, productId));
     }
     await this.cacheService.delPattern(`products:list:${shopId}:*`);
+  }
+
+  private sanitizeImageFileName(fileName: string): string {
+    const trimmed = fileName.trim();
+    const validPattern = /^[a-zA-Z0-9._-]+$/;
+    if (!trimmed || !validPattern.test(trimmed)) {
+      throw new BadRequestException('Invalid image file name');
+    }
+
+    const extension = trimmed.split('.').pop()?.toLowerCase();
+    const allowedExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
+    if (!extension || !allowedExtensions.has(extension)) {
+      throw new BadRequestException('Unsupported image extension');
+    }
+
+    return trimmed;
+  }
+
+  private buildProductImageKey(productId: string, imageName: string): string {
+    return `products/${productId}/images/${imageName}`;
+  }
+
+  private buildPublicProductImageUrl(shopSlug: string, productId: string, imageName: string): string {
+    return `/public/media/${shopSlug}/products/${productId}/${imageName}`;
   }
 }

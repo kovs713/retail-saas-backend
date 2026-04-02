@@ -1,10 +1,17 @@
-import { MinioClient } from '@/common/types';
-import { StorageController } from './storage.controller';
+import { MinioConfig, MinioClient } from '@/common/types';
 import { StorageService } from './storage.service';
 
 import { DynamicModule, Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'minio';
+
+interface MinioOptions {
+  host: string;
+  port: number;
+  accessKey: string;
+  secretKey: string;
+  userSSL: boolean;
+}
 
 @Global()
 @Module({})
@@ -14,21 +21,26 @@ export class StorageModule {
       module: StorageModule,
       providers: [
         {
-          provide: MinioClient,
+          provide: MinioConfig,
           inject: [ConfigService],
-          useFactory: (configService: ConfigService): Client => {
-            const host = configService.getOrThrow<string>('S3_HOST');
-            const port = configService.getOrThrow<number>('S3_PORT');
-            const accessKey = configService.getOrThrow<string>('S3_USERNAME');
-            const secretKey = configService.getOrThrow<string>('S3_PASSWORD');
-            const useSSL = configService.get<string>('S3_USE_SSL', 'false') === 'true';
-
+          useFactory: (configService: ConfigService): MinioOptions => ({
+            host: configService.getOrThrow<string>('S3_HOST'),
+            port: configService.getOrThrow<number>('S3_PORT'),
+            accessKey: configService.getOrThrow<string>('S3_USERNAME'),
+            secretKey: configService.getOrThrow<string>('S3_PASSWORD'),
+            userSSL: configService.getOrThrow<string>('S3_USE_SSL') === 'true',
+          }),
+        },
+        {
+          provide: MinioClient,
+          inject: [MinioConfig],
+          useFactory: (bucketSecrets: MinioOptions): Client => {
             return new Client({
-              endPoint: host,
-              port: parseInt(port.toString(), 10),
-              useSSL,
-              accessKey,
-              secretKey,
+              endPoint: bucketSecrets.host,
+              port: bucketSecrets.port,
+              useSSL: bucketSecrets.userSSL,
+              accessKey: bucketSecrets.accessKey,
+              secretKey: bucketSecrets.secretKey,
             });
           },
         },
@@ -36,7 +48,6 @@ export class StorageModule {
         StorageService,
       ],
       exports: [StorageService],
-      controllers: [StorageController],
     };
   }
 }

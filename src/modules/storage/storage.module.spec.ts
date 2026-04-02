@@ -1,5 +1,4 @@
-import { MinioClient } from '@/common/types';
-import { StorageController } from './storage.controller';
+import { MinioClient, MinioConfig } from '@/common/types';
 import { StorageService } from './storage.service';
 
 import { createMock } from '@golevelup/ts-jest';
@@ -13,21 +12,16 @@ describe('StorageModule', () => {
     module = await Test.createTestingModule({
       providers: [
         StorageService,
+        { provide: MinioConfig, useValue: createMock() },
         { provide: MinioClient, useValue: createMock() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
       ],
       exports: [StorageService],
-      controllers: [StorageController],
     }).compile();
   });
 
   it('should compile and provide StorageService', () => {
     const service = module.get<StorageService>(StorageService);
     expect(service).toBeDefined();
-  });
-
-  it('should compile and provide StorageController', () => {
-    const controller = module.get<StorageController>(StorageController);
-    expect(controller).toBeDefined();
   });
 });

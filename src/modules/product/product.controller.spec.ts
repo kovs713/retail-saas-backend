@@ -180,6 +180,32 @@ describe('ProductController', () => {
     });
   });
 
+  describe('createImageUploadUrl', () => {
+    it('should return presigned upload payload', async () => {
+      service.createImageUploadUrl.mockResolvedValue({
+        uploadUrl: 'https://upload-url',
+        publicUrl: '/public/media/shop-1/products/prod_1/photo.jpg',
+        key: 'products/prod_1/images/photo.jpg',
+      });
+
+      const result = await controller.createImageUploadUrl('prod_1', { fileName: 'photo.jpg' }, tenantContext);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.uploadUrl).toBe('https://upload-url');
+    });
+  });
+
+  describe('deleteImage', () => {
+    it('should delete product image', async () => {
+      service.deleteImage.mockResolvedValue();
+
+      const result = await controller.deleteImage('prod_1', 'photo.jpg', tenantContext);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Product image deleted successfully');
+    });
+  });
+
   describe('findByBarcode', () => {
     it('should find product by barcode', async () => {
       service.findByBarcode.mockResolvedValue(mockProduct);

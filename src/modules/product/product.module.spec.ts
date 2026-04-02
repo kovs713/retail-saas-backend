@@ -1,7 +1,9 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
+import { StorageService } from '@/modules/storage/storage.service';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
+import { PublicMediaController } from './public-media.controller';
 import { CategoryRepository, ProductRepository } from './repositories';
 
 import { createMock } from '@golevelup/ts-jest';
@@ -22,12 +24,13 @@ describe('ProductModule', () => {
         { provide: ProductRepository, useValue: createMock<ProductRepository>() },
         { provide: CategoryRepository, useValue: createMock<CategoryRepository>() },
         { provide: CacheService, useValue: mockCacheService() },
+        { provide: StorageService, useValue: createMock<StorageService>() },
         { provide: JwtService, useValue: createMock<JwtService>() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
         Reflector,
       ],
       exports: [ProductService],
-      controllers: [ProductController],
+      controllers: [ProductController, PublicMediaController],
     }).compile();
   });
 
@@ -48,6 +51,11 @@ describe('ProductModule', () => {
 
   it('should compile and provide ProductController', () => {
     const controller = module.get<ProductController>(ProductController);
+    expect(controller).toBeDefined();
+  });
+
+  it('should compile and provide PublicMediaController', () => {
+    const controller = module.get<PublicMediaController>(PublicMediaController);
     expect(controller).toBeDefined();
   });
 });

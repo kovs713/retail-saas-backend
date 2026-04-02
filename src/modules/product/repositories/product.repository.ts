@@ -80,6 +80,27 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
+  async findByIdWithShop(id: string, shopId: string): Promise<Product | null> {
+    return this.repository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.shop', 'shop')
+      .where('product.id = :id', { id })
+      .andWhere('product.shopId = :shopId', { shopId })
+      .andWhere('product.deletedAt IS NULL')
+      .getOne();
+  }
+
+  async findByIdAndShopSlug(id: string, shopSlug: string): Promise<Product | null> {
+    return this.repository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.shop', 'shop')
+      .where('product.id = :id', { id })
+      .andWhere('shop.slug = :shopSlug', { shopSlug })
+      .andWhere('shop.isActive = true')
+      .andWhere('product.deletedAt IS NULL')
+      .getOne();
+  }
+
   async findBySku(sku: string, shopId: string): Promise<Product | null> {
     return this.repository.findOne({
       where: {
