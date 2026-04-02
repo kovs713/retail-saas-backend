@@ -132,4 +132,31 @@ describe('CacheService', () => {
       expect(service.generateKey()).toBe('');
     });
   });
+
+  describe('incrementWithTtl', () => {
+    it('should increment and set ttl atomically', async () => {
+      const exec = jest.fn().mockResolvedValue([1, 1]);
+      const expire = jest.fn().mockReturnValue({ exec });
+      const incr = jest.fn().mockReturnValue({ expire });
+      redisClient.multi.mockReturnValue({ incr } as any);
+
+      const count = await service.incrementWithTtl('rl:key', 60);
+
+      expect(redisClient.multi).toHaveBeenCalled();
+      expect(incr).toHaveBeenCalledWith('rl:key');
+      expect(expire).toHaveBeenCalledWith('rl:key', 60, 'NX');
+      expect(exec).toHaveBeenCalled();
+      expect(count).toBe(1);
+    });
+
+    it('should return fallback when redis fails', async () => {
+      redisClient.multi.mockImplementation(() => {
+        throw new Error('redis down');
+      });
+
+      const count = await service.incrementWithTtl('rl:key', 60);
+
+      expect(count).toBe(1);
+    });
+  });
 });
