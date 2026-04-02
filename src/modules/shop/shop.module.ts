@@ -2,7 +2,7 @@ import { AnalyticsModule } from '@/modules/analytics/analytics.module';
 import { ProductModule } from '@/modules/product/product.module';
 import { Shop } from './entities';
 import { PublicShopController } from './public-shop.controller';
-import { ShopRepository } from './repository';
+import { ShopRepository } from './repositories';
 import { ShopController } from './shop.controller';
 import { ShopService } from './shop.service';
 

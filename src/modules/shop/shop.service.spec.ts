@@ -2,7 +2,7 @@ import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { User } from '@/modules/user/entities';
 import { Shop } from './entities';
-import { ShopRepository } from './repository';
+import { ShopRepository } from './repositories';
 import { ShopService } from './shop.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';

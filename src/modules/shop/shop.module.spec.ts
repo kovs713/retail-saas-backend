@@ -1,7 +1,7 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { Shop } from './entities';
-import { ShopRepository } from './repository';
+import { ShopRepository } from './repositories';
 import { ShopController } from './shop.controller';
 import { ShopService } from './shop.service';
 
