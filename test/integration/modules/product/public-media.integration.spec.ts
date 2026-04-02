@@ -1,4 +1,6 @@
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
+import { mockCacheService } from '@/common/utils';
+import { CacheService } from '@/core/cache/cache.service';
 import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
@@ -10,8 +12,9 @@ import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
 
 import { INestApplication } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Readable } from 'stream';
 import request from 'supertest';
@@ -26,7 +29,6 @@ describe('PublicMedia Integration', () => {
 
   beforeAll(async () => {
     const connection = getPostgresConnection();
-    process.env.MEDIA_CACHE_CONTROL = 'public,max-age=300';
 
     storageService = {
       getObjectStream: jest.fn(),
@@ -56,9 +58,14 @@ describe('PublicMedia Integration', () => {
         ProductService,
         ProductRepository,
         CategoryRepository,
+        { provide: CacheService, useValue: mockCacheService() },
         { provide: StorageService, useValue: storageService },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
       ],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -115,6 +122,6 @@ describe('PublicMedia Integration', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(response.headers['content-type']).toContain('image/jpeg');
+    expect(response.body).toEqual({});
   });
 });

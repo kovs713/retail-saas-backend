@@ -1,17 +1,20 @@
-import { Order } from '@/app/modules/order/entities';
+import { ShopRepository } from '@/app/modules/shop/repositories';
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
+import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
 import { CategoryRepository, ProductRepository } from '@/modules/product/repositories';
 import { Shop } from '@/modules/shop/entities';
-import { ShopRepository } from '@/modules/shop/repository';
 import { ShopService } from '@/modules/shop/shop.service';
+import { StorageService } from '@/modules/storage/storage.service';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
 
+import { createMock } from '@golevelup/ts-jest';
 import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -46,9 +49,14 @@ describe('ProductService Integration', () => {
         CategoryRepository,
         ShopService,
         ShopRepository,
+        { provide: CacheService, useValue: mockCacheService() },
         {
-          provide: CacheService,
-          useValue: mockCacheService(),
+          provide: StorageService,
+          useValue: createMock<StorageService>,
+        },
+        {
+          provide: ConfigService,
+          useValue: createMock<ConfigService>,
         },
       ],
     }).compile();

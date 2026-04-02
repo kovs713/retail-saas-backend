@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 describe('ProductModule', () => {
   let module: TestingModule;
@@ -31,7 +32,10 @@ describe('ProductModule', () => {
       ],
       exports: [ProductService],
       controllers: [ProductController, PublicMediaController],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
   });
 
   it('should compile and provide ProductService', () => {

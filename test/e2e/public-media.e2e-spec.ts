@@ -5,6 +5,7 @@ import { StorageService } from '@/modules/storage/storage.service';
 import { INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 
 describe('Public Media E2E (minimal)', () => {
@@ -32,7 +33,10 @@ describe('Public Media E2E (minimal)', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
@@ -45,7 +49,9 @@ describe('Public Media E2E (minimal)', () => {
   });
 
   it('should return 404 when product not found', async () => {
-    const response = await request(app.getHttpServer()).get('/public/media/shop/products/prod/file.jpg');
+    const response = await request(app.getHttpServer()).get(
+      '/public/media/shop/products/00000000-0000-0000-0000-000000000000/file.jpg',
+    );
 
     expect(response.status).toBe(404);
   });
