@@ -1,4 +1,4 @@
-import { ChatWithScoresResponseDto } from './chat-with-scires-response.dto';
+import { ChatWithScoresResponseDto } from './chat-with-scores-response.dto';
 import { DocumentWithScoreDto } from './document-with-score.dto';
 
 describe('ChatWithScoresResponseDto', () => {

@@ -3,7 +3,7 @@ export * from './add-documents.dto';
 export * from './add-texts-response.dto';
 export * from './add-texts.dto';
 export * from './chat-response.dto';
-export * from './chat-with-scires-response.dto';
+export * from './chat-with-scores-response.dto';
 export * from './chat.dto';
 export * from './document-with-score.dto';
 export * from './document.dto';

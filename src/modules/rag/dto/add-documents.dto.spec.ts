@@ -1,11 +1,11 @@
-import { AddDocumentstDto } from './add-documents.dto';
+import { AddDocumentsDto } from './add-documents.dto';
 
 import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
 
-describe('AddDocumentstDto', () => {
+describe('AddDocumentsDto', () => {
   it('should pass validation with valid documents array', async () => {
-    const dto = plainToClass(AddDocumentstDto, {
+    const dto = plainToClass(AddDocumentsDto, {
       documents: [{ content: 'Doc 1' }, { content: 'Doc 2' }],
     });
 
@@ -15,7 +15,7 @@ describe('AddDocumentstDto', () => {
   });
 
   it('should pass validation with optional source', async () => {
-    const dto = plainToClass(AddDocumentstDto, {
+    const dto = plainToClass(AddDocumentsDto, {
       documents: [{ content: 'Doc 1' }],
       source: 'test-source',
     });
@@ -26,7 +26,7 @@ describe('AddDocumentstDto', () => {
   });
 
   it('should pass validation with documents having metadata', async () => {
-    const dto = plainToClass(AddDocumentstDto, {
+    const dto = plainToClass(AddDocumentsDto, {
       documents: [
         { content: 'Doc 1', metadata: { author: 'John' } },
         { content: 'Doc 2', metadata: { author: 'Jane' } },
@@ -39,7 +39,7 @@ describe('AddDocumentstDto', () => {
   });
 
   it('should fail validation without documents', async () => {
-    const dto = plainToClass(AddDocumentstDto, {});
+    const dto = plainToClass(AddDocumentsDto, {});
 
     const errors = await validate(dto);
 
@@ -48,7 +48,7 @@ describe('AddDocumentstDto', () => {
   });
 
   it('should fail validation with non-array documents', async () => {
-    const dto = plainToClass(AddDocumentstDto, { documents: 'not-an-array' });
+    const dto = plainToClass(AddDocumentsDto, { documents: 'not-an-array' });
 
     const errors = await validate(dto);
 
@@ -57,7 +57,7 @@ describe('AddDocumentstDto', () => {
   });
 
   it('should fail validation with invalid document in array', async () => {
-    const dto = plainToClass(AddDocumentstDto, {
+    const dto = plainToClass(AddDocumentsDto, {
       documents: [{ content: 'Valid' }, { content: 123 }],
     });
 
@@ -67,7 +67,7 @@ describe('AddDocumentstDto', () => {
   });
 
   it('should fail validation with non-string source', async () => {
-    const dto = plainToClass(AddDocumentstDto, {
+    const dto = plainToClass(AddDocumentsDto, {
       documents: [{ content: 'Doc' }],
       source: 123,
     });

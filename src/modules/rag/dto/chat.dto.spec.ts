@@ -1,11 +1,11 @@
-import { ChattDto } from './chat.dto';
+import { ChatDto } from './chat.dto';
 
 import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
 
-describe('ChattDto', () => {
+describe('ChatDto', () => {
   it('should pass validation with valid message', async () => {
-    const dto = plainToClass(ChattDto, { message: 'What is NestJS?' });
+    const dto = plainToClass(ChatDto, { message: 'What is NestJS?' });
 
     const errors = await validate(dto);
 
@@ -13,7 +13,7 @@ describe('ChattDto', () => {
   });
 
   it('should pass validation with optional maxResults', async () => {
-    const dto = plainToClass(ChattDto, {
+    const dto = plainToClass(ChatDto, {
       message: 'What is NestJS?',
       maxResults: 5,
     });
@@ -24,7 +24,7 @@ describe('ChattDto', () => {
   });
 
   it('should pass validation with optional systemPrompt', async () => {
-    const dto = plainToClass(ChattDto, {
+    const dto = plainToClass(ChatDto, {
       message: 'What is NestJS?',
       systemPrompt: 'You are a helpful assistant',
     });
@@ -35,7 +35,7 @@ describe('ChattDto', () => {
   });
 
   it('should pass validation with all fields', async () => {
-    const dto = plainToClass(ChattDto, {
+    const dto = plainToClass(ChatDto, {
       message: 'What is NestJS?',
       maxResults: 10,
       systemPrompt: 'You are a NestJS expert',
@@ -47,7 +47,7 @@ describe('ChattDto', () => {
   });
 
   it('should fail validation without message', async () => {
-    const dto = plainToClass(ChattDto, {});
+    const dto = plainToClass(ChatDto, {});
 
     const errors = await validate(dto);
 
@@ -56,7 +56,7 @@ describe('ChattDto', () => {
   });
 
   it('should fail validation with non-string message', async () => {
-    const dto = plainToClass(ChattDto, { message: 123 });
+    const dto = plainToClass(ChatDto, { message: 123 });
 
     const errors = await validate(dto);
 
@@ -65,7 +65,7 @@ describe('ChattDto', () => {
   });
 
   it('should pass validation with negative maxResults (no min constraint)', async () => {
-    const dto = plainToClass(ChattDto, {
+    const dto = plainToClass(ChatDto, {
       message: 'Test',
       maxResults: -5,
     });
@@ -76,7 +76,7 @@ describe('ChattDto', () => {
   });
 
   it('should fail validation with non-string systemPrompt', async () => {
-    const dto = plainToClass(ChattDto, {
+    const dto = plainToClass(ChatDto, {
       message: 'Test',
       systemPrompt: 123,
     });
