@@ -12,13 +12,34 @@ import { ShopModule } from './modules/shop/shop.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { UserModule } from './modules/user/user.module';
 
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const host = config.getOrThrow<string>('REDIS_HOST', 'localhost');
+        const port = config.getOrThrow<number>('REDIS_PORT', 6379);
+        const password = config.getOrThrow<string>('REDIS_PASSWORD');
+        return {
+          throttlers: [
+            {
+              name: 'default',
+              ttl: config.get<number>('THROTTLE_TTL', 60),
+              limit: config.get<number>('THROTTLE_LIMIT', 100),
+            },
+          ],
+          storage: new ThrottlerStorageRedisService(`redis://${host}:${port}`, { password }),
+        };
+      },
+    }),
     TypeOrmModule.forRootAsync({ useClass: TypeOrmConfigService }),
 
     CommonModule,
