@@ -20,7 +20,7 @@ export class AnalyticsController {
 
   @Get('chat-stats')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.OWNER, Role.SUPER_ADMIN)
+  @Roles(Role.OWNER, Role.ADMIN)
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Get chat statistics for a shop within a date range' })
   @ApiQuery({ name: 'from', type: String, required: true, description: 'ISO date string' })
@@ -32,7 +32,7 @@ export class AnalyticsController {
 
   @Get('top-questions')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.OWNER, Role.SUPER_ADMIN)
+  @Roles(Role.OWNER, Role.ADMIN)
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Get top questions for a shop' })
   @ApiQuery({ name: 'limit', type: Number, required: false, default: 10 })
@@ -43,7 +43,7 @@ export class AnalyticsController {
 
   @Get('storefront-views')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.OWNER, Role.SUPER_ADMIN)
+  @Roles(Role.OWNER, Role.ADMIN)
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Get storefront views count for a shop within a date range' })
   @ApiQuery({ name: 'from', type: String, required: true, description: 'ISO date string' })
@@ -59,7 +59,7 @@ export class AnalyticsController {
 
   @Get('stock-report')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.OWNER, Role.SUPER_ADMIN)
+  @Roles(Role.OWNER, Role.ADMIN)
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Export stock report as CSV' })
   @ApiResponse({ status: 200, description: 'Returns CSV file' })

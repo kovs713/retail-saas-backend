@@ -17,7 +17,7 @@ export class AdminOrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Get()
-  @Roles(Role.OWNER, Role.SUPER_ADMIN)
+  @Roles(Role.OWNER, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get orders for the shop owner' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
@@ -44,7 +44,7 @@ export class AdminOrderController {
   }
 
   @Patch(':id/status')
-  @Roles(Role.OWNER, Role.SUPER_ADMIN)
+  @Roles(Role.OWNER, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update order status' })
   @ApiParam({ name: 'id', description: 'Order ID' })

@@ -15,7 +15,7 @@ describe('Roles Decorator', () => {
   });
 
   it('should set single role metadata', () => {
-    const roles = [Role.SUPER_ADMIN];
+    const roles = [Role.ADMIN];
     const decorator = Roles(...roles);
 
     const mockTarget = {};
@@ -35,7 +35,7 @@ describe('Roles Decorator', () => {
   });
 
   it('should store roles as array', () => {
-    const roles = [Role.OWNER, Role.EMPLOYEE, Role.SUPER_ADMIN];
+    const roles = [Role.OWNER, Role.EMPLOYEE, Role.ADMIN];
     const mockTarget = {};
 
     Roles(...roles)(mockTarget as any);
@@ -45,6 +45,6 @@ describe('Roles Decorator', () => {
     expect(metadata).toHaveLength(3);
     expect(metadata).toContain(Role.OWNER);
     expect(metadata).toContain(Role.EMPLOYEE);
-    expect(metadata).toContain(Role.SUPER_ADMIN);
+    expect(metadata).toContain(Role.ADMIN);
   });
 });

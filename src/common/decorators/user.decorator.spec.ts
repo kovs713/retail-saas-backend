@@ -37,11 +37,11 @@ describe('User Decorator', () => {
   });
 
   it('should handle different roles', () => {
-    const admin: TokenPayload = { sub: 'admin-1', email: 'a@b.c', role: 'super_admin', shopId: 'shop-1' };
+    const admin: TokenPayload = { sub: 'admin-1', email: 'a@b.c', role: 'admin', shopId: 'shop-1' };
     const ctx = buildContext(admin);
     const result = userFactory(undefined, ctx);
 
-    expect(result.role).toBe('super_admin');
+    expect(result.role).toBe('admin');
   });
 
   it('should call switchToHttp and getRequest', () => {

@@ -1,5 +1,5 @@
-import { AuthGuard, RolesGuard } from '@/common/guards';
 import { Role } from '@/common/enums';
+import { AuthGuard, RolesGuard } from '@/common/guards';
 import { mockAuthGuard, mockGuard } from '@/common/utils';
 import { User } from '@/modules/user/entities';
 import { CreateShopDto, ShopDto, UpdateShopDto } from './dto';
@@ -26,9 +26,9 @@ describe('ShopController', () => {
     shopId: 'shop-2',
   };
 
-  const superAdminRequest = {
+  const adminRequest = {
     user: {
-      role: Role.SUPER_ADMIN,
+      role: Role.ADMIN,
     },
   } as any;
 
@@ -167,11 +167,11 @@ describe('ShopController', () => {
       expect(service.update).not.toHaveBeenCalled();
     });
 
-    it('should allow super admin updating another shop', async () => {
+    it('should allow admin updating another shop', async () => {
       const updatedShop = { ...mockShop, ...updateDto, id: 'shop-2' };
       jest.spyOn(service, 'update').mockResolvedValue(updatedShop);
 
-      await controller.update('shop-2', updateDto, otherTenantContext, superAdminRequest);
+      await controller.update('shop-2', updateDto, otherTenantContext, adminRequest);
 
       expect(service.update).toHaveBeenCalledWith('shop-2', updateDto);
     });
@@ -225,7 +225,7 @@ describe('ShopController', () => {
       expect(service.updateMediaUrls).not.toHaveBeenCalled();
     });
 
-    it('should allow super admin updating media for another shop', async () => {
+    it('should allow admin updating media for another shop', async () => {
       jest.spyOn(service, 'updateMediaUrls').mockResolvedValue({
         ...mockShop,
         id: 'shop-2',
@@ -237,7 +237,7 @@ describe('ShopController', () => {
         'https://example.com/logo.png',
         undefined,
         otherTenantContext,
-        superAdminRequest,
+        adminRequest,
       );
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-2', 'https://example.com/logo.png', undefined);

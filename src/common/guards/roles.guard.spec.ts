@@ -101,7 +101,7 @@ describe('RolesGuard', () => {
     });
 
     it('should throw ForbiddenException when user lacks required role', async () => {
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.SUPER_ADMIN]);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.ADMIN]);
       jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({
         email: 'test@example.com',
         role: Role.OWNER,

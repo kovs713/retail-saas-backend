@@ -29,8 +29,8 @@ export class ShopController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Create a new shop (Super Admin only)' })
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Create a new shop (Admin only)' })
   @ApiBearerAuth('JWT')
   @ApiResponse({ status: 201, description: 'Shop created successfully', type: ShopDto })
   @ApiResponse({ status: 409, description: 'Conflict - Shop slug already exists' })
@@ -60,8 +60,8 @@ export class ShopController {
 
   @Patch(':id')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.OWNER, Role.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Update shop profile (Owner or Super Admin)' })
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiOperation({ summary: 'Update shop profile (Owner or Admin)' })
   @ApiBearerAuth('JWT')
   @ApiParam({ name: 'id', type: String, description: 'Shop ID' })
   @ApiResponse({ status: 200, description: 'Shop updated successfully', type: ShopDto })
@@ -79,8 +79,8 @@ export class ShopController {
 
   @Patch(':id/media')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.OWNER, Role.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Update shop logo and banner URLs (Owner or Super Admin)' })
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiOperation({ summary: 'Update shop logo and banner URLs (Owner or Admin)' })
   @ApiBearerAuth('JWT')
   @ApiParam({ name: 'id', type: String, description: 'Shop ID' })
   @ApiResponse({ status: 200, description: 'Shop media URLs updated successfully', type: ShopDto })
@@ -98,7 +98,7 @@ export class ShopController {
   }
 
   private assertShopAccess(id: string, tenantContext?: TenantContext, req?: Request): void {
-    if (req?.user?.role === Role.SUPER_ADMIN) {
+    if (req?.user?.role === Role.ADMIN) {
       return;
     }
 
