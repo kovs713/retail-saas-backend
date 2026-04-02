@@ -2,7 +2,7 @@ import { ShopService } from '@/modules/shop/shop.service';
 import { CreateOrderDto, OrderResponseDto } from './dto';
 import { OrderService } from './order.service';
 
-import { Body, Controller, HttpCode, HttpStatus, Logger, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, HttpCode, HttpStatus, Logger, Param, Post } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('public-orders')
@@ -31,7 +31,7 @@ export class PublicOrderController {
     const shop = await this.shopService.findBySlug(shopSlug);
 
     if (!shop.isActive) {
-      throw new Error('Shop is not active');
+      throw new BadRequestException('Shop is not active');
     }
 
     const order = await this.orderService.create(shop.id, createOrderDto);

@@ -141,8 +141,8 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
-  async incrementQuantity(id: string, adjustment: number): Promise<void> {
-    await this.repository.increment({ id }, 'quantity', adjustment);
+  async incrementQuantity(id: string, shopId: string, adjustment: number): Promise<void> {
+    await this.repository.increment({ id, shopId }, 'quantity', adjustment);
   }
 
   async existsBySkuAndShop(sku: string, shopId: string): Promise<boolean> {
@@ -160,8 +160,8 @@ export class ProductRepository extends Repository<Product> {
     return this.repository.restore({ id });
   }
 
-  async updateQuantity(id: string, quantity: number): Promise<void> {
-    await this.repository.update(id, { quantity });
+  async updateQuantity(id: string, shopId: string, quantity: number): Promise<void> {
+    await this.repository.update({ id, shopId }, { quantity });
   }
 
   private getOrderOptions(sortBy?: string, sortOrder?: 'ASC' | 'DESC'): Record<string, 'ASC' | 'DESC'> {

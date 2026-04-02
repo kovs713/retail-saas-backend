@@ -1,7 +1,7 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
-import { Order } from '@/modules/order/order.entity';
+import { Order } from '@/modules/order/entities';
 import { Shop } from '@/modules/shop/entities';
 import { ShopRepository } from '@/modules/shop/repository';
 import { ShopService } from '@/modules/shop/shop.service';

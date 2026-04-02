@@ -9,9 +9,11 @@ import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 
 describe('AuthService', () => {
   let service: AuthService;
+  let dataSource: DataSource;
   let jwtService: JwtService;
   let userService: UserService;
   let shopService: ShopService;
@@ -49,6 +51,10 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         {
+          provide: DataSource,
+          useValue: createMock<DataSource>(),
+        },
+        {
           provide: JwtService,
           useValue: createMock<JwtService>(),
         },
@@ -68,6 +74,7 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
+    dataSource = module.get<DataSource>(DataSource);
     jwtService = module.get<JwtService>(JwtService);
     userService = module.get<UserService>(UserService);
     shopService = module.get<ShopService>(ShopService);
@@ -140,24 +147,28 @@ describe('AuthService', () => {
     };
 
     it('should register user and create shop successfully', async () => {
-      const createdUser = { ...mockUser, email: mockRegisterDto.email };
-      jest.spyOn(shopService, 'create').mockResolvedValue(mockShop as any);
-      jest.spyOn(shopService, 'updateOwner').mockResolvedValue(mockShop as any);
-      jest.spyOn(userService, 'create').mockResolvedValue(createdUser as any);
+      const createdUser = { ...mockUser, email: mockRegisterDto.email, id: mockUser.id };
+      const createdShop = { ...mockShop, ownerId: createdUser.id };
+      const shopRepository = {
+        create: jest.fn().mockImplementation((value) => value),
+        save: jest.fn().mockResolvedValueOnce(mockShop).mockResolvedValueOnce(createdShop),
+      };
+      const userRepository = {
+        create: jest.fn().mockImplementation((value) => value),
+        save: jest.fn().mockResolvedValue(createdUser),
+      };
+      const transaction = jest.fn().mockImplementation(async (handler) =>
+        handler({
+          getRepository: jest.fn().mockReturnValueOnce(shopRepository).mockReturnValueOnce(userRepository),
+        }),
+      );
+      jest.spyOn(dataSource, 'transaction').mockImplementation(transaction as any);
       jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
       jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockRefreshToken);
 
       const result = await service.register(mockRegisterDto as any);
 
-      expect(userService.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: mockRegisterDto.email,
-          password: mockRegisterDto.password,
-          role: 'owner',
-          shopId: mockShop.id,
-        }),
-      );
-      expect(shopService.updateOwner).toHaveBeenCalledWith(mockShop.id, mockUser.id);
+      expect(dataSource.transaction).toHaveBeenCalled();
       expect(result.email).toBe(mockRegisterDto.email);
       expect(result.accessToken).toBe(mockAccessToken);
       expect(result.refreshToken).toBe(mockRefreshToken);
@@ -165,15 +176,12 @@ describe('AuthService', () => {
       expect(result.user.id).toBe(mockUser.id);
     });
 
-    it('should throw ConflictException when shop creation fails', async () => {
-      jest.spyOn(shopService, 'create').mockRejectedValue(new ConflictException('Shop slug already exists'));
-
-      await expect(service.register(mockRegisterDto as any)).rejects.toThrow(ConflictException);
-    });
-
-    it('should throw ConflictException when user creation fails due to duplicate email', async () => {
-      jest.spyOn(shopService, 'create').mockResolvedValue(mockShop as any);
-      jest.spyOn(userService, 'create').mockRejectedValue(new ConflictException('Email already exists'));
+    it('should throw ConflictException when transaction hits unique constraint', async () => {
+      jest.spyOn(dataSource, 'transaction').mockRejectedValue(
+        Object.assign(new Error('duplicate key'), {
+          driverError: { code: '23505' },
+        }),
+      );
 
       await expect(service.register(mockRegisterDto as any)).rejects.toThrow(ConflictException);
     });

@@ -9,6 +9,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 
 describe('AuthModule', () => {
   let module: TestingModule;
@@ -17,6 +18,7 @@ describe('AuthModule', () => {
     module = await Test.createTestingModule({
       providers: [
         AuthService,
+        { provide: DataSource, useValue: createMock<DataSource>() },
         { provide: JwtService, useValue: createMock<JwtService>() },
         { provide: UserService, useValue: createMock<UserService>() },
         { provide: ShopService, useValue: createMock<ShopService>() },

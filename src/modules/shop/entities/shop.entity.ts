@@ -1,5 +1,5 @@
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
-import { Order } from '@/modules/order/order.entity';
+import { Order } from '@/modules/order/entities';
 import { User } from '@/modules/user/entities';
 
 import {

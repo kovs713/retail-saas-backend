@@ -4,7 +4,7 @@ import { CategoryRepository, ProductRepository } from '@/modules/product/reposit
 import { StorefrontCategoryDto, StorefrontProductDto, StorefrontResponseDto, StorefrontShopDto } from './dto';
 import { ShopService } from './shop.service';
 
-import { Controller, Get, HttpCode, HttpStatus, Logger, Param } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpCode, HttpStatus, Logger, Param } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('public-shop')
@@ -29,7 +29,7 @@ export class PublicShopController {
     const shop = await this.shopService.findBySlug(slug);
 
     if (!shop.isActive) {
-      throw new Error('Shop is not active');
+      throw new BadRequestException('Shop is not active');
     }
 
     // Log storefront view asynchronously (don't wait for it)

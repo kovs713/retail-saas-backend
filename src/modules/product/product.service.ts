@@ -193,7 +193,8 @@ export class ProductService {
   async updateStock(id: string, quantity: number, tenantContext: TenantContext): Promise<Product> {
     this.logger.log(`Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${tenantContext.shopId}`);
 
-    await this.productRepository.updateQuantity(id, quantity);
+    await this.findOne(id, tenantContext);
+    await this.productRepository.updateQuantity(id, tenantContext.shopId, quantity);
     await this.invalidateProductCache(tenantContext.shopId, id);
     const updatedProduct = await this.findOne(id, tenantContext);
 
@@ -207,7 +208,7 @@ export class ProductService {
     );
 
     await this.findOne(id, tenantContext);
-    await this.productRepository.incrementQuantity(id, adjustment);
+    await this.productRepository.incrementQuantity(id, tenantContext.shopId, adjustment);
     await this.invalidateProductCache(tenantContext.shopId, id);
     const updatedProduct = await this.findOne(id, tenantContext);
 

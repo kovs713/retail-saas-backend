@@ -164,11 +164,24 @@ describe('ProductService', () => {
 
   describe('updateStock', () => {
     it('should update stock quantity', async () => {
+      productRepository.findById.mockResolvedValue(mockProduct);
       productRepository.updateQuantity.mockResolvedValue();
       productRepository.findById.mockResolvedValue({ ...mockProduct, quantity: 150 });
 
       const result = await service.updateStock('prod_1', 150, mockTenantContext);
       expect(result.quantity).toBe(150);
+    });
+
+    it('should scope stock update by tenant before writing', async () => {
+      productRepository.findById.mockResolvedValue(mockProduct);
+      productRepository.updateQuantity.mockResolvedValue();
+      productRepository.findById
+        .mockResolvedValueOnce(mockProduct)
+        .mockResolvedValueOnce({ ...mockProduct, quantity: 150 });
+
+      await service.updateStock('prod_1', 150, mockTenantContext);
+
+      expect(productRepository.updateQuantity).toHaveBeenCalledWith('prod_1', mockTenantContext.shopId, 150);
     });
   });
 
@@ -180,6 +193,17 @@ describe('ProductService', () => {
 
       const result = await service.adjustStock('prod_1', 50, mockTenantContext);
       expect(result.quantity).toBe(150);
+    });
+
+    it('should scope stock adjustment by tenant before writing', async () => {
+      productRepository.findById
+        .mockResolvedValueOnce(mockProduct)
+        .mockResolvedValueOnce({ ...mockProduct, quantity: 150 });
+      productRepository.incrementQuantity.mockResolvedValue();
+
+      await service.adjustStock('prod_1', 50, mockTenantContext);
+
+      expect(productRepository.incrementQuantity).toHaveBeenCalledWith('prod_1', mockTenantContext.shopId, 50);
     });
   });
 

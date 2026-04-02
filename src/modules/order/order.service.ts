@@ -1,26 +1,55 @@
+import { ProductRepository } from '@/modules/product/repositories';
 import { CreateOrderDto, OrderResponseDto, UpdateOrderStatusDto } from './dto';
-import { Order } from './order.entity';
-import { OrderRepository } from './order.repository';
+import { Order } from './entities';
+import { OrderRepository } from './repositories';
 
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { In, IsNull } from 'typeorm';
 
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger(OrderService.name);
 
-  constructor(private readonly orderRepository: OrderRepository) {}
+  constructor(
+    private readonly orderRepository: OrderRepository,
+    private readonly productRepository: ProductRepository,
+  ) {}
 
   async create(shopId: string, createOrderDto: CreateOrderDto): Promise<Order> {
     this.logger.log(`Creating order for shop ${shopId}`);
 
-    // Calculate total amount from items
-    const totalAmount = createOrderDto.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const productIds = createOrderDto.items.map((item) => item.productId);
+    const products = await this.productRepository.find({
+      where: {
+        id: In(productIds),
+        shopId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    const productMap = new Map(products.map((product) => [product.id, product]));
+
+    const items = createOrderDto.items.map((item) => {
+      const product = productMap.get(item.productId);
+
+      if (!product) {
+        throw new NotFoundException(`Product ${item.productId} not found for this shop`);
+      }
+
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        price: Number(product.price),
+      };
+    });
+
+    const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     const order = this.orderRepository.create({
       shopId,
       customerName: createOrderDto.customerName,
       customerPhone: createOrderDto.customerPhone,
-      items: createOrderDto.items,
+      items,
       totalAmount,
       status: 'PENDING',
     });
@@ -94,7 +123,7 @@ export class OrderService {
     };
 
     if (!validTransitions[currentStatus]?.includes(newStatus)) {
-      throw new Error(`Cannot transition from ${currentStatus} to ${newStatus}`);
+      throw new BadRequestException(`Cannot transition from ${currentStatus} to ${newStatus}`);
     }
   }
 

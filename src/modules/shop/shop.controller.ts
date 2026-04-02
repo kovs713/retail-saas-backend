@@ -1,11 +1,24 @@
-import { Roles } from '@/common/decorators';
+import { Roles, Tenant } from '@/common/decorators';
 import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
+import { Request, TenantContext } from '@/common/types';
 import { CreateShopDto, ShopDto, UpdateShopDto } from './dto';
 import { ShopService } from './shop.service';
 
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Shops')
@@ -53,7 +66,13 @@ export class ShopController {
   @ApiParam({ name: 'id', type: String, description: 'Shop ID' })
   @ApiResponse({ status: 200, description: 'Shop updated successfully', type: ShopDto })
   @ApiResponse({ status: 404, description: 'Shop not found' })
-  async update(@Param('id') id: string, @Body() updateShopDto: UpdateShopDto): Promise<AppApiResponse<ShopDto>> {
+  async update(
+    @Param('id') id: string,
+    @Body() updateShopDto: UpdateShopDto,
+    @Tenant() tenantContext: TenantContext,
+    @Req() req: Request,
+  ): Promise<AppApiResponse<ShopDto>> {
+    this.assertShopAccess(id, tenantContext, req);
     const shop = await this.shopService.update(id, updateShopDto);
     return { success: true, data: ShopDto.fromEntity(shop), message: 'Shop updated successfully' };
   }
@@ -70,8 +89,21 @@ export class ShopController {
     @Param('id') id: string,
     @Body('logoUrl') logoUrl?: string,
     @Body('bannerUrl') bannerUrl?: string,
+    @Tenant() tenantContext?: TenantContext,
+    @Req() req?: Request,
   ): Promise<AppApiResponse<ShopDto>> {
+    this.assertShopAccess(id, tenantContext, req);
     const shop = await this.shopService.updateMediaUrls(id, logoUrl, bannerUrl);
     return { success: true, data: ShopDto.fromEntity(shop), message: 'Shop media URLs updated successfully' };
+  }
+
+  private assertShopAccess(id: string, tenantContext?: TenantContext, req?: Request): void {
+    if (req?.user?.role === Role.SUPER_ADMIN) {
+      return;
+    }
+
+    if (!tenantContext || tenantContext.shopId !== id) {
+      throw new ForbiddenException('You do not have access to this shop');
+    }
   }
 }
