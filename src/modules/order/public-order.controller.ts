@@ -5,7 +5,7 @@ import { OrderService } from './order.service';
 import { BadRequestException, Body, Controller, HttpCode, HttpStatus, Logger, Param, Post } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-@ApiTags('public-orders')
+@ApiTags('Public orders')
 @Controller('public/orders')
 export class PublicOrderController {
   private readonly logger = new Logger(PublicOrderController.name);

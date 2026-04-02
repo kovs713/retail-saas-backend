@@ -9,7 +9,7 @@ import { OrderService } from './order.service';
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-@ApiTags('admin-orders')
+@ApiTags('Admin orders')
 @Controller('admin/orders')
 @UseGuards(AuthGuard, RolesGuard)
 @ApiBearerAuth('JWT')

@@ -10,7 +10,7 @@ import { Controller, Get, Header, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 
-@ApiTags('analytics')
+@ApiTags('Analytics')
 @Controller('analytics')
 export class AnalyticsController {
   constructor(

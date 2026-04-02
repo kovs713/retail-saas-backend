@@ -7,7 +7,7 @@ import { ShopService } from './shop.service';
 import { BadRequestException, Controller, Get, HttpCode, HttpStatus, Logger, Param } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-@ApiTags('public-shop')
+@ApiTags('Public shop')
 @Controller('public/shop')
 export class PublicShopController {
   private readonly logger = new Logger(PublicShopController.name);
