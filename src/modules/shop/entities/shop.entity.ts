@@ -1,6 +1,17 @@
+import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
+import { Order } from '@/modules/order/entities';
 import { User } from '@/modules/user/entities';
 
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity('shops')
 @Index(['slug'])
@@ -16,6 +27,15 @@ export class Shop {
   @OneToOne(() => User, { eager: false })
   @JoinColumn({ name: 'ownerId' })
   owner: User;
+
+  @OneToMany(() => ChatEvent, (chatEvent) => chatEvent.shop)
+  chatEvents: ChatEvent[];
+
+  @OneToMany(() => StorefrontView, (storefrontView) => storefrontView.shop)
+  storefrontViews: StorefrontView[];
+
+  @OneToMany(() => Order, (order) => order.shop)
+  orders: Order[];
 
   @Column()
   name: string;

@@ -6,3 +6,4 @@ export * from './product.dto';
 export * from './update-category.dto';
 export * from './update-product.dto';
 export * from './update-stock.dto';
+export * from './upload-product-image.dto';

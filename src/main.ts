@@ -1,13 +1,22 @@
 import { AppModule } from './app.module';
 
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
-  app.enableCors();
+  const corsOrigins = configService.getOrThrow<string>('CORS_ORIGINS', 'http://localhost:5173');
+
+  app.enableCors({
+    origin: corsOrigins.split(',').map((o) => o.trim()),
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
+    credentials: true,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -27,9 +36,15 @@ async function bootstrap() {
     .addTag('Auth', 'User authentication and authorization')
     .addTag('Shops', 'Shop profile management')
     .addTag('Products', 'Product catalog CRUD operations')
+    .addTag('Public media', 'Public access to product media')
+    .addTag('Public shop', 'Public shop information')
+    .addTag('Public orders', 'Public order creation')
+    .addTag('Admin orders', 'Admin order management')
+    .addTag('Analytics', 'Analytics and reporting')
     .addTag('RAG', 'AI-powered document analysis and chat')
-    .addTag('Storage', 'File storage operations')
+    .addTag('Public RAG', 'Public AI chat interface')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
+    .addCookieAuth('refreshToken')
     .addServer('http://localhost:3000', 'Development')
     .build();
 

@@ -1,15 +1,20 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
+import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
+import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
 import { CategoryRepository, ProductRepository } from '@/modules/product/repositories';
 import { Shop } from '@/modules/shop/entities';
-import { ShopRepository } from '@/modules/shop/repository';
+import { ShopRepository } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
+import { StorageService } from '@/modules/storage/storage.service';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
 
+import { createMock } from '@golevelup/ts-jest';
 import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -36,7 +41,7 @@ describe('ProductService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, User, Product, Category]),
+        TypeOrmModule.forFeature([Shop, User, Product, Category, ChatEvent, StorefrontView, Order]),
       ],
       providers: [
         ProductService,
@@ -44,9 +49,14 @@ describe('ProductService Integration', () => {
         CategoryRepository,
         ShopService,
         ShopRepository,
+        { provide: CacheService, useValue: mockCacheService() },
         {
-          provide: CacheService,
-          useValue: mockCacheService(),
+          provide: StorageService,
+          useValue: createMock<StorageService>,
+        },
+        {
+          provide: ConfigService,
+          useValue: createMock<ConfigService>,
         },
       ],
     }).compile();
@@ -80,20 +90,20 @@ describe('ProductService Integration', () => {
   describe('create', () => {
     it('should create a product successfully', async () => {
       const result = await productService.create(
-        { sku: 'PROD-001', name: 'Test Product', price: 99.99, quantity: 100 },
+        { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
         { shopId },
       );
 
       expect(result.id).toBeDefined();
       expect(result.sku).toBe('PROD-001');
       expect(result.name).toBe('Test Product');
-      expect(result.price).toBe(99.99);
+      expect(result.price).toBe(100);
       expect(result.quantity).toBe(100);
       expect(result.shopId).toBe(shopId);
     });
 
     it('should throw ConflictException for duplicate SKU', async () => {
-      const dto = { sku: 'PROD-001', name: 'Test Product', price: 99.99, quantity: 100 };
+      const dto = { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 };
 
       await productService.create(dto, { shopId });
 
@@ -105,9 +115,9 @@ describe('ProductService Integration', () => {
     beforeEach(async () => {
       const repo = dataSource.getRepository(Product);
       await repo.save([
-        repo.create({ sku: 'PROD-001', name: 'Test Product 1', price: 99.99, quantity: 10, shopId }),
-        repo.create({ sku: 'PROD-002', name: 'Test Product 2', price: 149.99, quantity: 20, shopId }),
-        repo.create({ sku: 'PROD-003', name: 'Another Product', price: 79.99, quantity: 30, shopId }),
+        repo.create({ sku: 'PROD-001', name: 'Test Product 1', price: 100, quantity: 10, shopId }),
+        repo.create({ sku: 'PROD-002', name: 'Test Product 2', price: 150, quantity: 20, shopId }),
+        repo.create({ sku: 'PROD-003', name: 'Another Product', price: 80, quantity: 30, shopId }),
       ]);
     });
 
@@ -138,7 +148,7 @@ describe('ProductService Integration', () => {
         prodRepo.create({
           sku: 'PROD-CAT',
           name: 'Categorized',
-          price: 99.99,
+          price: 100,
           quantity: 10,
           shopId,
           categoryId: category.id,
@@ -163,7 +173,7 @@ describe('ProductService Integration', () => {
   describe('soft delete and restore', () => {
     it('should soft delete a product', async () => {
       const product = await productService.create(
-        { sku: 'PROD-001', name: 'Test Product', price: 99.99, quantity: 100 },
+        { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
         { shopId },
       );
 
@@ -174,7 +184,7 @@ describe('ProductService Integration', () => {
 
     it('should restore a soft deleted product', async () => {
       const product = await productService.create(
-        { sku: 'PROD-001', name: 'Test Product', price: 99.99, quantity: 100 },
+        { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
         { shopId },
       );
 
@@ -192,7 +202,7 @@ describe('ProductService Integration', () => {
   describe('stock operations', () => {
     it('should update stock quantity', async () => {
       const product = await productService.create(
-        { sku: 'PROD-001', name: 'Test Product', price: 99.99, quantity: 100 },
+        { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
         { shopId },
       );
 
@@ -200,9 +210,28 @@ describe('ProductService Integration', () => {
       expect(updated.quantity).toBe(150);
     });
 
+    it('should not update stock for a product from another shop', async () => {
+      const otherShop = await dataSource.getRepository(Shop).save(
+        dataSource.getRepository(Shop).create({
+          name: 'Other Shop',
+          slug: `other-shop-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        }),
+      );
+
+      const product = await productService.create(
+        { sku: 'PROD-OTHER-1', name: 'Other Product', price: 100, quantity: 100 },
+        { shopId: otherShop.id },
+      );
+
+      await expect(productService.updateStock(product.id, 150, { shopId })).rejects.toThrow('Product not found');
+
+      const persisted = await dataSource.getRepository(Product).findOneByOrFail({ id: product.id });
+      expect(persisted.quantity).toBe(100);
+    });
+
     it('should adjust stock (increment)', async () => {
       const product = await productService.create(
-        { sku: 'PROD-001', name: 'Test Product', price: 99.99, quantity: 100 },
+        { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
         { shopId },
       );
 
@@ -210,9 +239,28 @@ describe('ProductService Integration', () => {
       expect(updated.quantity).toBe(150);
     });
 
+    it('should not adjust stock for a product from another shop', async () => {
+      const otherShop = await dataSource.getRepository(Shop).save(
+        dataSource.getRepository(Shop).create({
+          name: 'Other Shop Adjust',
+          slug: `other-adjust-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        }),
+      );
+
+      const product = await productService.create(
+        { sku: 'PROD-OTHER-2', name: 'Other Product', price: 100, quantity: 100 },
+        { shopId: otherShop.id },
+      );
+
+      await expect(productService.adjustStock(product.id, 50, { shopId })).rejects.toThrow('Product not found');
+
+      const persisted = await dataSource.getRepository(Product).findOneByOrFail({ id: product.id });
+      expect(persisted.quantity).toBe(100);
+    });
+
     it('should adjust stock (decrement)', async () => {
       const product = await productService.create(
-        { sku: 'PROD-001', name: 'Test Product', price: 99.99, quantity: 100 },
+        { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
         { shopId },
       );
 
@@ -224,7 +272,7 @@ describe('ProductService Integration', () => {
   describe('findOneBySku', () => {
     it('should find product by SKU', async () => {
       const created = await productService.create(
-        { sku: 'UNIQUE-SKU-123', name: 'Test Product', price: 99.99, quantity: 100 },
+        { sku: 'UNIQUE-SKU-123', name: 'Test Product', price: 100, quantity: 100 },
         { shopId },
       );
 
@@ -246,7 +294,7 @@ describe('ProductService Integration', () => {
         repo.create({
           sku: 'PROD-001',
           name: 'Test Product',
-          price: 99.99,
+          price: 100,
           quantity: 100,
           barcode: '5901234123457',
           shopId,
@@ -286,9 +334,9 @@ describe('ProductService Integration', () => {
 
       const prodRepo = dataSource.getRepository(Product);
       await prodRepo.save([
-        prodRepo.create({ sku: 'PROD-001', name: 'Product 1', price: 99.99, quantity: 10, shopId, categoryId }),
-        prodRepo.create({ sku: 'PROD-002', name: 'Product 2', price: 149.99, quantity: 20, shopId, categoryId }),
-        prodRepo.create({ sku: 'PROD-003', name: 'Product 3', price: 79.99, quantity: 30, shopId }),
+        prodRepo.create({ sku: 'PROD-001', name: 'Product 1', price: 100, quantity: 10, shopId, categoryId }),
+        prodRepo.create({ sku: 'PROD-002', name: 'Product 2', price: 150, quantity: 20, shopId, categoryId }),
+        prodRepo.create({ sku: 'PROD-003', name: 'Product 3', price: 80, quantity: 30, shopId }),
       ]);
     });
 

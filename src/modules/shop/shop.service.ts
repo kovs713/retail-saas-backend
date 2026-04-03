@@ -1,7 +1,7 @@
 import { CacheService } from '@/core/cache/cache.service';
 import { CreateShopDto, UpdateShopDto } from './dto';
 import { Shop } from './entities';
-import { ShopRepository } from './repository';
+import { ShopRepository } from './repositories';
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -23,7 +23,10 @@ export class ShopService {
       ...createShopDto,
     });
     const savedShop = await this.shopRepository.save(shop);
-    await this.invalidateShopCache(savedShop.id, savedShop.slug);
+    await this.invalidateShopCache(savedShop.id, {
+      slug: savedShop.slug,
+      ownerId: savedShop.ownerId,
+    });
     return savedShop;
   }
 
@@ -81,19 +84,31 @@ export class ShopService {
 
   async update(id: string, updateShopDto: UpdateShopDto): Promise<Shop> {
     const shop = await this.findById(id);
+    const previousSlug = shop.slug;
+    const previousOwnerId = shop.ownerId;
 
     Object.assign(shop, updateShopDto);
     const updated = await this.shopRepository.save(shop);
-    await this.invalidateShopCache(updated.id, updated.slug);
+    await this.invalidateShopCache(updated.id, {
+      slug: updated.slug,
+      previousSlug,
+      ownerId: updated.ownerId,
+      previousOwnerId,
+    });
     return updated;
   }
 
   async updateOwner(id: string, ownerId: string): Promise<Shop> {
     const shop = await this.findById(id);
+    const previousOwnerId = shop.ownerId;
 
     shop.ownerId = ownerId;
     const updated = await this.shopRepository.save(shop);
-    await this.invalidateShopCache(updated.id, updated.slug);
+    await this.invalidateShopCache(updated.id, {
+      slug: updated.slug,
+      ownerId: updated.ownerId,
+      previousOwnerId,
+    });
     return updated;
   }
 
@@ -109,7 +124,10 @@ export class ShopService {
     }
 
     const updated = await this.shopRepository.save(shop);
-    await this.invalidateShopCache(updated.id, updated.slug);
+    await this.invalidateShopCache(updated.id, {
+      slug: updated.slug,
+      ownerId: updated.ownerId,
+    });
     return updated;
   }
 
@@ -118,14 +136,29 @@ export class ShopService {
 
     shop.isActive = !shop.isActive;
     const updated = await this.shopRepository.save(shop);
-    await this.invalidateShopCache(updated.id, updated.slug);
+    await this.invalidateShopCache(updated.id, {
+      slug: updated.slug,
+      ownerId: updated.ownerId,
+    });
     return updated;
   }
 
-  private async invalidateShopCache(shopId: string, slug?: string): Promise<void> {
+  private async invalidateShopCache(
+    shopId: string,
+    keys?: { slug?: string; previousSlug?: string; ownerId?: string | null; previousOwnerId?: string | null },
+  ): Promise<void> {
     await this.cacheService.del(this.cacheService.generateKey('shop', 'id', shopId));
-    if (slug) {
-      await this.cacheService.del(this.cacheService.generateKey('shop', 'slug', slug));
+    if (keys?.slug) {
+      await this.cacheService.del(this.cacheService.generateKey('shop', 'slug', keys.slug));
+    }
+    if (keys?.previousSlug && keys.previousSlug !== keys.slug) {
+      await this.cacheService.del(this.cacheService.generateKey('shop', 'slug', keys.previousSlug));
+    }
+    if (keys?.ownerId) {
+      await this.cacheService.del(this.cacheService.generateKey('shop', 'owner', keys.ownerId));
+    }
+    if (keys?.previousOwnerId && keys.previousOwnerId !== keys.ownerId) {
+      await this.cacheService.del(this.cacheService.generateKey('shop', 'owner', keys.previousOwnerId));
     }
   }
 }

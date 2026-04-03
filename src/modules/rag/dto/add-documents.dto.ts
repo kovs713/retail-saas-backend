@@ -4,7 +4,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
 
-export class AddDocumentstDto {
+export class AddDocumentsDto {
   @ApiProperty({ description: 'Documents to add', type: [DocumentDto] })
   @IsArray()
   @ValidateNested({ each: true })

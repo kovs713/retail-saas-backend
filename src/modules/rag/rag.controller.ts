@@ -4,12 +4,12 @@ import { AuthGuard } from '@/common/guards';
 import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import {
+  AddDocumentsDto,
   AddDocumentsResponseDto,
-  AddDocumentstDto,
   AddTextsDto,
   AddTextsResponseDto,
+  ChatDto,
   ChatResponseDto,
-  ChattDto,
   ChatWithScoresResponseDto,
 } from './dto';
 import { RagService } from './rag.service';
@@ -30,7 +30,7 @@ export class RagController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Chat with AI using RAG' })
   @ApiBody({
-    type: ChattDto,
+    type: ChatDto,
     examples: {
       default: {
         summary: 'Basic chat',
@@ -45,7 +45,7 @@ export class RagController {
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async chat(
-    @Body() chatRequest: ChattDto,
+    @Body() chatRequest: ChatDto,
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ChatResponseDto>> {
     this.logger.log(`Chat request: ${chatRequest.message.substring(0, 100)}...`);
@@ -72,7 +72,7 @@ export class RagController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Chat with AI and get relevance scores' })
   @ApiBody({
-    type: ChattDto,
+    type: ChatDto,
     examples: {
       example: {
         summary: 'Chat with scores',
@@ -87,7 +87,7 @@ export class RagController {
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async chatWithScores(
-    @Body() chatRequest: ChattDto,
+    @Body() chatRequest: ChatDto,
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ChatWithScoresResponseDto>> {
     this.logger.log(`Chat with scores request: ${chatRequest.message.substring(0, 100)}...`);
@@ -117,7 +117,7 @@ export class RagController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Add documents to RAG system' })
   @ApiBody({
-    type: AddDocumentstDto,
+    type: AddDocumentsDto,
     examples: {
       example: {
         summary: 'Add documents',
@@ -135,7 +135,7 @@ export class RagController {
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async addDocuments(
-    @Body() addDocumentsRequest: AddDocumentstDto,
+    @Body() addDocumentsRequest: AddDocumentsDto,
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<AddDocumentsResponseDto>> {
     this.logger.log(`Adding ${addDocumentsRequest.documents.length} documents`);

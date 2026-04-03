@@ -1,4 +1,4 @@
-import { Shop } from '@/modules/shop/entities/shop.entity';
+import { Shop } from '@/modules/shop/entities';
 import { Category } from './';
 
 import {
@@ -39,10 +39,10 @@ export class Product {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: 'int', default: 0 })
   price: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'int', nullable: true })
   cost: number | null;
 
   @Column({ type: 'int', default: 0 })

@@ -1,15 +1,12 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
-import { Category, Product } from './entities';
+import { createProduct } from '@/core/database/factories';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
-import { createProduct } from './util/product.factory';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
 describe('ProductController', () => {
   let controller: ProductController;
@@ -25,21 +22,13 @@ describe('ProductController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [ProductController],
       providers: [
         {
           provide: ProductService,
           useValue: createMock<ProductService>(),
         },
-        {
-          provide: getRepositoryToken(Product),
-          useValue: createMock<Repository<Product>>(),
-        },
-        {
-          provide: getRepositoryToken(Category),
-          useValue: createMock<Repository<Category>>(),
-        },
       ],
+      controllers: [ProductController],
     })
       .overrideGuard(AuthGuard)
       .useValue(
@@ -177,6 +166,32 @@ describe('ProductController', () => {
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       expect(result.data!.quantity).toBe(150);
+    });
+  });
+
+  describe('createImageUploadUrl', () => {
+    it('should return presigned upload payload', async () => {
+      service.createImageUploadUrl.mockResolvedValue({
+        uploadUrl: 'https://upload-url',
+        publicUrl: '/public/media/shop-1/products/prod_1/photo.jpg',
+        key: 'products/prod_1/images/photo.jpg',
+      });
+
+      const result = await controller.createImageUploadUrl('prod_1', { fileName: 'photo.jpg' }, tenantContext);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.uploadUrl).toBe('https://upload-url');
+    });
+  });
+
+  describe('deleteImage', () => {
+    it('should delete product image', async () => {
+      service.deleteImage.mockResolvedValue();
+
+      const result = await controller.deleteImage('prod_1', 'photo.jpg', tenantContext);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Product image deleted successfully');
     });
   });
 

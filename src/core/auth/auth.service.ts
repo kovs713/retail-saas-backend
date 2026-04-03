@@ -1,11 +1,16 @@
 import { TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
+import { Shop } from '@/modules/shop/entities';
 import { ShopService } from '@/modules/shop/shop.service';
+import { User } from '@/modules/user/entities';
 import { UserService } from '@/modules/user/user.service';
-import { AuthResponseDto, RegisterDto, SignInDto } from './dto';
+import { AuthResponseDto, RegisterDto, SignInDto, UserInfoDto } from './dto';
 
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { hash } from 'bcryptjs';
+import { plainToInstance } from 'class-transformer';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +18,7 @@ export class AuthService {
   private readonly REFRESH_TOKEN_TTL = 604800;
 
   constructor(
+    private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
     private readonly shopService: ShopService,
@@ -20,46 +26,67 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
-    const shop = await this.shopService.create({
-      name: registerDto.shopName,
-      slug: registerDto.shopSlug,
-      description: registerDto.shopDescription ?? undefined,
-      address: registerDto.shopAddress ?? undefined,
-      phone: registerDto.shopPhone ?? undefined,
-      workingHours: registerDto.shopWorkingHours ?? undefined,
-      isActive: registerDto.isActive ?? true,
-    });
+    try {
+      const { shop, user } = await this.dataSource.transaction(async (manager) => {
+        const shopRepository = manager.getRepository(Shop);
+        const userRepository = manager.getRepository(User);
 
-    const user = await this.userService.create({
-      email: registerDto.email,
-      password: registerDto.password,
-      role: 'owner',
-      shopId: shop.id,
-    });
+        const shop = await shopRepository.save(
+          shopRepository.create({
+            name: registerDto.shopName,
+            slug: registerDto.shopSlug,
+            description: registerDto.shopDescription ?? null,
+            address: registerDto.shopAddress ?? null,
+            phone: registerDto.shopPhone ?? null,
+            workingHours: registerDto.shopWorkingHours ?? null,
+            isActive: registerDto.isActive ?? true,
+          }),
+        );
 
-    await this.shopService.updateOwner(shop.id, user.id);
+        const passwordHash = await hash(registerDto.password, 10);
+        const user = await userRepository.save(
+          userRepository.create({
+            email: registerDto.email,
+            passwordHash,
+            role: 'owner',
+            shopId: shop.id,
+          }),
+        );
 
-    const tokenPayload: TokenPayload = {
-      sub: user.id,
-      email: user.email,
-      shopId: shop.id,
-      role: user.role,
-    };
+        shop.ownerId = user.id;
+        const updatedShop = await shopRepository.save(shop);
 
-    const accessToken = await this.jwtService.signAsync(tokenPayload);
-    const refreshToken = await this.jwtService.signAsync(tokenPayload, { expiresIn: '7d' });
+        return { shop: updatedShop, user };
+      });
 
-    await this.cacheService.set(
-      this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, user.id),
-      refreshToken,
-      this.REFRESH_TOKEN_TTL,
-    );
+      const tokenPayload: TokenPayload = {
+        sub: user.id,
+        email: user.email,
+        shopId: shop.id,
+        role: user.role,
+      };
 
-    return {
-      email: user.email,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-    };
+      const accessToken = await this.jwtService.signAsync(tokenPayload);
+      const refreshToken = await this.jwtService.signAsync(tokenPayload, { expiresIn: '7d' });
+
+      await this.cacheService.set(
+        this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, user.id),
+        refreshToken,
+        this.REFRESH_TOKEN_TTL,
+      );
+
+      return {
+        email: user.email,
+        accessToken,
+        refreshToken,
+        user: plainToInstance(UserInfoDto, { ...user, shopId: shop.id }, { excludeExtraneousValues: true }),
+      };
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        throw new ConflictException('Email or shop slug already exists');
+      }
+      throw error;
+    }
   }
 
   async signIn(signInDto: SignInDto): Promise<AuthResponseDto> {
@@ -91,8 +118,9 @@ export class AuthService {
 
     return {
       email: user.email,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
+      accessToken,
+      refreshToken,
+      user: plainToInstance(UserInfoDto, { ...user, shopId: shop?.id || '' }, { excludeExtraneousValues: true }),
     };
   }
 
@@ -131,13 +159,30 @@ export class AuthService {
         email: user.email,
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
+        user: plainToInstance(UserInfoDto, { ...user, shopId: shop?.id || '' }, { excludeExtraneousValues: true }),
       };
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
 
+  async getProfile(userId: string): Promise<UserInfoDto> {
+    const user = await this.userService.findById(userId);
+    const shop = await this.shopService.findByOwnerId(user.id);
+
+    return plainToInstance(UserInfoDto, { ...user, shopId: shop?.id || '' }, { excludeExtraneousValues: true });
+  }
+
   async revokeRefreshToken(userId: string): Promise<void> {
     await this.cacheService.del(this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, userId));
+  }
+
+  private isUniqueConstraintError(error: unknown): error is { driverError?: { code?: string } } {
+    if (typeof error !== 'object' || error === null || !('driverError' in error)) {
+      return false;
+    }
+
+    const driverError = (error as { driverError?: { code?: string } }).driverError;
+    return driverError?.code === '23505';
   }
 }

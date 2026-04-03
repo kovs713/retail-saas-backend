@@ -1,3 +1,4 @@
+import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { mockAuthGuard, mockGuard } from '@/common/utils';
 import { User } from '@/modules/user/entities';
@@ -7,6 +8,7 @@ import { ShopController } from './shop.controller';
 import { ShopService } from './shop.service';
 
 import { createMock } from '@golevelup/ts-jest';
+import { ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
@@ -15,6 +17,26 @@ import { Test, TestingModule } from '@nestjs/testing';
 describe('ShopController', () => {
   let controller: ShopController;
   let service: ShopService;
+
+  const ownerTenantContext = {
+    shopId: 'shop-1',
+  };
+
+  const otherTenantContext = {
+    shopId: 'shop-2',
+  };
+
+  const adminRequest = {
+    user: {
+      role: Role.ADMIN,
+    },
+  } as any;
+
+  const ownerRequest = {
+    user: {
+      role: Role.OWNER,
+    },
+  } as any;
 
   const mockShop: Shop = {
     id: 'shop-1',
@@ -30,6 +52,9 @@ describe('ShopController', () => {
     bannerUrl: null,
     isActive: true,
     createdAt: new Date(),
+    chatEvents: [],
+    storefrontViews: [],
+    orders: [],
   };
 
   beforeEach(async () => {
@@ -129,10 +154,26 @@ describe('ShopController', () => {
       const expectedDto = ShopDto.fromEntity(updatedShop);
       const expectedResult = { success: true, data: expectedDto, message: 'Shop updated successfully' };
 
-      const result = await controller.update('shop-1', updateDto);
+      const result = await controller.update('shop-1', updateDto, ownerTenantContext, ownerRequest);
 
       expect(service.update).toHaveBeenCalledWith('shop-1', updateDto);
       expect(result).toEqual(expectedResult);
+    });
+
+    it('should reject owner updating another shop', async () => {
+      await expect(controller.update('shop-2', updateDto, ownerTenantContext, ownerRequest)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(service.update).not.toHaveBeenCalled();
+    });
+
+    it('should allow admin updating another shop', async () => {
+      const updatedShop = { ...mockShop, ...updateDto, id: 'shop-2' };
+      jest.spyOn(service, 'update').mockResolvedValue(updatedShop);
+
+      await controller.update('shop-2', updateDto, otherTenantContext, adminRequest);
+
+      expect(service.update).toHaveBeenCalledWith('shop-2', updateDto);
     });
   });
 
@@ -144,7 +185,7 @@ describe('ShopController', () => {
       const expectedDto = ShopDto.fromEntity(updatedShop);
       const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
 
-      const result = await controller.updateMedia('shop-1', logoUrl);
+      const result = await controller.updateMedia('shop-1', logoUrl, undefined, ownerTenantContext, ownerRequest);
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', logoUrl, undefined);
       expect(result).toEqual(expectedResult);
@@ -157,7 +198,7 @@ describe('ShopController', () => {
       const expectedDto = ShopDto.fromEntity(updatedShop);
       const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
 
-      const result = await controller.updateMedia('shop-1', undefined, bannerUrl);
+      const result = await controller.updateMedia('shop-1', undefined, bannerUrl, ownerTenantContext, ownerRequest);
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', undefined, bannerUrl);
       expect(result).toEqual(expectedResult);
@@ -171,10 +212,35 @@ describe('ShopController', () => {
       const expectedDto = ShopDto.fromEntity(updatedShop);
       const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
 
-      const result = await controller.updateMedia('shop-1', logoUrl, bannerUrl);
+      const result = await controller.updateMedia('shop-1', logoUrl, bannerUrl, ownerTenantContext, ownerRequest);
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', logoUrl, bannerUrl);
       expect(result).toEqual(expectedResult);
+    });
+
+    it('should reject owner updating media for another shop', async () => {
+      await expect(
+        controller.updateMedia('shop-2', 'https://example.com/logo.png', undefined, ownerTenantContext, ownerRequest),
+      ).rejects.toThrow(ForbiddenException);
+      expect(service.updateMediaUrls).not.toHaveBeenCalled();
+    });
+
+    it('should allow admin updating media for another shop', async () => {
+      jest.spyOn(service, 'updateMediaUrls').mockResolvedValue({
+        ...mockShop,
+        id: 'shop-2',
+        logoUrl: 'https://example.com/logo.png',
+      });
+
+      await controller.updateMedia(
+        'shop-2',
+        'https://example.com/logo.png',
+        undefined,
+        otherTenantContext,
+        adminRequest,
+      );
+
+      expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-2', 'https://example.com/logo.png', undefined);
     });
   });
 });

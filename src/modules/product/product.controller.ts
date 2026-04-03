@@ -10,6 +10,8 @@ import {
   CreateCategoryDto,
   CreateProductDto,
   ProductDto,
+  ProductImagePresignedUploadDto,
+  ProductImagePresignedUploadResponseDto,
   UpdateCategoryDto,
   UpdateProductDto,
   UpdateStockDto,
@@ -239,6 +241,40 @@ export class ProductController {
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Stock adjusted for product ${id}: ${product.quantity}`);
     return { success: true, data: response, message: 'Stock adjusted successfully' };
+  }
+
+  @Post(':id/images/presigned-upload')
+  @ApiOperation({ summary: 'Generate presigned upload URL for product image' })
+  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Presigned upload generated successfully',
+    type: ProductImagePresignedUploadResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  async createImageUploadUrl(
+    @Param('id') id: string,
+    @Body() body: ProductImagePresignedUploadDto,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<ProductImagePresignedUploadResponseDto>> {
+    const result = await this.productService.createImageUploadUrl(id, body.fileName, tenantContext);
+    return { success: true, data: result };
+  }
+
+  @Delete(':id/images/:imageName')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiOperation({ summary: 'Delete product image by filename' })
+  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
+  @ApiParam({ name: 'imageName', type: String, description: 'Image filename' })
+  @ApiResponse({ status: 200, description: 'Product image deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  async deleteImage(
+    @Param('id') id: string,
+    @Param('imageName') imageName: string,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<void>> {
+    await this.productService.deleteImage(id, imageName, tenantContext);
+    return { success: true, message: 'Product image deleted successfully' };
   }
 
   @Post('categories')

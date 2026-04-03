@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:integration": "jest --config jest.integration.config.ts",
     "test:e2e": "jest --config ./test/e2e/jest-e2e.json",
-    "seed:default": "ts-node -r tsconfig-paths/register src/database/seeds/default-tenant.seed.ts",
+    "seed:default": "ts-node -r tsconfig-paths/register src/core/database/seeds/default-tenant.seed.ts",
+    "seed:fake": "ts-node -r tsconfig-paths/register src/core/database/seeds/fake-data.seed.ts",
     "docker:build": "docker build -t retail-analytics-platform-backend .",
     "docker:run": "docker run -p 3000:3000 retail-analytics-platform-backend"
   },
@@ -28,18 +29,21 @@
     "@langchain/core": "^1.1.31",
     "@langchain/groq": "^1.0.1",
     "@langchain/ollama": "^1.2.6",
+    "@nest-lab/throttler-storage-redis": "^1.2.0",
     "@nestjs/common": "^11.1.9",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.9",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.1.9",
     "@nestjs/swagger": "^11.2.3",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
     "bcryptjs": "^3.0.3",
     "chromadb": "^3.1.7",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "globals": "^17.1.0",
+    "mime-types": "^3.0.2",
     "minio": "^8.0.7",
     "pg": "^8.16.3",
     "redis": "^5.10.0",
@@ -64,6 +68,7 @@
     "@testcontainers/redis": "^11.13.0",
     "@types/express": "^5.0.5",
     "@types/jest": "^30.0.0",
+    "@types/mime-types": "^3.0.1",
     "@types/ms": "^2.1.0",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.19.1",
@@ -83,7 +88,6 @@
     "typescript-eslint": "^8.47.0"
   },
   "_moduleAliases": {
-    "@/app": "./dist",
     "@/common": "./dist/common",
     "@/config": "./dist/config",
     "@/modules": "./dist/modules"
@@ -120,7 +124,6 @@
     "testEnvironment": "node",
     "transformIgnorePatterns": [],
     "moduleNameMapper": {
-      "^@/app/(.*)$": "<rootDir>/src/$1",
       "^@/core/(.*)$": "<rootDir>/src/core/$1",
       "^@/common/(.*)$": "<rootDir>/src/common/$1",
       "^@/modules/(.*)$": "<rootDir>/src/modules/$1"

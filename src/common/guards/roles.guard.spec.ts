@@ -2,6 +2,7 @@ import { Role } from '../enums';
 import { Request } from '../types';
 import { RolesGuard } from './roles.guard';
 
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
@@ -10,34 +11,29 @@ import { JwtService } from '@nestjs/jwt';
 describe('RolesGuard', () => {
   let guard: RolesGuard;
   let reflector: Reflector;
-  let jwtService: JwtService;
-  let configService: ConfigService;
+  let jwtService: DeepMocked<JwtService>;
+  let configService: DeepMocked<ConfigService>;
   let mockContext: ExecutionContext;
-  let mockRequest: Request;
+  let mockRequest: Request & { user?: unknown };
 
   beforeEach(() => {
     reflector = new Reflector();
-    jwtService = {
-      verifyAsync: jest.fn(),
-    } as unknown as JwtService;
-    configService = {
-      getOrThrow: jest.fn().mockReturnValue('test-secret'),
-    } as unknown as ConfigService;
+    jwtService = createMock<JwtService>();
+    configService = createMock<ConfigService>();
+    configService.getOrThrow.mockReturnValue('test-secret');
 
     guard = new RolesGuard(reflector, jwtService, configService);
 
     mockRequest = {
       headers: {},
       user: undefined,
-    } as unknown as Request;
+    };
 
-    mockContext = {
-      getHandler: jest.fn(),
-      getClass: jest.fn(),
-      switchToHttp: jest.fn().mockReturnValue({
-        getRequest: jest.fn().mockReturnValue(mockRequest),
+    mockContext = createMock<ExecutionContext>({
+      switchToHttp: () => ({
+        getRequest: () => mockRequest,
       }),
-    } as unknown as ExecutionContext;
+    });
   });
 
   afterEach(() => {
@@ -59,7 +55,7 @@ describe('RolesGuard', () => {
 
     it('should return true when user has required role', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.OWNER]);
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({
+      jwtService.verifyAsync.mockResolvedValue({
         email: 'test@example.com',
         role: Role.OWNER,
         shopId: 'shop-1',
@@ -81,7 +77,7 @@ describe('RolesGuard', () => {
 
     it('should return true when user has one of multiple required roles', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.OWNER, Role.EMPLOYEE]);
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({
+      jwtService.verifyAsync.mockResolvedValue({
         email: 'test@example.com',
         role: Role.EMPLOYEE,
         shopId: 'shop-1',
@@ -101,8 +97,8 @@ describe('RolesGuard', () => {
     });
 
     it('should throw ForbiddenException when user lacks required role', async () => {
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.SUPER_ADMIN]);
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.ADMIN]);
+      jwtService.verifyAsync.mockResolvedValue({
         email: 'test@example.com',
         role: Role.OWNER,
         shopId: 'shop-1',
@@ -125,7 +121,7 @@ describe('RolesGuard', () => {
     it('should throw ForbiddenException when token verification fails', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.OWNER]);
       const forbiddenError = new ForbiddenException('Invalid token');
-      jest.spyOn(jwtService, 'verifyAsync').mockImplementation(() => {
+      jwtService.verifyAsync.mockImplementation(() => {
         throw forbiddenError;
       });
       mockRequest.headers.authorization = 'Bearer invalid-token';

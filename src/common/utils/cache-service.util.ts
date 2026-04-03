@@ -8,6 +8,20 @@ export const mockCacheService = (): DeepMocked<CacheService> => {
   mock.set.mockResolvedValue(undefined);
   mock.del.mockResolvedValue(undefined);
   mock.delPattern.mockResolvedValue(undefined);
-  mock.generateKey.mockImplementation((...parts) => parts.filter((p) => p !== undefined && p !== null).join(':'));
+  mock.generateKey.mockImplementation((...parts) =>
+    parts
+      .filter((p) => p !== undefined && p !== null)
+      .map((p) => {
+        if (typeof p === 'string' || typeof p === 'number' || typeof p === 'boolean') {
+          return String(p);
+        }
+        try {
+          return JSON.stringify(p);
+        } catch {
+          return '[object]';
+        }
+      })
+      .join(':'),
+  );
   return mock;
 };

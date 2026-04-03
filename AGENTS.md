@@ -42,7 +42,7 @@
 
 ### Import Style
 
-- Use absolute imports with `@/` aliases (`@/app/*`, `@/core/*`, `@/common/*`, `@/modules/*`)
+- Use absolute imports with `src/` aliases (`@/core/*`, `@/common/*`, `@/modules/*`)
 - Group imports: external libraries first, then internal modules
 - Use named imports when possible
 - Import paths should be relative to src/ directory when using aliases
@@ -57,7 +57,7 @@
 
 - `tsconfig.json`: ES2023 target, strictNullChecks true, noImplicitAny false
 - Decorators enabled (emitDecoratorMetadata, experimentalDecorators)
-- Path aliases: `@/app/*`, `@/core/*`, `@/common/*`, `@/modules/*`
+- Path aliases: `@/core/*`, `@/common/*`, `@/modules/*`
 - Enable strict mode for better type safety
 - Skip lib check for faster builds
 
@@ -92,12 +92,12 @@
 
 ```
 src/
-├── app/                # Application entry point
 ├── core/               # Core modules (auth, logger, cache)
 ├── common/             # Shared utils, decorators, dto, types
 ├── modules/            # Feature modules (rag, product, storage, user, org, shop, category)
 ├── database/           # DB config, seeds, migrations
 ├── config/             # Configuration
+├── app.module.ts       # Root application module
 └── main.ts             # Entry point (Swagger, CORS, ValidationPipe)
 test/
 ├── unit/               # Unit tests (*.spec.ts)

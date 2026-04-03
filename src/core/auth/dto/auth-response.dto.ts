@@ -1,5 +1,7 @@
+import { UserInfoDto } from './user-info.dto';
+
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class AuthResponseDto {
   @ApiProperty({ description: 'User email', example: 'user@example.com' })
@@ -14,4 +16,8 @@ export class AuthResponseDto {
   @IsOptional()
   @IsString()
   refreshToken?: string;
+
+  @ApiProperty({ description: 'User info', type: UserInfoDto })
+  @IsObject()
+  user: UserInfoDto;
 }

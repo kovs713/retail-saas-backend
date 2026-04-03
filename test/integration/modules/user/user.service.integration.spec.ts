@@ -1,7 +1,9 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
+import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
+import { Order } from '@/modules/order/entities';
 import { Shop } from '@/modules/shop/entities';
-import { ShopRepository } from '@/modules/shop/repository';
+import { ShopRepository } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
 import { UserRepository } from '@/modules/user/repositories';
@@ -35,7 +37,7 @@ describe('UserService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, User]),
+        TypeOrmModule.forFeature([Shop, User, ChatEvent, StorefrontView, Order]),
       ],
       providers: [
         UserService,
@@ -276,6 +278,49 @@ describe('UserService Integration', () => {
       await expect(
         userService.update('00000000-0000-0000-0000-000000000000', { email: 'new@example.com' }),
       ).rejects.toThrow('User with ID "00000000-0000-0000-0000-000000000000" not found');
+    });
+  });
+
+  describe('cross-tenant isolation', () => {
+    let shopA: string;
+    let shopB: string;
+
+    beforeEach(async () => {
+      const shopRepo = dataSource.getRepository(Shop);
+      const a = await shopRepo.save(shopRepo.create({ name: 'Shop A', slug: `shop-a-${Date.now()}` }));
+      const b = await shopRepo.save(shopRepo.create({ name: 'Shop B', slug: `shop-b-${Date.now()}` }));
+      shopA = a.id;
+      shopB = b.id;
+    });
+
+    it('should not allow user from shop A to see shop B users', async () => {
+      await userService.create({ email: 'user-a@example.com', password: 'password123', role: 'member', shopId: shopA });
+      await userService.create({ email: 'user-b@example.com', password: 'password123', role: 'member', shopId: shopB });
+
+      const usersA = await userService.findByShop(shopA);
+      const usersB = await userService.findByShop(shopB);
+
+      expect(usersA.every((u) => u.shopId === shopA)).toBe(true);
+      expect(usersB.every((u) => u.shopId === shopB)).toBe(true);
+      expect(usersA.map((u) => u.email)).not.toContain('user-b@example.com');
+    });
+
+    it('should enforce global email uniqueness across shops', async () => {
+      await userService.create({
+        email: 'shared@example.com',
+        password: 'password123',
+        role: 'member',
+        shopId: shopA,
+      });
+
+      await expect(
+        userService.create({
+          email: 'shared@example.com',
+          password: 'password123',
+          role: 'member',
+          shopId: shopB,
+        }),
+      ).rejects.toThrow('already exists');
     });
   });
 });

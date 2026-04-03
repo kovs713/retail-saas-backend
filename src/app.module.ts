@@ -1,32 +1,59 @@
 import { CommonModule } from './common/common.module';
-import { TypeOrmConfigService } from './common/configs';
 import { AuthModule } from './core/auth/auth.module';
 import { CacheModule } from './core/cache/cache.module';
+import { TypeOrmConfigService } from './core/database/config';
 import { LoggerModule } from './core/logger/logger.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { OrderModule } from './modules/order/order.module';
 import { ProductModule } from './modules/product/product.module';
+import { PublicRagModule } from './modules/rag/public-rag.module';
 import { RagModule } from './modules/rag/rag.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { UserModule } from './modules/user/user.module';
 
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const host = config.getOrThrow<string>('REDIS_HOST');
+        const port = config.getOrThrow<number>('REDIS_PORT');
+        const password = config.getOrThrow<string>('REDIS_PASSWORD');
+        return {
+          throttlers: [
+            {
+              name: 'default',
+              ttl: config.getOrThrow<number>('THROTTLE_TTL'),
+              limit: config.getOrThrow<number>('THROTTLE_LIMIT'),
+            },
+          ],
+          storage: new ThrottlerStorageRedisService(`redis://${host}:${port}`, { password }),
+        };
+      },
+    }),
     TypeOrmModule.forRootAsync({ useClass: TypeOrmConfigService }),
 
-    LoggerModule,
-    CacheModule.forRootAsync(),
     CommonModule,
-
     AuthModule,
-    RagModule,
-    StorageModule.forRoot(),
+    CacheModule.forRootAsync(),
+    LoggerModule,
+
+    AnalyticsModule,
+    OrderModule,
     ProductModule,
+    PublicRagModule,
+    RagModule,
     ShopModule,
+    StorageModule.forRoot(),
     UserModule,
   ],
 })

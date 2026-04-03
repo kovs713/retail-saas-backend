@@ -52,8 +52,8 @@ describe('Guard Utils', () => {
       const guard = mockAuthGuard(mockUser);
       const mockRequest = { user: undefined } as Request & { user?: TokenPayload };
       const mockContext = createMock<ExecutionContext>({
-        switchToHttp: jest.fn().mockReturnValue({
-          getRequest: jest.fn().mockReturnValue(mockRequest),
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
         }),
       });
 
@@ -67,8 +67,8 @@ describe('Guard Utils', () => {
       const guard = mockAuthGuard(mockUser);
       const mockRequest = { user: undefined } as Request & { user?: TokenPayload };
       const mockContext = createMock<ExecutionContext>({
-        switchToHttp: jest.fn().mockReturnValue({
-          getRequest: jest.fn().mockReturnValue(mockRequest),
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
         }),
       });
 
@@ -81,8 +81,8 @@ describe('Guard Utils', () => {
       const guard = mockAuthGuard(mockUser);
       const mockRequest = { user: undefined } as Request & { user?: TokenPayload };
       const mockContext = createMock<ExecutionContext>({
-        switchToHttp: jest.fn().mockReturnValue({
-          getRequest: jest.fn().mockReturnValue(mockRequest),
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
         }),
       });
 
@@ -107,8 +107,8 @@ describe('Guard Utils', () => {
       const guard = mockAuthGuard(adminUser);
       const mockRequest = { user: undefined } as Request & { user?: TokenPayload };
       const mockContext = createMock<ExecutionContext>({
-        switchToHttp: jest.fn().mockReturnValue({
-          getRequest: jest.fn().mockReturnValue(mockRequest),
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
         }),
       });
 
