@@ -2,6 +2,7 @@ import { AuthGuard, RolesGuard } from '@/common/guards';
 import { ProductController } from '@/modules/product/product.controller';
 import { ProductService } from '@/modules/product/product.service';
 
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { CanActivate, ConflictException, INestApplication, NotFoundException, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
@@ -22,7 +23,7 @@ const mockRolesGuard: CanActivate = {
 
 describe('Product E2E', () => {
   let app: INestApplication;
-  let productService: jest.Mocked<ProductService>;
+  let productService: DeepMocked<ProductService>;
 
   const mockProduct = {
     id: 'prod-1',
@@ -37,31 +38,10 @@ describe('Product E2E', () => {
   };
 
   beforeAll(async () => {
-    productService = {
-      create: jest.fn(),
-      findOne: jest.fn(),
-      findAll: jest.fn(),
-      update: jest.fn(),
-      remove: jest.fn(),
-      restore: jest.fn(),
-      updateStock: jest.fn(),
-      adjustStock: jest.fn(),
-      findOneBySku: jest.fn(),
-      findByBarcode: jest.fn(),
-      count: jest.fn(),
-      findLowStock: jest.fn(),
-      getCategories: jest.fn(),
-      createCategory: jest.fn(),
-      updateCategory: jest.fn(),
-      deleteCategory: jest.fn(),
-      createImageUploadUrl: jest.fn(),
-      deleteImage: jest.fn(),
-    } as unknown as jest.Mocked<ProductService>;
-
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true })],
+      providers: [{ provide: ProductService, useValue: createMock<ProductService>() }],
       controllers: [ProductController],
-      providers: [{ provide: ProductService, useValue: productService }],
     })
       .overrideGuard(ThrottlerGuard)
       .useValue({ canActivate: () => true })
@@ -81,6 +61,8 @@ describe('Product E2E', () => {
       }),
     );
     await app.init();
+
+    productService = app.get<DeepMocked<ProductService>>(ProductService);
   });
 
   afterAll(async () => {
