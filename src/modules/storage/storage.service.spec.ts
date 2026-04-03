@@ -123,4 +123,39 @@ describe('StorageService', () => {
       await expect(service.deleteObject(mockKey)).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('error handling', () => {
+    it('should log error when getObjectStream fails', async () => {
+      const mockError = new Error('Network error');
+      mockMinioClient.getObject.mockRejectedValue(mockError);
+
+      await expect(service.getObjectStream(mockKey)).rejects.toThrow();
+    });
+
+    it('should log error when statObject fails', async () => {
+      const mockError = new Error('Access denied');
+      mockMinioClient.statObject.mockRejectedValue(mockError);
+
+      await expect(service.statObject(mockKey)).rejects.toThrow();
+    });
+
+    it('should log error when deleteObject fails', async () => {
+      const mockError = new Error('Permission denied');
+      mockMinioClient.removeObject.mockRejectedValue(mockError);
+
+      await expect(service.deleteObject(mockKey)).rejects.toThrow();
+    });
+
+    it('should handle non-object errors gracefully', async () => {
+      mockMinioClient.getObject.mockRejectedValue('string error');
+
+      await expect(service.getObjectStream(mockKey)).rejects.toBe('string error');
+    });
+
+    it('should handle null errors gracefully', async () => {
+      mockMinioClient.getObject.mockRejectedValue(null);
+
+      await expect(service.getObjectStream(mockKey)).rejects.toBeNull();
+    });
+  });
 });
