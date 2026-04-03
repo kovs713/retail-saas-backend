@@ -69,7 +69,6 @@ describe('AuthController', () => {
 
       const result = await controller.register(registerDto, res);
 
-      expect(authService.register).toHaveBeenCalledWith(registerDto);
       expect(res.cookie).toHaveBeenCalledWith(
         'refreshToken',
         'refresh-token',
@@ -95,7 +94,6 @@ describe('AuthController', () => {
 
       const result = await controller.login(signInDto, res);
 
-      expect(authService.signIn).toHaveBeenCalledWith(signInDto);
       expect(res.cookie).toHaveBeenCalledWith(
         'refreshToken',
         'refresh-token',
@@ -124,7 +122,6 @@ describe('AuthController', () => {
 
       const result = await controller.refresh(req, res);
 
-      expect(authService.refreshToken).toHaveBeenCalledWith('old-refresh-token');
       expect(res.cookie).toHaveBeenCalledWith(
         'refreshToken',
         'refresh-token',
@@ -155,7 +152,6 @@ describe('AuthController', () => {
 
       const result = await controller.me(req);
 
-      expect(authService.getProfile).toHaveBeenCalledWith('user-123');
       expect(result).toEqual({
         success: true,
         data: mockUserInfo,

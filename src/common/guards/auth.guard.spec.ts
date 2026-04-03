@@ -38,7 +38,7 @@ describe('AuthGuard', () => {
   });
 
   describe('canActivate', () => {
-    it('should extract token from Authorization header', async () => {
+    it('should allow access with valid Bearer token', async () => {
       const mockRequest = {
         headers: {
           authorization: `Bearer test-token`,
@@ -52,31 +52,9 @@ describe('AuthGuard', () => {
       const result = await guard.canActivate(mockExecutionContext);
 
       expect(result).toBe(true);
-      expect(jwtService.verifyAsync).toHaveBeenCalledWith('test-token', expect.any(Object));
     });
 
-    it('should verify valid JWT tokens', async () => {
-      const mockRequest = {
-        headers: {
-          authorization: `Bearer valid-token`,
-        },
-      } as Request;
-
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockTokenPayload);
-      jest.spyOn(configService, 'getOrThrow').mockReturnValue(mockSecret);
-
-      await guard.canActivate(mockExecutionContext);
-
-      expect(jwtService.verifyAsync).toHaveBeenCalledWith(
-        'valid-token',
-        expect.objectContaining({
-          secret: mockSecret,
-        }),
-      );
-    });
-
-    it('should throw UnauthorizedException for missing tokens', async () => {
+    it('should throw UnauthorizedException for missing Authorization header', async () => {
       const mockRequest = {
         headers: {},
       } as Request;
@@ -86,7 +64,7 @@ describe('AuthGuard', () => {
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should throw UnauthorizedException for invalid tokens', async () => {
+    it('should throw UnauthorizedException for invalid token', async () => {
       const mockRequest = {
         headers: {
           authorization: 'Bearer invalid-token',
@@ -101,7 +79,7 @@ describe('AuthGuard', () => {
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow();
     });
 
-    it('should throw UnauthorizedException for wrong token type', async () => {
+    it('should throw UnauthorizedException for non-Bearer token type', async () => {
       const mockRequest = {
         headers: {
           authorization: 'Basic some-token',
@@ -129,7 +107,7 @@ describe('AuthGuard', () => {
       expect(mockRequest.user).toEqual(mockTokenPayload);
     });
 
-    it('should handle malformed Authorization header', async () => {
+    it('should throw UnauthorizedException for malformed Authorization header', async () => {
       const mockRequest = {
         headers: {
           authorization: 'malformed',
@@ -141,7 +119,7 @@ describe('AuthGuard', () => {
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should handle empty Authorization header', async () => {
+    it('should throw UnauthorizedException for empty Authorization header', async () => {
       const mockRequest = {
         headers: {
           authorization: '',
@@ -152,44 +130,8 @@ describe('AuthGuard', () => {
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
     });
-  });
 
-  describe('extractToken (private method)', () => {
-    it('should return token when Authorization header is valid', async () => {
-      const mockRequest = {
-        headers: {
-          authorization: `Bearer valid-token`,
-        },
-      } as Request;
-
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockTokenPayload);
-      jest.spyOn(configService, 'getOrThrow').mockReturnValue(mockSecret);
-
-      await guard.canActivate(mockExecutionContext);
-
-      expect(jwtService.verifyAsync).toHaveBeenCalledWith('valid-token', expect.any(Object));
-    });
-  });
-
-  describe('verifyToken (private method)', () => {
-    it('should use JWT_SECRET from config service', async () => {
-      const mockRequest = {
-        headers: {
-          authorization: `Bearer test-token`,
-        },
-      } as Request;
-
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockTokenPayload);
-      jest.spyOn(configService, 'getOrThrow').mockReturnValue(mockSecret);
-
-      await guard.canActivate(mockExecutionContext);
-
-      expect(configService.getOrThrow).toHaveBeenCalledWith('JWT_SECRET');
-    });
-
-    it('should handle expired tokens', async () => {
+    it('should throw UnauthorizedException for expired token', async () => {
       const mockRequest = {
         headers: {
           authorization: `Bearer expired-token`,

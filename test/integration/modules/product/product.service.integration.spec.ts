@@ -1,4 +1,3 @@
-import { ShopRepository } from '@/app/modules/shop/repositories';
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
@@ -7,6 +6,7 @@ import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
 import { CategoryRepository, ProductRepository } from '@/modules/product/repositories';
 import { Shop } from '@/modules/shop/entities';
+import { ShopRepository } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { StorageService } from '@/modules/storage/storage.service';
 import { User } from '@/modules/user/entities';

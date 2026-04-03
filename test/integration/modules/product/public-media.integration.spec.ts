@@ -1,6 +1,6 @@
-import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
+import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
@@ -11,6 +11,7 @@ import { StorageService } from '@/modules/storage/storage.service';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
 
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { INestApplication } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -23,19 +24,12 @@ import { DataSource } from 'typeorm';
 describe('PublicMedia Integration', () => {
   let app: INestApplication;
   let dataSource: DataSource;
-  let storageService: jest.Mocked<StorageService>;
+  let storageService: DeepMocked<StorageService>;
   let shopSlug: string;
   let productId: string;
 
   beforeAll(async () => {
     const connection = getPostgresConnection();
-
-    storageService = {
-      getObjectStream: jest.fn(),
-      statObject: jest.fn(),
-      getPresignedPutUrl: jest.fn(),
-      deleteObject: jest.fn(),
-    } as unknown as jest.Mocked<StorageService>;
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
@@ -59,7 +53,7 @@ describe('PublicMedia Integration', () => {
         ProductRepository,
         CategoryRepository,
         { provide: CacheService, useValue: mockCacheService() },
-        { provide: StorageService, useValue: storageService },
+        { provide: StorageService, useValue: createMock<StorageService>() },
         { provide: ConfigService, useValue: { get: jest.fn() } },
       ],
     })
@@ -69,6 +63,7 @@ describe('PublicMedia Integration', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
+    storageService = moduleFixture.get<DeepMocked<StorageService>>(StorageService);
     dataSource = moduleFixture.get<DataSource>(DataSource);
   }, 120000);
 

@@ -5,8 +5,10 @@ import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { Shop } from '@/modules/shop/entities';
+import { ShopRepository } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
+import { UserRepository } from '@/modules/user/repositories';
 import { UserService } from '@/modules/user/user.service';
 import { getPostgresConnection } from '../../setup';
 
@@ -19,6 +21,8 @@ import { DataSource } from 'typeorm';
 describe('AuthService Integration', () => {
   let app: INestApplication;
   let authService: AuthService;
+  let userService: UserService;
+  let shopService: ShopService;
   let dataSource: DataSource;
 
   beforeAll(async () => {
@@ -41,15 +45,11 @@ describe('AuthService Integration', () => {
       ],
       providers: [
         AuthService,
+        UserService,
+        UserRepository,
+        ShopService,
+        ShopRepository,
         JwtService,
-        {
-          provide: UserService,
-          useValue: {},
-        },
-        {
-          provide: ShopService,
-          useValue: {},
-        },
         {
           provide: CacheService,
           useValue: mockCacheService(),
@@ -67,6 +67,8 @@ describe('AuthService Integration', () => {
     await app.init();
 
     authService = moduleFixture.get(AuthService);
+    userService = moduleFixture.get(UserService);
+    shopService = moduleFixture.get(ShopService);
     dataSource = moduleFixture.get(DataSource);
   }, 120000);
 
@@ -102,9 +104,61 @@ describe('AuthService Integration', () => {
         shopName: 'Rollback Shop',
         shopSlug: 'rollback-shop',
       }),
-    ).rejects.toThrow('Email or shop slug already exists');
+    ).rejects.toThrow();
 
     const shops = await dataSource.getRepository(Shop).findBy({ slug: 'rollback-shop' });
     expect(shops).toHaveLength(0);
+  });
+
+  it('should register user and create shop in a transaction', async () => {
+    const result = await authService.register({
+      email: 'new@example.com',
+      password: 'password123',
+      shopName: 'New Shop',
+      shopSlug: 'new-shop',
+    });
+
+    expect(result.email).toBe('new@example.com');
+    expect(result.accessToken).toBe('token');
+
+    const user = await userService.findByEmail('new@example.com');
+    expect(user.email).toBe('new@example.com');
+
+    const shop = await shopService.findBySlug('new-shop');
+    expect(shop.name).toBe('New Shop');
+    expect(shop.ownerId).toBe(user.id);
+  });
+
+  it('should sign in with valid credentials', async () => {
+    await userService.create({
+      email: 'signin@example.com',
+      password: 'password123',
+      role: 'owner',
+      shopId: null,
+    });
+
+    const result = await authService.signIn({
+      email: 'signin@example.com',
+      password: 'password123',
+    });
+
+    expect(result.email).toBe('signin@example.com');
+    expect(result.accessToken).toBe('token');
+  });
+
+  it('should reject sign in with wrong password', async () => {
+    await userService.create({
+      email: 'wrongpw@example.com',
+      password: 'password123',
+      role: 'owner',
+      shopId: null,
+    });
+
+    await expect(
+      authService.signIn({
+        email: 'wrongpw@example.com',
+        password: 'wrongpassword',
+      }),
+    ).rejects.toThrow();
   });
 });

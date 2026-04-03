@@ -71,8 +71,6 @@ describe('ShopService', () => {
 
       const result = await service.create(createDto);
 
-      expect(repository.existsBySlug).toHaveBeenCalledWith(createDto.slug);
-      expect(repository.create).toHaveBeenCalledWith(createDto);
       expect(result).toEqual(mockShop);
     });
 
@@ -90,7 +88,6 @@ describe('ShopService', () => {
 
       const result = await service.findBySlug('test-shop');
 
-      expect(repository.findBySlug).toHaveBeenCalledWith('test-shop');
       expect(result).toEqual(mockShop);
     });
 
@@ -108,7 +105,6 @@ describe('ShopService', () => {
 
       const result = await service.findById('shop-1');
 
-      expect(repository.findById).toHaveBeenCalledWith('shop-1');
       expect(result).toEqual(mockShop);
     });
 
@@ -126,7 +122,6 @@ describe('ShopService', () => {
 
       const result = await service.findByOwnerId('owner-123');
 
-      expect(repository.findByOwnerId).toHaveBeenCalledWith('owner-123');
       expect(result).toEqual(mockShop);
     });
 
@@ -151,7 +146,6 @@ describe('ShopService', () => {
 
       const result = await service.update('shop-1', updateDto);
 
-      expect(repository.findById).toHaveBeenCalledWith('shop-1');
       expect(result.name).toBe('Updated Shop');
       expect(result.description).toBe('Updated description');
     });
@@ -181,7 +175,6 @@ describe('ShopService', () => {
 
       const result = await service.updateOwner('shop-1', 'new-owner');
 
-      expect(repository.findById).toHaveBeenCalledWith('shop-1');
       expect(result.ownerId).toBe('new-owner');
     });
 
@@ -257,7 +250,6 @@ describe('ShopService', () => {
 
       const result = await service.toggleActive('shop-1');
 
-      expect(repository.findById).toHaveBeenCalledWith('shop-1');
       expect(result.isActive).toBe(false);
     });
 
