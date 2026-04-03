@@ -1,10 +1,23 @@
 import { StorageService } from '@/modules/storage/storage.service';
 import { ProductService } from './product.service';
 
-import { Controller, Get, Logger, NotFoundException, Param, ParseUUIDPipe, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Logger,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
+import { lookup } from 'mime-types';
+import path from 'path';
 
 @ApiTags('Public media')
 @Controller('public/media')
@@ -27,21 +40,40 @@ export class PublicMediaController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    const safeName = path.basename(imageName);
+    if (!/^[\w-]+\.(jpg|jpeg|png|webp|gif)$/i.test(safeName)) {
+      throw new BadRequestException('Invalid image name');
+    }
+
     const product = await this.productService.findPublicByShopSlugAndId(shopSlug, productId);
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
-    const key = this.productService.buildProductImageObjectKey(productId, imageName);
+    const key = this.productService.buildProductImageObjectKey(productId, safeName);
 
+    let stream: NodeJS.ReadableStream;
     try {
-      const stream = await this.storageService.getObjectStream(key);
-
-      res.setHeader('Cache-Control', 'public, max-age=3600, immutable');
-      stream.pipe(res);
-    } catch (error) {
-      this.logger.error(`Failed to stream image: ${key}`, error.stack);
+      stream = await this.storageService.getObjectStream(key);
+    } catch (error: unknown) {
+      const stack = error instanceof Error ? error.stack : String(error);
+      this.logger.error(`Failed to get image stream: ${key}`, stack);
       throw new NotFoundException('Image not found');
     }
+
+    const contentType = lookup(safeName) || 'application/octet-stream';
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+
+    stream.on('error', (err: Error) => {
+      this.logger.error(`Stream error mid-transfer: ${key}`, err.stack);
+      if (!res.headersSent) {
+        res.status(500).end();
+      }
+    });
+
+    stream.pipe(res);
   }
 }

@@ -1,4 +1,5 @@
 import { AuthController } from './auth.controller';
+import { AuthConfig } from '@/common/types';
 import { AuthService } from './auth.service';
 import { AuthResponseDto, RegisterDto, SignInDto, UserInfoDto } from './dto';
 
@@ -7,10 +8,16 @@ import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Response } from 'express';
 
 describe('AuthController', () => {
   let controller: AuthController;
-  let authService: DeepMocked<AuthService>;
+  let service: DeepMocked<AuthService>;
+
+  const mockAuthConfig = {
+    refreshTokenCookie: 'refreshToken',
+    refreshTokenMaxAge: 604800000,
+  };
 
   const mockUserInfo: UserInfoDto = {
     id: 'user-123',
@@ -29,7 +36,7 @@ describe('AuthController', () => {
 
   const mockResponse = () => {
     const cookies: Record<string, string> = {};
-    const res = { cookies, cookie: jest.fn() };
+    const res = createMock<Response>();
     res.cookie.mockImplementation((name: string, value: string) => {
       cookies[name] = value;
       return res;
@@ -40,6 +47,7 @@ describe('AuthController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: AuthConfig, useValue: mockAuthConfig },
         { provide: AuthService, useValue: createMock<AuthService>() },
         { provide: JwtService, useValue: createMock<JwtService>() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
@@ -48,7 +56,7 @@ describe('AuthController', () => {
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
-    authService = module.get(AuthService);
+    service = module.get(AuthService);
   });
 
   afterEach(() => {
@@ -64,7 +72,7 @@ describe('AuthController', () => {
         shopSlug: 'test-shop',
       };
 
-      authService.register.mockResolvedValue(mockAuthResponse);
+      service.register.mockResolvedValue(mockAuthResponse);
       const res = mockResponse();
 
       const result = await controller.register(registerDto, res);
@@ -89,7 +97,7 @@ describe('AuthController', () => {
         password: 'password123',
       };
 
-      authService.signIn.mockResolvedValue(mockAuthResponse);
+      service.signIn.mockResolvedValue(mockAuthResponse);
       const res = mockResponse();
 
       const result = await controller.login(signInDto, res);
@@ -118,7 +126,7 @@ describe('AuthController', () => {
       };
       const res = mockResponse();
 
-      authService.refreshToken.mockResolvedValue(mockAuthResponse);
+      service.refreshToken.mockResolvedValue(mockAuthResponse);
 
       const result = await controller.refresh(req, res);
 
@@ -144,14 +152,13 @@ describe('AuthController', () => {
 
   describe('me', () => {
     it('should return current user profile', async () => {
-      const req: any = {
-        user: { sub: 'user-123', email: 'test@example.com', shopId: 'shop-456', role: 'owner' },
-      };
+      const payload = { sub: 'user-123', email: 'test@example.com', shopId: 'shop-456', role: 'owner' };
 
-      authService.getProfile.mockResolvedValue(mockUserInfo);
+      service.getProfile.mockResolvedValue(mockUserInfo);
 
-      const result = await controller.me(req);
+      const result = await controller.me(payload);
 
+      expect(service.getProfile).toHaveBeenCalledWith('user-123');
       expect(result).toEqual({
         success: true,
         data: mockUserInfo,

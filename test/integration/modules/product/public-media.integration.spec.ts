@@ -54,7 +54,7 @@ describe('PublicMedia Integration', () => {
         CategoryRepository,
         { provide: CacheService, useValue: mockCacheService() },
         { provide: StorageService, useValue: createMock<StorageService>() },
-        { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: ConfigService, useValue: createMock<ConfigService>() },
       ],
     })
       .overrideGuard(ThrottlerGuard)
@@ -117,6 +117,6 @@ describe('PublicMedia Integration', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({});
+    expect(response.type).toMatch(/image/);
   });
 });

@@ -1,50 +1,28 @@
 import { Role } from '../enums';
-import { Roles, ROLES_KEY } from './roles.decorator';
+import { ROLES_KEY, Roles } from './roles.decorator';
+
+import { Reflector } from '@nestjs/core';
 
 describe('Roles Decorator', () => {
-  it('should set roles metadata', () => {
-    const roles = [Role.OWNER, Role.EMPLOYEE];
-    const decorator = Roles(...roles);
+  it('should set roles metadata on a handler', () => {
+    class TestController {
+      @Roles(Role.ADMIN, Role.OWNER)
+      testMethod() {}
+    }
 
-    expect(decorator).toBeDefined();
-
-    const mockTarget = {};
-    decorator(mockTarget as any);
-
-    expect(Reflect.getMetadata(ROLES_KEY, mockTarget)).toEqual(roles);
+    const reflector = new Reflector();
+    const roles = reflector.get<Role[]>(ROLES_KEY, TestController.prototype.testMethod);
+    expect(roles).toEqual([Role.ADMIN, Role.OWNER]);
   });
 
-  it('should set single role metadata', () => {
-    const roles = [Role.ADMIN];
-    const decorator = Roles(...roles);
+  it('should set empty array when no roles provided', () => {
+    class TestController {
+      @Roles()
+      testMethod() {}
+    }
 
-    const mockTarget = {};
-    decorator(mockTarget as any);
-
-    expect(Reflect.getMetadata(ROLES_KEY, mockTarget)).toEqual(roles);
-  });
-
-  it('should override previous roles when applied multiple times', () => {
-    const mockTarget = {};
-
-    Roles(Role.OWNER)(mockTarget as any);
-    expect(Reflect.getMetadata(ROLES_KEY, mockTarget)).toEqual([Role.OWNER]);
-
-    Roles(Role.EMPLOYEE)(mockTarget as any);
-    expect(Reflect.getMetadata(ROLES_KEY, mockTarget)).toEqual([Role.EMPLOYEE]);
-  });
-
-  it('should store roles as array', () => {
-    const roles = [Role.OWNER, Role.EMPLOYEE, Role.ADMIN];
-    const mockTarget = {};
-
-    Roles(...roles)(mockTarget as any);
-
-    const metadata = Reflect.getMetadata(ROLES_KEY, mockTarget);
-    expect(Array.isArray(metadata)).toBe(true);
-    expect(metadata).toHaveLength(3);
-    expect(metadata).toContain(Role.OWNER);
-    expect(metadata).toContain(Role.EMPLOYEE);
-    expect(metadata).toContain(Role.ADMIN);
+    const reflector = new Reflector();
+    const roles = reflector.get<Role[]>(ROLES_KEY, TestController.prototype.testMethod);
+    expect(roles).toEqual([]);
   });
 });

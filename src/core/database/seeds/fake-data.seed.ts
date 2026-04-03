@@ -1,7 +1,7 @@
-import { AppModule } from '@/app/app.module';
 import { Category, Product } from '@/modules/product/entities';
 import { Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
+import { AppModule } from 'src/app.module';
 import { createAdminUser, createCategory, createManagerUser, createOwnerUser, createShop } from '../factories';
 
 import { Faker, en } from '@faker-js/faker';
@@ -153,6 +153,6 @@ async function bootstrap() {
   await app.close();
 }
 
-bootstrap().catch((error) => {
+bootstrap().catch(() => {
   process.exit(1);
 });

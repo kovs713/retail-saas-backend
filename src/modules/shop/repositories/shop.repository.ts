@@ -2,7 +2,7 @@ import { Shop } from '../entities';
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 
 @Injectable()
 export class ShopRepository extends Repository<Shop> {
@@ -35,7 +35,7 @@ export class ShopRepository extends Repository<Shop> {
   async existsBySlugAndNotId(slug: string, id: string): Promise<boolean> {
     return this.repository.existsBy({
       slug,
-      id: id as unknown as never,
+      id: Not(id),
     });
   }
 }

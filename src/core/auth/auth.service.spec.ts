@@ -1,6 +1,8 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
+import { Shop } from '@/modules/shop/entities';
 import { ShopService } from '@/modules/shop/shop.service';
+import { User } from '@/modules/user/entities';
 import { UserService } from '@/modules/user/user.service';
 import { AuthService } from './auth.service';
 import { AuthResponseDto } from './dto';
@@ -9,7 +11,7 @@ import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -22,20 +24,23 @@ describe('AuthService', () => {
   const mockAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockToken';
   const mockRefreshToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refreshToken';
 
-  const mockUser = {
+  const mockShop = {
+    id: 'shop-456',
+    ownerId: 'user-123',
+    name: 'Test Shop',
+    slug: 'test-shop',
+  } as Shop;
+
+  const mockUser: User = {
     id: 'user-123',
     email: 'test@example.com',
     passwordHash: 'hashed-password',
     role: 'owner',
     shopId: 'shop-456',
     isActive: true,
-  };
-
-  const mockShop = {
-    id: 'shop-456',
-    ownerId: 'user-123',
-    name: 'Test Shop',
-    slug: 'test-shop',
+    shop: mockShop,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
   const expectedUserInfo = {
@@ -149,24 +154,28 @@ describe('AuthService', () => {
     it('should register user and create shop successfully', async () => {
       const createdUser = { ...mockUser, email: mockRegisterDto.email, id: mockUser.id };
       const createdShop = { ...mockShop, ownerId: createdUser.id };
-      const shopRepository = {
-        create: jest.fn().mockImplementation((value) => value),
+
+      const shopRepository = createMock<Repository<Shop>>({
+        create: jest.fn().mockImplementation((value: Shop) => value),
         save: jest.fn().mockResolvedValueOnce(mockShop).mockResolvedValueOnce(createdShop),
-      };
-      const userRepository = {
-        create: jest.fn().mockImplementation((value) => value),
+      });
+
+      const userRepository = createMock<Repository<User>>({
+        create: jest.fn().mockImplementation((value: Shop) => value),
         save: jest.fn().mockResolvedValue(createdUser),
-      };
-      const transaction = jest.fn().mockImplementation(async (handler) =>
-        handler({
-          getRepository: jest.fn().mockReturnValueOnce(shopRepository).mockReturnValueOnce(userRepository),
-        }),
-      );
-      jest.spyOn(dataSource, 'transaction').mockImplementation(transaction as any);
+      });
+
+      const mockEntityManager = createMock<EntityManager>({
+        getRepository: jest.fn().mockReturnValueOnce(shopRepository).mockReturnValueOnce(userRepository),
+      });
+
+      jest
+        .spyOn(dataSource, 'transaction')
+        .mockImplementation((handler: (em: EntityManager) => Promise<unknown>) => handler(mockEntityManager));
       jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
       jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockRefreshToken);
 
-      const result = await service.register(mockRegisterDto as any);
+      const result = await service.register(mockRegisterDto);
 
       expect(result.email).toBe(mockRegisterDto.email);
       expect(result.accessToken).toBe(mockAccessToken);

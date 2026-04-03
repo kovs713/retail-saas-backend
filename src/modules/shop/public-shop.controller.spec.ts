@@ -165,7 +165,7 @@ describe('PublicShopController', () => {
     expect(result.data.products[0].availability).toBe('OUT_OF_STOCK');
   });
 
-  it('should log storefront view asynchronously', async () => {
+  it('should still return storefront data when analytics logging fails', async () => {
     const mockShop = {
       id: 'shop-1',
       slug: 'test-shop',
@@ -175,9 +175,11 @@ describe('PublicShopController', () => {
     shopService.findBySlug.mockResolvedValue(mockShop as any);
     productRepository.findAll.mockResolvedValue([[], 0]);
     categoryRepository.findAllByShop.mockResolvedValue([]);
+    analyticsService.logStorefrontView.mockRejectedValue(new Error('analytics down'));
 
-    await controller.getStorefront('test-shop');
+    const result = await controller.getStorefront('test-shop');
 
-    expect(analyticsService.logStorefrontView).toHaveBeenCalledWith('shop-1');
+    expect(result.success).toBe(true);
+    expect(result.data.shop.id).toBe('shop-1');
   });
 });

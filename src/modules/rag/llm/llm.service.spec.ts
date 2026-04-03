@@ -12,7 +12,7 @@ describe('LLMService', () => {
 
   beforeEach(async () => {
     chatGroqClient = createMock<ChatGroq>();
-    chatGroqClient.invoke = jest.fn().mockResolvedValue({ content: 'Test response' });
+    chatGroqClient.invoke.mockResolvedValue({ content: 'Test response' });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -99,7 +99,7 @@ describe('LLMService', () => {
   describe('error handling', () => {
     it('should handle API errors gracefully', async () => {
       const error = new Error('API error');
-      (chatGroqClient.invoke as jest.Mock).mockRejectedValue(error);
+      chatGroqClient.invoke.mockRejectedValue(error);
 
       await expect(service.generateText('Test')).rejects.toThrow('API error');
     });

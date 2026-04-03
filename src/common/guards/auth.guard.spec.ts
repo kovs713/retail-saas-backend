@@ -1,15 +1,15 @@
 import { Request, TokenPayload } from '../types';
 import { AuthGuard } from './auth.guard';
 
-import { createMock } from '@golevelup/ts-jest';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;
-  let jwtService: JwtService;
-  let configService: ConfigService;
+  let jwtService: DeepMocked<JwtService>;
+  let configService: DeepMocked<ConfigService>;
   let mockExecutionContext: ExecutionContext;
 
   const mockTokenPayload: TokenPayload = {
@@ -26,11 +26,7 @@ describe('AuthGuard', () => {
     configService = createMock<ConfigService>();
     guard = new AuthGuard(jwtService, configService);
 
-    mockExecutionContext = createMock<ExecutionContext>({
-      switchToHttp: jest.fn().mockReturnValue({
-        getRequest: jest.fn(),
-      }),
-    });
+    mockExecutionContext = createMock<ExecutionContext>();
   });
 
   afterEach(() => {
@@ -45,9 +41,11 @@ describe('AuthGuard', () => {
         },
       } as Request;
 
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockTokenPayload);
-      jest.spyOn(configService, 'getOrThrow').mockReturnValue(mockSecret);
+      mockExecutionContext.switchToHttp.mockReturnValue({
+        getRequest: () => mockRequest,
+      });
+      jwtService.verifyAsync.mockResolvedValue(mockTokenPayload);
+      configService.getOrThrow.mockReturnValue(mockSecret);
 
       const result = await guard.canActivate(mockExecutionContext);
 
@@ -59,7 +57,9 @@ describe('AuthGuard', () => {
         headers: {},
       } as Request;
 
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
+      mockExecutionContext.switchToHttp.mockReturnValue({
+        getRequest: () => mockRequest,
+      });
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
     });
@@ -71,8 +71,10 @@ describe('AuthGuard', () => {
         },
       } as Request;
 
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
-      jest.spyOn(jwtService, 'verifyAsync').mockImplementation(() => {
+      mockExecutionContext.switchToHttp.mockReturnValue({
+        getRequest: () => mockRequest,
+      });
+      jwtService.verifyAsync.mockImplementation(() => {
         throw new Error('Invalid token');
       });
 
@@ -86,7 +88,9 @@ describe('AuthGuard', () => {
         },
       } as Request;
 
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
+      mockExecutionContext.switchToHttp.mockReturnValue({
+        getRequest: () => mockRequest,
+      });
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
     });
@@ -98,9 +102,11 @@ describe('AuthGuard', () => {
         },
       } as Request & { user?: TokenPayload };
 
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockTokenPayload);
-      jest.spyOn(configService, 'getOrThrow').mockReturnValue(mockSecret);
+      mockExecutionContext.switchToHttp.mockReturnValue({
+        getRequest: () => mockRequest,
+      });
+      jwtService.verifyAsync.mockResolvedValue(mockTokenPayload);
+      configService.getOrThrow.mockReturnValue(mockSecret);
 
       await guard.canActivate(mockExecutionContext);
 
@@ -114,7 +120,9 @@ describe('AuthGuard', () => {
         },
       } as Request;
 
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
+      mockExecutionContext.switchToHttp.mockReturnValue({
+        getRequest: () => mockRequest,
+      });
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
     });
@@ -126,7 +134,9 @@ describe('AuthGuard', () => {
         },
       } as Request;
 
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
+      mockExecutionContext.switchToHttp.mockReturnValue({
+        getRequest: () => mockRequest,
+      });
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
     });
@@ -138,8 +148,10 @@ describe('AuthGuard', () => {
         },
       } as Request;
 
-      jest.spyOn(mockExecutionContext.switchToHttp(), 'getRequest').mockReturnValue(mockRequest);
-      jest.spyOn(jwtService, 'verifyAsync').mockImplementation(() => {
+      mockExecutionContext.switchToHttp.mockReturnValue({
+        getRequest: () => mockRequest,
+      });
+      jwtService.verifyAsync.mockImplementation(() => {
         throw new Error('Token expired');
       });
 

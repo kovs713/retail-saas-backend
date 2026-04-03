@@ -4,3 +4,4 @@ export const MinioConfig = Symbol('MINIO_CONFIG');
 export const MinioClient = Symbol('MINIO_CLIENT');
 export const RedisClient = Symbol('REDIS_CLIENT');
 export const CacheTTL = Symbol('CacheTTL');
+export const AuthConfig = Symbol('AUTH_CONFIG');

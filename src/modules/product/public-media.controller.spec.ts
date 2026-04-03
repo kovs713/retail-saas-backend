@@ -35,15 +35,8 @@ describe('PublicMediaController', () => {
 
   const req = { ip: '127.0.0.1' } as Request;
 
-  function createRes(): Response {
-    return {
-      setHeader: jest.fn(),
-      pipe: jest.fn(),
-    } as any;
-  }
-
   it('should stream image with headers', async () => {
-    const res = createRes();
+    const res = createMock<Response>();
     const product = { id: 'p1' } as Product;
     const stream = new Readable({ read() {} });
     jest.spyOn(stream, 'pipe').mockReturnValue(res as any);
@@ -54,12 +47,12 @@ describe('PublicMediaController', () => {
     await controller.getProductImage('shop-1', 'p1', 'a.jpg', req, res);
 
     expect(storageService.getObjectStream).toHaveBeenCalledWith('products/p1/images/a.jpg');
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'public, max-age=3600, immutable');
+    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'public, max-age=3600');
     expect(stream.pipe).toHaveBeenCalledWith(res);
   });
 
   it('should throw NotFoundException when product missing', async () => {
-    const res = createRes();
+    const res = createMock<Response>();
     productService.findPublicByShopSlugAndId.mockResolvedValue(null);
 
     await expect(controller.getProductImage('shop-1', 'p1', 'a.jpg', req, res)).rejects.toThrow(NotFoundException);

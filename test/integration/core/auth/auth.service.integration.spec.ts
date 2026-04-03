@@ -12,6 +12,7 @@ import { UserRepository } from '@/modules/user/repositories';
 import { UserService } from '@/modules/user/user.service';
 import { getPostgresConnection } from '../../setup';
 
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -57,10 +58,7 @@ describe('AuthService Integration', () => {
       ],
     })
       .overrideProvider(JwtService)
-      .useValue({
-        signAsync: jest.fn().mockResolvedValue('token'),
-        verifyAsync: jest.fn(),
-      })
+      .useValue(createMock<JwtService>())
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -70,6 +68,9 @@ describe('AuthService Integration', () => {
     userService = moduleFixture.get(UserService);
     shopService = moduleFixture.get(ShopService);
     dataSource = moduleFixture.get(DataSource);
+
+    const jwtService = moduleFixture.get<DeepMocked<JwtService>>(JwtService);
+    jwtService.signAsync.mockResolvedValue('token');
   }, 120000);
 
   afterEach(async () => {

@@ -40,10 +40,13 @@ export class CategoryRepository extends Repository<Category> {
   }
 
   async countProductsInCategory(categoryId: string): Promise<number> {
-    return this.repository
+    const result = await this.repository
       .createQueryBuilder('category')
       .innerJoin('products', 'product', 'product.categoryId = category.id')
+      .select('COUNT(product.id)', 'count')
       .where('category.id = :categoryId', { categoryId })
-      .getCount();
+      .getRawOne<{ count: string }>();
+
+    return Number(result?.count ?? 0);
   }
 }

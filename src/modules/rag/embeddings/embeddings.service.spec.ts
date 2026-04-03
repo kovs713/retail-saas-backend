@@ -1,16 +1,16 @@
 import { EmbeddingsService } from './embeddings.service';
 
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { OllamaEmbeddings } from '@langchain/ollama';
 import { ConfigService } from '@nestjs/config';
 
 describe('EmbeddingsService', () => {
   let service: EmbeddingsService;
-  let configService: ConfigService;
+  let configService: DeepMocked<ConfigService>;
 
   beforeEach(() => {
-    configService = {
-      get: jest.fn(),
-    } as unknown as ConfigService;
+    configService = createMock<ConfigService>();
+    configService.get.mockImplementation((key: string, defaultValue?: string) => defaultValue);
 
     service = new EmbeddingsService(configService);
   });
@@ -21,7 +21,7 @@ describe('EmbeddingsService', () => {
 
   describe('initialization', () => {
     it('should initialize with default model from env', () => {
-      jest.spyOn(configService, 'get').mockImplementation((key: string, defaultValue?: string) => {
+      configService.get.mockImplementation((key: string, defaultValue?: string) => {
         if (key === 'EMBEDDINGS_MODEL') return 'custom-model';
         if (key === 'OLLAMA_BASE_URL') return 'http://custom-url:11435';
         return defaultValue;
@@ -33,7 +33,7 @@ describe('EmbeddingsService', () => {
     });
 
     it('should use default model if env not set', () => {
-      jest.spyOn(configService, 'get').mockImplementation((key: string, defaultValue?: string) => {
+      configService.get.mockImplementation((key: string, defaultValue?: string) => {
         return defaultValue;
       });
 
@@ -43,7 +43,7 @@ describe('EmbeddingsService', () => {
     });
 
     it('should use default Ollama URL if env not set', () => {
-      jest.spyOn(configService, 'get').mockImplementation((key: string, defaultValue?: string) => {
+      configService.get.mockImplementation((key: string, defaultValue?: string) => {
         return defaultValue;
       });
 
@@ -61,7 +61,7 @@ describe('EmbeddingsService', () => {
 
   describe('configuration', () => {
     it('should read EMBEDDINGS_MODEL from config', () => {
-      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+      configService.get.mockImplementation((key: string) => {
         if (key === 'EMBEDDINGS_MODEL') return 'test-model';
         return undefined;
       });
@@ -73,7 +73,7 @@ describe('EmbeddingsService', () => {
     });
 
     it('should read OLLAMA_BASE_URL from config', () => {
-      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+      configService.get.mockImplementation((key: string) => {
         if (key === 'OLLAMA_BASE_URL') return 'http://test-url:11435';
         return undefined;
       });
