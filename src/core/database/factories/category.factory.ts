@@ -1,9 +1,14 @@
 import { Category } from '@/modules/product/entities';
 
 export interface CreateCategoryOptions {
+  id?: string;
   name?: string;
   slug?: string;
+  description?: string | null;
+  parentId?: string | null;
   shopId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export function createCategory(options: CreateCategoryOptions = {}): Partial<Category> {
@@ -13,6 +18,21 @@ export function createCategory(options: CreateCategoryOptions = {}): Partial<Cat
     name,
     slug: options.slug || name.toLowerCase().replace(/\s+/g, '-'),
     shopId: options.shopId || '',
+  };
+}
+
+export function createCategoryEntity(options: CreateCategoryOptions = {}): Category {
+  const name = options.name || 'Test Category';
+  const now = new Date();
+
+  return {
+    id: options.id ?? 'cat_001',
+    name,
+    slug: options.slug || name.toLowerCase().replace(/\s+/g, '-'),
+    shopId: options.shopId || 'shop_001',
+    shop: null as unknown as Category['shop'],
+    createdAt: options.createdAt ?? now,
+    updatedAt: options.updatedAt ?? now,
   };
 }
 

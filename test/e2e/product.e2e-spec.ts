@@ -1,29 +1,25 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
+import { mockAuthGuard, mockGuard } from '@/common/utils';
 import { ProductController } from '@/modules/product/product.controller';
 import { ProductService } from '@/modules/product/product.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { CanActivate, ConflictException, INestApplication, NotFoundException, ValidationPipe } from '@nestjs/common';
+import { ConflictException, INestApplication, NotFoundException, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 
-const mockAuthGuard: CanActivate = {
-  canActivate: (context) => {
-    const req = context.switchToHttp().getRequest();
-    req.user = { sub: 'user-1', shopId: 'shop-1', role: 'owner', email: 'test@example.com' };
-    return true;
-  },
-};
-
-const mockRolesGuard: CanActivate = {
-  canActivate: () => true,
-};
-
 describe('Product E2E', () => {
   let app: INestApplication;
-  let productService: DeepMocked<ProductService>;
+  let service: DeepMocked<ProductService>;
+
+  const mockUser = {
+    sub: 'user-1',
+    shopId: 'shop-1',
+    role: 'owner',
+    email: 'test@example.com',
+  };
 
   const mockProduct = {
     id: 'prod-1',
@@ -46,9 +42,9 @@ describe('Product E2E', () => {
       .overrideGuard(ThrottlerGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(AuthGuard)
-      .useValue(mockAuthGuard)
+      .useValue(mockAuthGuard(mockUser))
       .overrideGuard(RolesGuard)
-      .useValue(mockRolesGuard)
+      .useValue(mockGuard())
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -62,7 +58,7 @@ describe('Product E2E', () => {
     );
     await app.init();
 
-    productService = app.get<DeepMocked<ProductService>>(ProductService);
+    service = app.get<DeepMocked<ProductService>>(ProductService);
   });
 
   afterAll(async () => {
@@ -75,7 +71,7 @@ describe('Product E2E', () => {
 
   describe('POST /products', () => {
     it('should create a product', async () => {
-      productService.create.mockResolvedValue(mockProduct as any);
+      service.create.mockResolvedValue(mockProduct as any);
 
       const response = await request(app.getHttpServer())
         .post('/products')
@@ -95,7 +91,7 @@ describe('Product E2E', () => {
     });
 
     it('should return 409 for duplicate SKU', async () => {
-      productService.create.mockRejectedValue(new ConflictException('SKU already exists'));
+      service.create.mockRejectedValue(new ConflictException('SKU already exists'));
 
       await request(app.getHttpServer())
         .post('/products')
@@ -106,7 +102,7 @@ describe('Product E2E', () => {
 
   describe('GET /products', () => {
     it('should return paginated products', async () => {
-      productService.findAll.mockResolvedValue({
+      service.findAll.mockResolvedValue({
         success: true,
         data: [mockProduct] as any[],
         pagination: { total: 1, page: 1, limit: 10, totalPages: 1 },
@@ -122,7 +118,7 @@ describe('Product E2E', () => {
 
   describe('GET /products/:id', () => {
     it('should return a product by ID', async () => {
-      productService.findOne.mockResolvedValue(mockProduct as any);
+      service.findOne.mockResolvedValue(mockProduct as any);
 
       const response = await request(app.getHttpServer()).get('/products/prod-1').expect(200);
 
@@ -132,7 +128,7 @@ describe('Product E2E', () => {
     });
 
     it('should return 404 for non-existent product', async () => {
-      productService.findOne.mockRejectedValue(new NotFoundException('Product not found'));
+      service.findOne.mockRejectedValue(new NotFoundException('Product not found'));
 
       await request(app.getHttpServer()).get('/products/non-existent').expect(404);
     });
@@ -140,7 +136,7 @@ describe('Product E2E', () => {
 
   describe('PATCH /products/:id', () => {
     it('should update a product', async () => {
-      productService.update.mockResolvedValue({ ...mockProduct, name: 'Updated' } as any);
+      service.update.mockResolvedValue({ ...mockProduct, name: 'Updated' } as any);
 
       const response = await request(app.getHttpServer())
         .patch('/products/prod-1')
@@ -154,7 +150,7 @@ describe('Product E2E', () => {
 
   describe('DELETE /products/:id', () => {
     it('should soft delete a product', async () => {
-      productService.remove.mockResolvedValue(undefined);
+      service.remove.mockResolvedValue(undefined);
 
       const response = await request(app.getHttpServer()).delete('/products/prod-1').expect(200);
 
@@ -165,7 +161,7 @@ describe('Product E2E', () => {
 
   describe('PATCH /products/:id/stock', () => {
     it('should update stock quantity', async () => {
-      productService.updateStock.mockResolvedValue({ ...mockProduct, quantity: 200 } as any);
+      service.updateStock.mockResolvedValue({ ...mockProduct, quantity: 200 } as any);
 
       const response = await request(app.getHttpServer())
         .patch('/products/prod-1/stock')
@@ -179,7 +175,7 @@ describe('Product E2E', () => {
 
   describe('PATCH /products/:id/stock/adjust', () => {
     it('should adjust stock', async () => {
-      productService.adjustStock.mockResolvedValue({ ...mockProduct, quantity: 150 } as any);
+      service.adjustStock.mockResolvedValue({ ...mockProduct, quantity: 150 } as any);
 
       const response = await request(app.getHttpServer())
         .patch('/products/prod-1/stock/adjust')
@@ -193,8 +189,8 @@ describe('Product E2E', () => {
 
   describe('GET /products/stats', () => {
     it('should return product statistics', async () => {
-      productService.count.mockResolvedValue(50);
-      productService.findLowStock.mockResolvedValue([]);
+      service.count.mockResolvedValue(50);
+      service.findLowStock.mockResolvedValue([]);
 
       const response = await request(app.getHttpServer()).get('/products/stats').expect(200);
 
@@ -206,7 +202,7 @@ describe('Product E2E', () => {
 
   describe('GET /products/low-stock', () => {
     it('should return low stock products', async () => {
-      productService.findLowStock.mockResolvedValue([mockProduct] as any[]);
+      service.findLowStock.mockResolvedValue([mockProduct] as any[]);
 
       const response = await request(app.getHttpServer()).get('/products/low-stock').expect(200);
 

@@ -1,31 +1,35 @@
-import { AuthController } from '@/core/auth/auth.controller';
-import { AuthService } from '@/core/auth/auth.service';
 import { AuthGuard } from '@/common/guards';
-import {
-  CanActivate,
-  ConflictException,
-  INestApplication,
-  UnauthorizedException,
-  ValidationPipe,
-} from '@nestjs/common';
+import { AuthConfig, TokenPayload } from '@/common/types';
+import { mockAuthGuard } from '@/common/utils';
+import { AuthController } from '@/core/auth/auth.controller';
+import { AuthOptions } from '@/core/auth/auth.module';
+import { AuthService } from '@/core/auth/auth.service';
+import { AuthResponseDto } from '@/core/auth/dto';
+
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { ConflictException, INestApplication, UnauthorizedException, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 
-const mockAuthGuard: CanActivate = {
-  canActivate: (context) => {
-    const req = context.switchToHttp().getRequest();
-    req.user = { sub: 'user-123', shopId: 'shop-456', role: 'owner', email: 'test@example.com' };
-    return true;
-  },
-};
-
 describe('Auth E2E', () => {
   let app: INestApplication;
-  let authService: jest.Mocked<AuthService>;
+  let service: DeepMocked<AuthService>;
 
-  const mockAuthResponse = {
+  const mockUser: TokenPayload = {
+    sub: 'user-123',
+    email: 'test@example.com',
+    shopId: 'shop-456',
+    role: 'owner',
+  };
+
+  const mockAuthConfig: AuthOptions = {
+    refreshTokenCookie: 'refreshToken',
+    refreshTokenMaxAge: 604800000,
+  };
+
+  const mockAuthResponse: AuthResponseDto = {
     email: 'test@example.com',
     accessToken: 'mock-access-token',
     refreshToken: 'mock-refresh-token',
@@ -39,25 +43,21 @@ describe('Auth E2E', () => {
   };
 
   beforeAll(async () => {
-    authService = {
-      register: jest.fn(),
-      signIn: jest.fn(),
-      refreshToken: jest.fn(),
-      getProfile: jest.fn(),
-    } as unknown as jest.Mocked<AuthService>;
-
-    const moduleRef = await Test.createTestingModule({
+    const module: TestingModule = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true })],
+      providers: [
+        { provide: AuthConfig, useValue: mockAuthConfig },
+        { provide: AuthService, useValue: createMock<AuthService>() },
+      ],
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: authService }],
     })
       .overrideGuard(ThrottlerGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(AuthGuard)
-      .useValue(mockAuthGuard)
+      .useValue(mockAuthGuard(mockUser))
       .compile();
 
-    app = moduleRef.createNestApplication();
+    app = module.createNestApplication();
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -67,6 +67,8 @@ describe('Auth E2E', () => {
       }),
     );
     await app.init();
+
+    service = module.get<DeepMocked<AuthService>>(AuthService);
   });
 
   afterAll(async () => {
@@ -79,7 +81,7 @@ describe('Auth E2E', () => {
 
   describe('POST /auth/register', () => {
     it('should register user and set refresh token cookie', async () => {
-      authService.register.mockResolvedValue(mockAuthResponse);
+      service.register.mockResolvedValue(mockAuthResponse);
 
       const response = await request(app.getHttpServer())
         .post('/auth/register')
@@ -109,7 +111,7 @@ describe('Auth E2E', () => {
     });
 
     it('should return 409 for duplicate email', async () => {
-      authService.register.mockRejectedValue(new ConflictException('Email already exists'));
+      service.register.mockRejectedValue(new ConflictException('Email already exists'));
 
       await request(app.getHttpServer())
         .post('/auth/register')
@@ -125,7 +127,7 @@ describe('Auth E2E', () => {
 
   describe('POST /auth/login', () => {
     it('should login and return tokens with cookie', async () => {
-      authService.signIn.mockResolvedValue(mockAuthResponse);
+      service.signIn.mockResolvedValue(mockAuthResponse);
 
       const response = await request(app.getHttpServer())
         .post('/auth/login')
@@ -141,7 +143,7 @@ describe('Auth E2E', () => {
     });
 
     it('should return 401 for invalid credentials', async () => {
-      authService.signIn.mockRejectedValue(new UnauthorizedException('Invalid credentials'));
+      service.signIn.mockRejectedValue(new UnauthorizedException('Invalid credentials'));
 
       await request(app.getHttpServer())
         .post('/auth/login')
@@ -152,7 +154,7 @@ describe('Auth E2E', () => {
 
   describe('POST /auth/refresh', () => {
     it('should refresh token from cookie', async () => {
-      authService.refreshToken.mockResolvedValue(mockAuthResponse);
+      service.refreshToken.mockResolvedValue(mockAuthResponse);
 
       const response = await request(app.getHttpServer())
         .post('/auth/refresh')
@@ -170,7 +172,7 @@ describe('Auth E2E', () => {
 
   describe('GET /auth/me', () => {
     it('should return user profile with valid token', async () => {
-      authService.getProfile.mockResolvedValue(mockAuthResponse.user);
+      service.getProfile.mockResolvedValue(mockAuthResponse.user);
 
       const response = await request(app.getHttpServer())
         .get('/auth/me')
