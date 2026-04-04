@@ -3,21 +3,20 @@ import { ProductDto } from './product.dto';
 import { Product } from '../entities';
 
 describe('ProductDto', () => {
-  const createMockProduct = (overrides = {}): Product => {
+  const createMockProduct = (overrides: Partial<Product> = {}): Product => {
     const base = createProduct({
       index: 1,
-      overrides: {
-        sku: 'PROD-001',
-        name: 'Wireless Mouse',
-        description: 'Ergonomic wireless mouse',
-        price: 29.99,
-        cost: 15.0,
-        quantity: 100,
-        categoryId: 'electronics-cat-uuid',
-        barcode: '5901234123457',
-        images: ['https://example.com/mouse.jpg'],
-        metadata: { brand: 'TechBrand' },
-      },
+      sku: 'PROD-001',
+      name: 'Wireless Mouse',
+      description: 'Ergonomic wireless mouse',
+      price: 29.99,
+      cost: 15.0,
+      quantity: 100,
+      categoryId: 'electronics-cat-uuid',
+      barcode: '5901234123457',
+      images: ['https://example.com/mouse.jpg'],
+      metadata: { brand: 'TechBrand' },
+      ...overrides,
     });
     return {
       ...base,

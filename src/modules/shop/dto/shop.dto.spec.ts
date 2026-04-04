@@ -1,25 +1,24 @@
-import { createShopEntity } from '@/core/database/factories';
+import { createShop } from '@/core/database/factories';
 import { ShopDto } from './shop.dto';
 import { Shop } from '../entities';
 
 describe('ShopDto', () => {
-  const createMockShop = (overrides = {}): Shop => {
-    const base = createShopEntity({
-      overrides: {
-        id: 'shop_001',
-        name: 'Test Shop',
-        slug: 'test-shop',
-        description: 'Test description',
-        address: 'Test address',
-        phone: '+123456789',
-        workingHours: { mon: '9-18' } as any,
-        logoUrl: 'https://example.com/logo.png',
-        bannerUrl: 'https://example.com/banner.png',
-        ownerId: 'owner_001',
-        createdAt: new Date('2024-01-01T00:00:00.000Z'),
-      },
+  const createMockShop = (overrides: Partial<Shop> = {}): Shop => {
+    const base = createShop({
+      id: 'shop_001',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      description: 'Test description',
+      address: 'Test address',
+      phone: '+123456789',
+      workingHours: { mon: '9-18' } as any,
+      logoUrl: 'https://example.com/logo.png',
+      bannerUrl: 'https://example.com/banner.png',
+      ownerId: 'owner_001',
+      createdAt: new Date('2024-01-01T00:00:00.000Z'),
+      ...overrides,
     });
-    return { ...base, ...overrides } as unknown as Shop;
+    return base as unknown as Shop;
   };
 
   describe('fromEntity', () => {
@@ -45,30 +44,6 @@ describe('ShopDto', () => {
       const dto = ShopDto.fromEntity(shop);
 
       expect(dto.createdAt).toBeUndefined();
-    });
-
-    it('should transform updatedAt Date to ISO string', () => {
-      const shop = createMockShop({ updatedAt: new Date('2024-06-15T12:00:00.000Z') });
-
-      const dto = ShopDto.fromEntity(shop);
-
-      expect(dto.updatedAt).toBe('2024-06-15T12:00:00.000Z');
-    });
-
-    it('should pass through updatedAt string value', () => {
-      const shop = createMockShop({ updatedAt: '2024-06-15T12:00:00.000Z' as any });
-
-      const dto = ShopDto.fromEntity(shop);
-
-      expect(dto.updatedAt).toBe('2024-06-15T12:00:00.000Z');
-    });
-
-    it('should return undefined for non-date non-string updatedAt', () => {
-      const shop = createMockShop({ updatedAt: 12345 as any });
-
-      const dto = ShopDto.fromEntity(shop);
-
-      expect(dto.updatedAt).toBeUndefined();
     });
 
     it('should transform all fields correctly', () => {

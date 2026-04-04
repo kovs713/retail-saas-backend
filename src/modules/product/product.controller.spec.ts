@@ -15,7 +15,6 @@ describe('ProductController', () => {
   const mockProduct = createProduct({
     id: 'prod_1',
     index: 1,
-    includeOptional: true,
   });
 
   const tenantContext = createMockTenantContext();

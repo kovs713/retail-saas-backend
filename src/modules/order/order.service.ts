@@ -1,5 +1,5 @@
 import { ProductRepository } from '@/modules/product/repositories';
-import { CreateOrderDto, OrderResponseDto, UpdateOrderStatusDto } from './dto';
+import { CreateOrderDto, OrderResponseDto, OrderStatus, UpdateOrderStatusDto } from './dto';
 import { Order } from './entities';
 import { OrderRepository } from './repositories';
 
@@ -51,7 +51,7 @@ export class OrderService {
       customerPhone: createOrderDto.customerPhone,
       items,
       totalAmount,
-      status: 'PENDING',
+      status: OrderStatus.PENDING,
     });
 
     const savedOrder = await this.orderRepository.save(order);
@@ -115,11 +115,11 @@ export class OrderService {
 
   private validateStatusTransition(currentStatus: Order['status'], newStatus: UpdateOrderStatusDto['status']): void {
     const validTransitions: Record<Order['status'], Order['status'][]> = {
-      PENDING: ['CONFIRMED', 'CANCELLED'],
-      CONFIRMED: ['READY', 'CANCELLED'],
-      READY: ['COMPLETED', 'CANCELLED'],
-      COMPLETED: [],
-      CANCELLED: [],
+      [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+      [OrderStatus.CONFIRMED]: [OrderStatus.READY, OrderStatus.CANCELLED],
+      [OrderStatus.READY]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+      [OrderStatus.COMPLETED]: [],
+      [OrderStatus.CANCELLED]: [],
     };
 
     if (!validTransitions[currentStatus]?.includes(newStatus)) {

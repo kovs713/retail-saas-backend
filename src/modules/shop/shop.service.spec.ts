@@ -1,8 +1,8 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { createShopEntity } from '@/core/database/factories';
-import { ShopService } from './shop.service';
+import { createShop } from '@/core/database/factories';
 import { ShopRepository } from './repositories';
+import { ShopService } from './shop.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
@@ -13,13 +13,11 @@ describe('ShopService', () => {
   let repository: DeepMocked<ShopRepository>;
   let cacheService: DeepMocked<CacheService>;
 
-  const mockShop = createShopEntity({
-    overrides: {
-      id: 'shop_001',
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: 'owner_001',
-    },
+  const mockShop = createShop({
+    id: 'shop_001',
+    name: 'Test Shop',
+    slug: 'test-shop',
+    ownerId: 'owner_001',
   });
 
   beforeEach(async () => {

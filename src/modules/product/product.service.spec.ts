@@ -1,6 +1,6 @@
 import { createMockTenantContext, mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { createCategoryEntity, createProduct } from '@/core/database/factories';
+import { createCategory, createProduct } from '@/core/database/factories';
 import { StorageService } from '@/modules/storage/storage.service';
 import { Product } from './entities';
 import { ProductService } from './product.service';
@@ -23,13 +23,11 @@ describe('ProductService', () => {
   const mockProduct: Product = createProduct({ id: 'prod_1', index: 1 });
   const mockTenantContext = createMockTenantContext();
 
-  const mockCategory = createCategoryEntity({
-    overrides: {
-      id: 'cat_001',
-      shopId: 'shop_001',
-      name: 'Electronics',
-      slug: 'electronics',
-    },
+  const mockCategory = createCategory({
+    id: 'cat_001',
+    shopId: 'shop_001',
+    name: 'Electronics',
+    slug: 'electronics',
   });
 
   beforeEach(async () => {
@@ -265,7 +263,7 @@ describe('ProductService', () => {
     it('should return a product by SKU', async () => {
       const productWithSku = createProduct({
         index: 1,
-        overrides: { sku: 'TEST-001' },
+        sku: 'TEST-001',
       });
       productRepository.findBySku.mockResolvedValue(productWithSku);
       const result = await service.findOneBySku('TEST-001', mockTenantContext);
@@ -298,7 +296,7 @@ describe('ProductService', () => {
     it('should return products below threshold', async () => {
       const lowStockProduct = createProduct({
         index: 1,
-        overrides: { quantity: 5 },
+        quantity: 5,
       });
       productRepository.findLowStock.mockResolvedValue([lowStockProduct]);
 
@@ -395,7 +393,7 @@ describe('ProductService', () => {
 
   describe('findByBarcode', () => {
     it('should find product by barcode', async () => {
-      const productWithBarcode = createProduct({ index: 1, overrides: { barcode: '5901234123457' } });
+      const productWithBarcode = createProduct({ index: 1, barcode: '5901234123457' });
       productRepository.findByBarcode.mockResolvedValue(productWithBarcode);
 
       const result = await service.findByBarcode('5901234123457', mockTenantContext);

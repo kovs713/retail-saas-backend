@@ -1,60 +1,21 @@
 import { Category } from '@/modules/product/entities';
+import { DEFAULT_IDS } from './defaults';
+import { createMany, generateId, generateUniqueName, generateUniqueSlug } from './shared.utils';
 
-import { createShop } from './shop.factory';
-import { generateId, generateUniqueName, generateUniqueSlug } from './shared.utils';
-
-const DEFAULTS = {
-  name: 'Test Category',
-};
-
-function defaultShopId(index: number): string {
-  return createShop({ index }).id;
-}
-
-interface CategoryFactoryOptions {
-  index?: number;
-  overrides?: Partial<Category>;
-}
-
-function buildCategory(options: CategoryFactoryOptions = {}): Category {
-  const { index = 1, overrides = {} } = options;
-  const now = new Date();
-  const name = overrides.name ?? DEFAULTS.name;
-
+export function createCategory(overrides: Partial<Category> & { index?: number } = {}): Category {
+  const { index = 1, ...fields } = overrides;
+  const name = overrides.name ?? generateUniqueName('Test Category', index);
   return {
-    id: overrides.id ?? generateId('cat', index),
+    id: generateId('cat', index),
+    shopId: DEFAULT_IDS.shopId(index),
     name,
-    slug: overrides.slug ?? name.toLowerCase().replace(/\s+/g, '-'),
-    shopId: overrides.shopId ?? defaultShopId(index),
-    shop: (overrides.shop ?? null) as Category['shop'],
-    createdAt: overrides.createdAt ?? now,
-    updatedAt: overrides.updatedAt ?? now,
+    slug: generateUniqueSlug(name, index),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...fields,
   } as Category;
 }
 
-export function createCategory(options: CategoryFactoryOptions = {}): Category {
-  return buildCategory(options);
-}
-
-export function createCategoryEntity(options: CategoryFactoryOptions = {}): Category {
-  return buildCategory(options);
-}
-
-export function createCategories(count: number, shopId: string): Category[] {
-  return Array.from({ length: count }, (_, i) =>
-    buildCategory({ index: i + 1, overrides: { name: generateUniqueName('Category', i + 1), shopId } }),
-  );
-}
-
-export function createNamedCategories(names: { name: string; slug?: string }[], shopId: string): Category[] {
-  return names.map((item, i) =>
-    buildCategory({
-      index: i + 1,
-      overrides: {
-        name: item.name,
-        slug: item.slug ?? item.name.toLowerCase().replace(/\s+/g, '-'),
-        shopId,
-      },
-    }),
-  );
+export function createCategories(count: number, overrides: Partial<Category> = {}): Category[] {
+  return createMany(count, (i) => createCategory({ ...overrides, index: i }));
 }

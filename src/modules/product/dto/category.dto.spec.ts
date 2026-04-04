@@ -1,20 +1,19 @@
-import { createCategoryEntity } from '@/core/database/factories';
+import { createCategory } from '@/core/database/factories';
 import { CategoryDto } from './category.dto';
 import { Category } from '../entities';
 
 describe('CategoryDto', () => {
-  const createMockCategory = (overrides = {}): Category => {
-    const base = createCategoryEntity({
-      overrides: {
-        id: 'cat_001',
-        name: 'Electronics',
-        slug: 'electronics',
-        shopId: 'shop_001',
-        createdAt: new Date('2024-01-01T00:00:00.000Z'),
-        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
-      },
+  const createMockCategory = (overrides: Partial<Category> = {}): Category => {
+    const base = createCategory({
+      id: 'cat_001',
+      name: 'Electronics',
+      slug: 'electronics',
+      shopId: 'shop_001',
+      createdAt: new Date('2024-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+      ...overrides,
     });
-    return { ...base, ...overrides } as unknown as Category;
+    return base as unknown as Category;
   };
 
   describe('fromEntity', () => {

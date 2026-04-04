@@ -1,6 +1,7 @@
 import { Shop } from '@/modules/shop/entities';
 
 import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { OrderStatus } from '../dto';
 
 @Entity('orders')
 export class Order {
@@ -25,8 +26,8 @@ export class Order {
   @Column({ type: 'int', default: 0 })
   totalAmount: number;
 
-  @Column({ type: 'enum', enum: ['PENDING', 'CONFIRMED', 'READY', 'COMPLETED', 'CANCELLED'], default: 'PENDING' })
-  status: 'PENDING' | 'CONFIRMED' | 'READY' | 'COMPLETED' | 'CANCELLED';
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
+  status: OrderStatus;
 
   @CreateDateColumn()
   createdAt: Date;

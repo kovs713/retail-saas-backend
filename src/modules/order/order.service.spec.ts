@@ -19,7 +19,7 @@ describe('OrderService', () => {
   let orderRepository: DeepMocked<OrderRepository>;
   let productRepository: DeepMocked<ProductRepository>;
 
-  const mockOrder = createOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } });
+  const mockOrder = createOrder({ id: 'order_001', shopId: 'shop_001' });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -89,7 +89,7 @@ describe('OrderService', () => {
   describe('updateStatus', () => {
     it('should reject invalid status transitions with bad request', async () => {
       orderRepository.findByIdAndShopId.mockResolvedValue(
-        createCompletedOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } }),
+        createCompletedOrder({ id: 'order_001', shopId: 'shop_001' }),
       );
 
       await expect(
@@ -181,9 +181,7 @@ describe('OrderService', () => {
   describe('updateStatus', () => {
     it('should update order status with valid transition PENDING -> CONFIRMED', async () => {
       orderRepository.findByIdAndShopId.mockResolvedValue(mockOrder);
-      orderRepository.save.mockResolvedValue(
-        createConfirmedOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } }),
-      );
+      orderRepository.save.mockResolvedValue(createConfirmedOrder({ id: 'order_001', shopId: 'shop_001' }));
 
       const result = await service.updateStatus('order_001', 'shop_001', {
         status: 'CONFIRMED',
@@ -195,9 +193,7 @@ describe('OrderService', () => {
 
     it('should allow PENDING -> CANCELLED transition', async () => {
       orderRepository.findByIdAndShopId.mockResolvedValue(mockOrder);
-      orderRepository.save.mockResolvedValue(
-        createCancelledOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } }),
-      );
+      orderRepository.save.mockResolvedValue(createCancelledOrder({ id: 'order_001', shopId: 'shop_001' }));
 
       await service.updateStatus('order_001', 'shop_001', { status: 'CANCELLED' } as UpdateOrderStatusDto);
 
@@ -205,9 +201,9 @@ describe('OrderService', () => {
     });
 
     it('should allow CONFIRMED -> READY transition', async () => {
-      const confirmedOrder = createConfirmedOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } });
+      const confirmedOrder = createConfirmedOrder({ id: 'order_001', shopId: 'shop_001' });
       orderRepository.findByIdAndShopId.mockResolvedValue(confirmedOrder);
-      orderRepository.save.mockResolvedValue(createReadyOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } }));
+      orderRepository.save.mockResolvedValue(createReadyOrder({ id: 'order_001', shopId: 'shop_001' }));
 
       await service.updateStatus('order_001', 'shop_001', { status: 'READY' } as UpdateOrderStatusDto);
 
@@ -215,11 +211,9 @@ describe('OrderService', () => {
     });
 
     it('should allow READY -> COMPLETED transition', async () => {
-      const readyOrder = createReadyOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } });
+      const readyOrder = createReadyOrder({ id: 'order_001', shopId: 'shop_001' });
       orderRepository.findByIdAndShopId.mockResolvedValue(readyOrder);
-      orderRepository.save.mockResolvedValue(
-        createCompletedOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } }),
-      );
+      orderRepository.save.mockResolvedValue(createCompletedOrder({ id: 'order_001', shopId: 'shop_001' }));
 
       await service.updateStatus('order_001', 'shop_001', { status: 'COMPLETED' } as UpdateOrderStatusDto);
 
@@ -228,7 +222,7 @@ describe('OrderService', () => {
 
     it('should reject COMPLETED -> any transition', async () => {
       orderRepository.findByIdAndShopId.mockResolvedValue(
-        createCompletedOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } }),
+        createCompletedOrder({ id: 'order_001', shopId: 'shop_001' }),
       );
 
       await expect(
@@ -238,7 +232,7 @@ describe('OrderService', () => {
 
     it('should reject CANCELLED -> any transition', async () => {
       orderRepository.findByIdAndShopId.mockResolvedValue(
-        createCancelledOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } }),
+        createCancelledOrder({ id: 'order_001', shopId: 'shop_001' }),
       );
 
       await expect(
@@ -248,7 +242,7 @@ describe('OrderService', () => {
 
     it('should reject CONFIRMED -> PENDING transition', async () => {
       orderRepository.findByIdAndShopId.mockResolvedValue(
-        createConfirmedOrder({ overrides: { id: 'order_001', shopId: 'shop_001' } }),
+        createConfirmedOrder({ id: 'order_001', shopId: 'shop_001' }),
       );
 
       await expect(
