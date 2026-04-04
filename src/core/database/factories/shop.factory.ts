@@ -17,12 +17,13 @@ export function createShop(overrides: ShopOverrides = {}): Shop {
     bannerUrl: null,
     isActive: true,
     ownerId: null,
+    owner: null,
     chatEvents: [],
     storefrontViews: [],
     orders: [],
     createdAt: new Date(),
     ...fields,
-  } as Shop;
+  };
 }
 
 export function createShops(count: number, overrides: Omit<ShopOverrides, 'index'> = {}): Shop[] {

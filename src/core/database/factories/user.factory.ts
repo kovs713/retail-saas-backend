@@ -20,7 +20,7 @@ export function createUser(overrides: UserOverrides = {}): User {
     createdAt: now,
     updatedAt: now,
     ...fields,
-  } as User;
+  };
 }
 
 export function createUsers(count: number, overrides: Omit<UserOverrides, 'index'> = {}): User[] {
