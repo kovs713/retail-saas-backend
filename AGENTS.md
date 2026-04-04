@@ -34,7 +34,6 @@
 - Unit test: `pnpm run test -- path/to/file.spec.ts`
 - Integration test: `pnpm run test:integration -- path/to/file.integration.spec.ts`
 - E2E test: `pnpm run test:e2e -- path/to/file.e2e-spec.ts`
-- RAG test: `pnpm run test:rag`
 - Debug single test: `pnpm run test:debug` then use debugger
 - Watch specific test: `pnpm run test -- path/to/file.spec.ts --watch`
 
@@ -92,18 +91,15 @@
 
 ```
 src/
-├── core/               # Core modules (auth, logger, cache)
+├── core/               # Core modules (auth, logger, cache, database)
 ├── common/             # Shared utils, decorators, dto, types
 ├── modules/            # Feature modules (rag, product, storage, user, org, shop, category)
-├── database/           # DB config, seeds, migrations
-├── config/             # Configuration
 ├── app.module.ts       # Root application module
 └── main.ts             # Entry point (Swagger, CORS, ValidationPipe)
 test/
 ├── unit/               # Unit tests (*.spec.ts)
 ├── integration/        # Integration tests (*.integration.spec.ts)
-├── e2e/                # E2E tests (*.e2e-spec.ts)
-└__mocks__/             # Jest mocks
+└── e2e/                # E2E tests (*.e2e-spec.ts)
 ```
 
 ### Key Development Patterns
@@ -124,12 +120,11 @@ test/
 
 - `@typescript-eslint/no-explicit-any`: off
 - `@typescript-eslint/no-floating-promises`: warn
+- `@typescript-eslint/no-unsafe-argument`: warn
 - `no-console`: warn
-- `@typescript-eslint/consistent-type-imports`: warn
-- `@typescript-eslint/no-misused-promises`: off
-- Test files: relaxed rules for unsafe assignments/calls
-- Prefer const over let
-- Prefer arrow functions for callbacks
+- Test files (`*.spec.ts`, `*.e2e-spec.ts`): off for unbound-method, no-unsafe-assignment/member-access/call/argument
+- Guard files: off for no-unsafe-assignment/member-access
+- Uses type-checked parser (`projectService: true`)
 
 ### Jest Config
 
@@ -145,7 +140,7 @@ test/
 
 - **Framework**: NestJS v11 + TypeScript v5
 - **Database**: PostgreSQL + TypeORM
-- **Cache**: Redis (ioredis client)
+- **Cache**: Redis (`redis` package, v5+)
 - **Vector DB**: ChromaDB (RAG)
 - **Storage**: MinIO S3
 - **AI/ML**: LangChain, Groq, Ollama
