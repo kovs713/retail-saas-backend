@@ -26,7 +26,7 @@ describe('Product Factory', () => {
       expect(product.quantity).toBe(100);
       expect(product.description).toBe('A test product description');
       expect(product.cost).toBe(15.0);
-      expect(product.categoryId).toBe('test-category-uuid');
+      expect(product.categoryId).toBe('category-001');
     });
 
     it('should apply overrides', () => {

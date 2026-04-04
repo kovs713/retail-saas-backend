@@ -1,5 +1,6 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { mockAuthGuard, mockGuard } from '@/common/utils';
+import { createProduct, createTokenPayload } from '@/core/database/factories';
 import { ProductController } from '@/modules/product/product.controller';
 import { ProductService } from '@/modules/product/product.service';
 
@@ -14,24 +15,19 @@ describe('Product E2E', () => {
   let app: INestApplication;
   let service: DeepMocked<ProductService>;
 
-  const mockUser = {
-    sub: 'user-1',
-    shopId: 'shop-1',
-    role: 'owner',
-    email: 'test@example.com',
-  };
+  const mockUser = createTokenPayload({ overrides: { sub: 'user_001', shopId: 'shop_001' } });
 
-  const mockProduct = {
-    id: 'prod-1',
-    sku: 'TEST-001',
-    name: 'Test Product',
-    price: 29.99,
-    quantity: 100,
-    description: 'A test product',
-    shopId: 'shop-1',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  const mockProduct = createProduct({
+    id: 'prod_001',
+    index: 1,
+    overrides: {
+      sku: 'TEST-001',
+      name: 'Test Product',
+      price: 29.99,
+      quantity: 100,
+      description: 'A test product',
+    },
+  });
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -120,10 +116,10 @@ describe('Product E2E', () => {
     it('should return a product by ID', async () => {
       service.findOne.mockResolvedValue(mockProduct as any);
 
-      const response = await request(app.getHttpServer()).get('/products/prod-1').expect(200);
+      const response = await request(app.getHttpServer()).get('/products/prod_001').expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data.id).toBe('prod-1');
+      expect(response.body.data.id).toBe('prod_001');
       expect(response.body.data.name).toBe('Test Product');
     });
 
@@ -139,7 +135,7 @@ describe('Product E2E', () => {
       service.update.mockResolvedValue({ ...mockProduct, name: 'Updated' } as any);
 
       const response = await request(app.getHttpServer())
-        .patch('/products/prod-1')
+        .patch('/products/prod_001')
         .send({ name: 'Updated' })
         .expect(200);
 
@@ -152,7 +148,7 @@ describe('Product E2E', () => {
     it('should soft delete a product', async () => {
       service.remove.mockResolvedValue(undefined);
 
-      const response = await request(app.getHttpServer()).delete('/products/prod-1').expect(200);
+      const response = await request(app.getHttpServer()).delete('/products/prod_001').expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.message).toBe('Product deleted successfully');
@@ -164,7 +160,7 @@ describe('Product E2E', () => {
       service.updateStock.mockResolvedValue({ ...mockProduct, quantity: 200 } as any);
 
       const response = await request(app.getHttpServer())
-        .patch('/products/prod-1/stock')
+        .patch('/products/prod_001/stock')
         .send({ quantity: 200 })
         .expect(200);
 
@@ -178,7 +174,7 @@ describe('Product E2E', () => {
       service.adjustStock.mockResolvedValue({ ...mockProduct, quantity: 150 } as any);
 
       const response = await request(app.getHttpServer())
-        .patch('/products/prod-1/stock/adjust')
+        .patch('/products/prod_001/stock/adjust')
         .send({ adjustment: 50 })
         .expect(200);
 

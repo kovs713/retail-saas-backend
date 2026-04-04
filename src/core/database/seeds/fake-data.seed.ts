@@ -2,7 +2,7 @@ import { Category, Product } from '@/modules/product/entities';
 import { Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
 import { AppModule } from 'src/app.module';
-import { createAdminUser, createCategory, createManagerUser, createOwnerUser, createShop } from '../factories';
+import { createAdminUser, createCategory, createEmployeeUser, createOwnerUser, createShop } from '../factories';
 
 import { Faker, en } from '@faker-js/faker';
 import { NestFactory } from '@nestjs/core';
@@ -93,7 +93,9 @@ async function bootstrap() {
 
   const shops = await Promise.all(
     SHOP_SEEDS.map(async (data) => {
-      const shop = shopRepo.create(createShop({ name: data.name, slug: data.slug, description: data.description }));
+      const shop = shopRepo.create(
+        createShop({ overrides: { name: data.name, slug: data.slug, description: data.description } }),
+      );
       return shopRepo.save(shop);
     }),
   );
@@ -102,11 +104,11 @@ async function bootstrap() {
   const adminPasswordHash = await hash('admin123', 10);
 
   const users = await Promise.all([
-    userRepo.save(createOwnerUser(shops[0].id, passwordHash, 'owner@electronics-hub.com')),
-    userRepo.save(createOwnerUser(shops[1].id, passwordHash, 'owner@fashion-store.com')),
-    userRepo.save(createAdminUser(adminPasswordHash)),
-    userRepo.save(createManagerUser(shops[0].id, passwordHash, 'manager@electronics-hub.com')),
-    userRepo.save(createManagerUser(shops[1].id, passwordHash, 'manager@fashion-store.com')),
+    userRepo.save(createOwnerUser(shops[0].id, { email: 'owner@electronics-hub.com', passwordHash })),
+    userRepo.save(createOwnerUser(shops[1].id, { email: 'owner@fashion-store.com', passwordHash })),
+    userRepo.save(createAdminUser({ passwordHash: adminPasswordHash })),
+    userRepo.save(createEmployeeUser(shops[0].id, { email: 'manager@electronics-hub.com', passwordHash })),
+    userRepo.save(createEmployeeUser(shops[1].id, { email: 'manager@fashion-store.com', passwordHash })),
   ]);
 
   shops[0].ownerId = users[0].id;
@@ -115,10 +117,10 @@ async function bootstrap() {
 
   const allCategories = await Promise.all([
     ...SHOP_SEEDS[0].categories.map((cat) =>
-      categoryRepo.save(createCategory({ name: cat.name, slug: cat.slug, shopId: shops[0].id })),
+      categoryRepo.save(createCategory({ overrides: { name: cat.name, slug: cat.slug, shopId: shops[0].id } })),
     ),
     ...SHOP_SEEDS[1].categories.map((cat) =>
-      categoryRepo.save(createCategory({ name: cat.name, slug: cat.slug, shopId: shops[1].id })),
+      categoryRepo.save(createCategory({ overrides: { name: cat.name, slug: cat.slug, shopId: shops[1].id } })),
     ),
   ]);
 

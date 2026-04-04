@@ -1,10 +1,10 @@
 import { AuthGuard } from '@/common/guards';
-import { AuthConfig, TokenPayload } from '@/common/types';
+import { AuthConfig } from '@/common/types';
 import { mockAuthGuard } from '@/common/utils';
+import { createAuthResponseDto, createTokenPayload } from '@/core/database/factories';
 import { AuthController } from '@/core/auth/auth.controller';
 import { AuthOptions } from '@/core/auth/auth.module';
 import { AuthService } from '@/core/auth/auth.service';
-import { AuthResponseDto } from '@/core/auth/dto';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConflictException, INestApplication, UnauthorizedException, ValidationPipe } from '@nestjs/common';
@@ -17,30 +17,18 @@ describe('Auth E2E', () => {
   let app: INestApplication;
   let service: DeepMocked<AuthService>;
 
-  const mockUser: TokenPayload = {
-    sub: 'user-123',
-    email: 'test@example.com',
-    shopId: 'shop-456',
-    role: 'owner',
-  };
+  const mockUser = createTokenPayload({ overrides: { sub: 'user_001', shopId: 'shop_001' } });
 
   const mockAuthConfig: AuthOptions = {
     refreshTokenCookie: 'refreshToken',
     refreshTokenMaxAge: 604800000,
   };
 
-  const mockAuthResponse: AuthResponseDto = {
+  const mockAuthResponse = createAuthResponseDto({
     email: 'test@example.com',
-    accessToken: 'mock-access-token',
-    refreshToken: 'mock-refresh-token',
-    user: {
-      id: 'user-123',
-      email: 'test@example.com',
-      role: 'owner',
-      shopId: 'shop-456',
-      isActive: true,
-    },
-  };
+    userId: 'user_001',
+    shopId: 'shop_001',
+  });
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -95,7 +83,7 @@ describe('Auth E2E', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.accessToken).toBe(mockAuthResponse.accessToken);
-      expect(response.body.data.user.id).toBe('user-123');
+      expect(response.body.data.user.id).toBe('user_001');
       expect(response.body.message).toBe('User registered successfully');
 
       const setCookie = response.headers['set-cookie'];
@@ -180,7 +168,7 @@ describe('Auth E2E', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data.id).toBe('user-123');
+      expect(response.body.data.id).toBe('user_001');
       expect(response.body.data.email).toBe('test@example.com');
     });
   });

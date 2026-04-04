@@ -1,4 +1,4 @@
-import { createCategories, createCategory, createNamedCategories } from '@/core/database/factories';
+import { createCategories, createCategory, createNamedCategories } from './category.factory';
 
 describe('CategoryFactory', () => {
   describe('createCategory', () => {
@@ -7,14 +7,16 @@ describe('CategoryFactory', () => {
 
       expect(category.name).toBe('Test Category');
       expect(category.slug).toBe('test-category');
-      expect(category.shopId).toBe('');
+      expect(category.shopId).toBe('shop_001');
     });
 
     it('should create a category with custom options', () => {
       const category = createCategory({
-        name: 'Electronics',
-        slug: 'electronics',
-        shopId: 'shop-123',
+        overrides: {
+          name: 'Electronics',
+          slug: 'electronics',
+          shopId: 'shop-123',
+        },
       });
 
       expect(category.name).toBe('Electronics');
@@ -24,7 +26,9 @@ describe('CategoryFactory', () => {
 
     it('should auto-generate slug from name', () => {
       const category = createCategory({
-        name: 'My Custom Category',
+        overrides: {
+          name: 'My Custom Category',
+        },
       });
 
       expect(category.slug).toBe('my-custom-category');

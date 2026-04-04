@@ -1,6 +1,20 @@
 import { Order } from '@/modules/order/entities';
 
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'READY' | 'COMPLETED' | 'CANCELLED';
+import { createShop } from './shop.factory';
+import { generateId } from './shared.utils';
+
+type OrderStatus = Order['status'];
+
+const DEFAULTS = {
+  customerName: 'Test Customer',
+  customerPhone: '+1234567890',
+  status: 'PENDING' as OrderStatus,
+  defaultItems: [{ productId: 'prod_001', quantity: 2, price: 100 }],
+};
+
+function defaultShopId(index: number): string {
+  return createShop({ index }).id;
+}
 
 interface OrderItem {
   productId: string;
@@ -8,71 +22,66 @@ interface OrderItem {
   price: number;
 }
 
-interface CreateOrderOptions {
-  id?: string;
-  shopId?: string;
-  customerName?: string;
-  customerPhone?: string;
-  items?: OrderItem[];
-  totalAmount?: number;
-  status?: OrderStatus;
-  createdAt?: Date;
-  updatedAt?: Date;
+interface OrderFactoryOptions {
+  index?: number;
+  overrides?: Partial<Order> & { items?: OrderItem[] };
 }
 
-const DEFAULT_ITEMS: OrderItem[] = [{ productId: 'prod_001', quantity: 2, price: 100 }];
+function calcTotal(items: OrderItem[]): number {
+  return items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+}
 
-function buildOrder(options: CreateOrderOptions = {}): Order {
-  const items = options.items ?? DEFAULT_ITEMS;
+function buildOrder(options: OrderFactoryOptions = {}): Order {
+  const { index = 1, overrides = {} } = options;
   const now = new Date();
+  const items = overrides.items ?? DEFAULTS.defaultItems;
 
   return {
-    id: options.id ?? 'order_001',
-    shop: null as any,
-    shopId: options.shopId ?? 'shop_001',
-    customerName: options.customerName ?? 'Test Customer',
-    customerPhone: options.customerPhone ?? '+1234567890',
+    id: overrides.id ?? generateId('order', index),
+    shop: (overrides.shop ?? null) as Order['shop'],
+    shopId: overrides.shopId ?? defaultShopId(index),
+    customerName: overrides.customerName ?? DEFAULTS.customerName,
+    customerPhone: overrides.customerPhone ?? DEFAULTS.customerPhone,
     items,
-    totalAmount: options.totalAmount ?? items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-    status: options.status ?? 'PENDING',
-    createdAt: options.createdAt ?? now,
-    updatedAt: options.updatedAt ?? now,
-  };
+    totalAmount: overrides.totalAmount ?? calcTotal(items),
+    status: overrides.status ?? DEFAULTS.status,
+    createdAt: overrides.createdAt ?? now,
+    updatedAt: overrides.updatedAt ?? now,
+  } as Order;
 }
 
-export function createOrder(options: CreateOrderOptions = {}): Order {
+export function createOrder(options: OrderFactoryOptions = {}): Order {
   return buildOrder(options);
 }
 
-export function createOrders(count: number, options: CreateOrderOptions = {}): Order[] {
-  return Array.from({ length: count }, (_, i) =>
-    buildOrder({
-      ...options,
-      id: options.id ?? `order_${String(i + 1).padStart(3, '0')}`,
-    }),
-  );
+export function createOrders(count: number, options: Omit<OrderFactoryOptions, 'index'> = {}): Order[] {
+  return Array.from({ length: count }, (_, i) => buildOrder({ ...options, index: i + 1 }));
 }
 
-export function createPendingOrder(options: CreateOrderOptions = {}): Order {
-  return buildOrder({ ...options, status: 'PENDING' });
+export function createOrderWithStatus(status: OrderStatus, options: OrderFactoryOptions = {}): Order {
+  return buildOrder({ ...options, overrides: { ...options.overrides, status } });
 }
 
-export function createConfirmedOrder(options: CreateOrderOptions = {}): Order {
-  return buildOrder({ ...options, status: 'CONFIRMED' });
+export function createPendingOrder(options: OrderFactoryOptions = {}): Order {
+  return createOrderWithStatus('PENDING', options);
 }
 
-export function createReadyOrder(options: CreateOrderOptions = {}): Order {
-  return buildOrder({ ...options, status: 'READY' });
+export function createConfirmedOrder(options: OrderFactoryOptions = {}): Order {
+  return createOrderWithStatus('CONFIRMED', options);
 }
 
-export function createCompletedOrder(options: CreateOrderOptions = {}): Order {
-  return buildOrder({ ...options, status: 'COMPLETED' });
+export function createReadyOrder(options: OrderFactoryOptions = {}): Order {
+  return createOrderWithStatus('READY', options);
 }
 
-export function createCancelledOrder(options: CreateOrderOptions = {}): Order {
-  return buildOrder({ ...options, status: 'CANCELLED' });
+export function createCompletedOrder(options: OrderFactoryOptions = {}): Order {
+  return createOrderWithStatus('COMPLETED', options);
 }
 
-export function createOrderWithItems(items: OrderItem[], options: CreateOrderOptions = {}): Order {
-  return buildOrder({ ...options, items });
+export function createCancelledOrder(options: OrderFactoryOptions = {}): Order {
+  return createOrderWithStatus('CANCELLED', options);
+}
+
+export function createOrderWithItems(items: OrderItem[], options: OrderFactoryOptions = {}): Order {
+  return buildOrder({ ...options, overrides: { ...options.overrides, items } });
 }

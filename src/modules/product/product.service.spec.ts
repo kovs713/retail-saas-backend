@@ -1,8 +1,8 @@
 import { createMockTenantContext, mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { createProduct } from '@/core/database/factories';
+import { createCategoryEntity, createProduct } from '@/core/database/factories';
 import { StorageService } from '@/modules/storage/storage.service';
-import { Category, Product } from './entities';
+import { Product } from './entities';
 import { ProductService } from './product.service';
 import { CategoryRepository, ProductRepository } from './repositories';
 
@@ -23,15 +23,14 @@ describe('ProductService', () => {
   const mockProduct: Product = createProduct({ id: 'prod_1', index: 1 });
   const mockTenantContext = createMockTenantContext();
 
-  const mockCategory: Category = {
-    id: 'cat-1',
-    shopId: 'shop-1',
-    name: 'Electronics',
-    slug: 'electronics',
-    shop: null as any,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  const mockCategory = createCategoryEntity({
+    overrides: {
+      id: 'cat_001',
+      shopId: 'shop_001',
+      name: 'Electronics',
+      slug: 'electronics',
+    },
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

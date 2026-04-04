@@ -6,11 +6,11 @@ describe('OrderResponseDto', () => {
   describe('Transform behavior', () => {
     it('should transform totalAmount to number', () => {
       const raw = {
-        id: 'order-1',
-        shopId: 'shop-1',
-        customerName: 'Alice',
-        customerPhone: '+123456789',
-        items: [{ productId: 'prod-1', quantity: 2, price: 100 }],
+        id: 'order_001',
+        shopId: 'shop_001',
+        customerName: 'Test Customer',
+        customerPhone: '+1234567890',
+        items: [{ productId: 'prod_001', quantity: 2, price: 100 }],
         totalAmount: '200',
         status: 'PENDING',
         createdAt: new Date('2024-01-01T00:00:00.000Z'),
@@ -25,10 +25,10 @@ describe('OrderResponseDto', () => {
 
     it('should transform Date fields to ISO strings', () => {
       const raw = {
-        id: 'order-1',
-        shopId: 'shop-1',
-        customerName: 'Alice',
-        customerPhone: '+123456789',
+        id: 'order_001',
+        shopId: 'shop_001',
+        customerName: 'Test Customer',
+        customerPhone: '+1234567890',
         items: [],
         totalAmount: 100,
         status: 'PENDING',
@@ -44,10 +44,10 @@ describe('OrderResponseDto', () => {
 
     it('should pass through string date values', () => {
       const raw = {
-        id: 'order-1',
-        shopId: 'shop-1',
-        customerName: 'Alice',
-        customerPhone: '+123456789',
+        id: 'order_001',
+        shopId: 'shop_001',
+        customerName: 'Test Customer',
+        customerPhone: '+1234567890',
         items: [],
         totalAmount: 100,
         status: 'PENDING',
@@ -62,10 +62,10 @@ describe('OrderResponseDto', () => {
 
     it('should return undefined for non-date non-string values', () => {
       const raw = {
-        id: 'order-1',
-        shopId: 'shop-1',
-        customerName: 'Alice',
-        customerPhone: '+123456789',
+        id: 'order_001',
+        shopId: 'shop_001',
+        customerName: 'Test Customer',
+        customerPhone: '+1234567890',
         items: [],
         totalAmount: 100,
         status: 'PENDING',
@@ -81,13 +81,13 @@ describe('OrderResponseDto', () => {
 
     it('should transform items with Type decorator', () => {
       const raw = {
-        id: 'order-1',
-        shopId: 'shop-1',
-        customerName: 'Alice',
-        customerPhone: '+123456789',
+        id: 'order_001',
+        shopId: 'shop_001',
+        customerName: 'Test Customer',
+        customerPhone: '+1234567890',
         items: [
-          { productId: 'prod-1', sku: 'SKU-1', name: 'Product 1', quantity: 2, price: 50 },
-          { productId: 'prod-2', sku: 'SKU-2', name: 'Product 2', quantity: 1, price: 100 },
+          { productId: 'prod_001', sku: 'SKU-1', name: 'Product 1', quantity: 2, price: 50 },
+          { productId: 'prod_002', sku: 'SKU-2', name: 'Product 2', quantity: 1, price: 100 },
         ],
         totalAmount: 200,
         status: 'PENDING',
@@ -109,11 +109,11 @@ describe('OrderListResponseDto', () => {
     const raw = {
       data: [
         {
-          id: 'order-1',
-          shopId: 'shop-1',
-          customerName: 'Alice',
-          customerPhone: '+123456789',
-          items: [{ productId: 'prod-1', quantity: 2, price: 100 }],
+          id: 'order_001',
+          shopId: 'shop_001',
+          customerName: 'Test Customer',
+          customerPhone: '+1234567890',
+          items: [{ productId: 'prod_001', quantity: 2, price: 100 }],
           totalAmount: '200',
           status: 'PENDING',
           createdAt: new Date('2024-01-01T00:00:00.000Z'),

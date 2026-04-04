@@ -1,27 +1,33 @@
+import { createProduct } from '@/core/database/factories';
 import { ProductDto } from './product.dto';
 import { Product } from '../entities';
 
 describe('ProductDto', () => {
-  const createMockProduct = (overrides = {}): Product =>
-    ({
-      id: 'prod-1',
-      sku: 'PROD-001',
-      name: 'Wireless Mouse',
-      description: 'Ergonomic wireless mouse',
-      price: 29.99,
-      cost: 15.0,
-      quantity: 100,
-      category: 'Electronics',
-      barcode: '5901234123457',
-      images: ['https://example.com/mouse.jpg'],
-      metadata: { brand: 'TechBrand' },
-      shopId: 'shop-1',
+  const createMockProduct = (overrides = {}): Product => {
+    const base = createProduct({
+      index: 1,
+      overrides: {
+        sku: 'PROD-001',
+        name: 'Wireless Mouse',
+        description: 'Ergonomic wireless mouse',
+        price: 29.99,
+        cost: 15.0,
+        quantity: 100,
+        categoryId: 'electronics-cat-uuid',
+        barcode: '5901234123457',
+        images: ['https://example.com/mouse.jpg'],
+        metadata: { brand: 'TechBrand' },
+      },
+    });
+    return {
+      ...base,
+      shopId: 'shop_001',
       shop: null as any,
       createdAt: new Date('2024-01-01T00:00:00.000Z'),
       updatedAt: new Date('2024-01-02T00:00:00.000Z'),
-      deletedAt: null,
       ...overrides,
-    }) as unknown as Product;
+    } as unknown as Product;
+  };
 
   describe('fromEntity', () => {
     it('should transform Date fields to ISO strings', () => {
@@ -69,8 +75,8 @@ describe('ProductDto', () => {
   describe('fromEntities', () => {
     it('should transform multiple products to DTOs', () => {
       const products = [
-        createMockProduct({ id: 'prod-1', name: 'Mouse' }),
-        createMockProduct({ id: 'prod-2', name: 'Keyboard' }),
+        createMockProduct({ id: 'prod_001', name: 'Mouse' }),
+        createMockProduct({ id: 'prod_002', name: 'Keyboard' }),
       ];
 
       const dtos = ProductDto.fromEntities(products);

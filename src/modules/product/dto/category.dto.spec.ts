@@ -1,19 +1,21 @@
+import { createCategoryEntity } from '@/core/database/factories';
 import { CategoryDto } from './category.dto';
 import { Category } from '../entities';
 
 describe('CategoryDto', () => {
-  const createMockCategory = (overrides = {}): Category =>
-    ({
-      id: 'cat-1',
-      name: 'Electronics',
-      slug: 'electronics',
-      description: 'Electronic items',
-      parentId: null,
-      shopId: 'shop-1',
-      createdAt: new Date('2024-01-01T00:00:00.000Z'),
-      updatedAt: new Date('2024-01-02T00:00:00.000Z'),
-      ...overrides,
-    }) as unknown as Category;
+  const createMockCategory = (overrides = {}): Category => {
+    const base = createCategoryEntity({
+      overrides: {
+        id: 'cat_001',
+        name: 'Electronics',
+        slug: 'electronics',
+        shopId: 'shop_001',
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+      },
+    });
+    return { ...base, ...overrides } as unknown as Category;
+  };
 
   describe('fromEntity', () => {
     it('should transform Date fields to ISO strings', () => {
@@ -50,8 +52,8 @@ describe('CategoryDto', () => {
   describe('fromEntities', () => {
     it('should transform multiple categories to DTOs', () => {
       const categories = [
-        createMockCategory({ id: 'cat-1', name: 'Electronics' }),
-        createMockCategory({ id: 'cat-2', name: 'Clothing' }),
+        createMockCategory({ id: 'cat_001', name: 'Electronics' }),
+        createMockCategory({ id: 'cat_002', name: 'Clothing' }),
       ];
 
       const dtos = CategoryDto.fromEntities(categories);

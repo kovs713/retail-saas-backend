@@ -1,15 +1,21 @@
 import { CreateProductDto, UpdateProductDto } from '@/modules/product/dto';
 import { Product } from '@/modules/product/entities';
 
+import { createCategory } from './category.factory';
+import { generateId } from './shared.utils';
+
 const DEFAULTS = {
   skuPrefix: 'TEST',
   namePrefix: 'Test Product',
   price: 29.99,
   cost: 15.0,
   quantity: 100,
-  categoryId: 'test-category-uuid',
   description: 'A test product description',
 };
+
+function defaultCategoryId(index: number): string {
+  return createCategory({ index }).id;
+}
 
 interface ProductFactoryOptions {
   index?: number;
@@ -17,45 +23,49 @@ interface ProductFactoryOptions {
   includeOptional?: boolean;
 }
 
-export function createProductDto(options: ProductFactoryOptions = {}): CreateProductDto {
+function buildProductDto(options: ProductFactoryOptions = {}): CreateProductDto {
   const { index = 1, overrides = {}, includeOptional = true } = options;
 
-  const baseProduct: CreateProductDto = {
+  const base: CreateProductDto = {
     sku: overrides.sku || `${DEFAULTS.skuPrefix}-${String(index).padStart(3, '0')}`,
     name: overrides.name || `${DEFAULTS.namePrefix} ${index}`,
     price: overrides.price ?? DEFAULTS.price,
     quantity: overrides.quantity ?? DEFAULTS.quantity,
   };
 
-  if (includeOptional || overrides.description) {
-    baseProduct.description = overrides.description ?? DEFAULTS.description;
+  if (includeOptional || overrides.description !== undefined) {
+    base.description = overrides.description ?? DEFAULTS.description;
   }
-  if (includeOptional || overrides.cost) {
-    baseProduct.cost = overrides.cost ?? DEFAULTS.cost;
+  if (includeOptional || overrides.cost !== undefined) {
+    base.cost = overrides.cost ?? DEFAULTS.cost;
   }
-  if (includeOptional || overrides.categoryId) {
-    baseProduct.categoryId = overrides.categoryId ?? DEFAULTS.categoryId;
+  if (includeOptional || overrides.categoryId !== undefined) {
+    base.categoryId = overrides.categoryId ?? defaultCategoryId(index);
   }
-  if (includeOptional || overrides.barcode) {
-    baseProduct.barcode = overrides.barcode || generateBarcode(index);
+  if (includeOptional || overrides.barcode !== undefined) {
+    base.barcode = overrides.barcode || generateBarcode(index);
   }
-  if (includeOptional || overrides.images) {
-    baseProduct.images = overrides.images || [`https://example.com/product-${index}.jpg`];
+  if (includeOptional || overrides.images !== undefined) {
+    base.images = overrides.images || [`https://example.com/product-${index}.jpg`];
   }
-  if (includeOptional || overrides.metadata) {
-    baseProduct.metadata = overrides.metadata || { test: true, index };
+  if (includeOptional || overrides.metadata !== undefined) {
+    base.metadata = overrides.metadata || { test: true, index };
   }
 
-  return baseProduct;
+  return base;
+}
+
+export function createProductDto(options: ProductFactoryOptions = {}): CreateProductDto {
+  return buildProductDto(options);
 }
 
 export function createProduct(options: ProductFactoryOptions & { id?: string } = {}): Product {
   const { id, index = 1, overrides = {}, includeOptional = true } = options;
-  const dto = createProductDto({ index, overrides, includeOptional });
+  const dto = buildProductDto({ index, overrides, includeOptional });
   const now = new Date();
 
   return {
-    id: id || `prod_${String(index).padStart(3, '0')}`,
+    id: id || generateId('prod', index),
     ...dto,
     createdAt: now,
     updatedAt: now,
@@ -76,29 +86,23 @@ export function createUpdateProductDto(overrides: Partial<UpdateProductDto> = {}
   };
 }
 
-export function createLowStockProduct(
-  quantity: number = 5,
-  overrides: Partial<CreateProductDto> = {},
-): CreateProductDto {
-  return createProductDto({ overrides: { ...overrides, quantity } });
+export function createLowStockProduct(quantity = 5, overrides: Partial<CreateProductDto> = {}): CreateProductDto {
+  return buildProductDto({ overrides: { ...overrides, quantity } });
 }
 
 export function createOutOfStockProduct(overrides: Partial<CreateProductDto> = {}): CreateProductDto {
   return createLowStockProduct(0, overrides);
 }
 
-export function createHighValueProduct(
-  price: number = 199.99,
-  overrides: Partial<CreateProductDto> = {},
-): CreateProductDto {
-  return createProductDto({ overrides: { ...overrides, price } });
+export function createHighValueProduct(price = 199.99, overrides: Partial<CreateProductDto> = {}): CreateProductDto {
+  return buildProductDto({ overrides: { ...overrides, price } });
 }
 
 export function createProductByCategory(
   categoryId: string,
   overrides: Partial<CreateProductDto> = {},
 ): CreateProductDto {
-  return createProductDto({ overrides: { ...overrides, categoryId } });
+  return buildProductDto({ overrides: { ...overrides, categoryId } });
 }
 
 export function createElectronicsProduct(overrides: Partial<CreateProductDto> = {}): CreateProductDto {
@@ -116,13 +120,13 @@ export function createClothingProduct(overrides: Partial<CreateProductDto> = {})
 }
 
 export function createInvalidProduct(invalidFields: Record<string, unknown>): Partial<CreateProductDto> {
-  return { ...createProductDto(), ...invalidFields };
+  return { ...buildProductDto(), ...invalidFields };
 }
 
 export function createMinimalProduct(
   overrides: Partial<Pick<CreateProductDto, 'sku' | 'name' | 'price' | 'quantity'>> = {},
 ): CreateProductDto {
-  return createProductDto({ index: 1, overrides, includeOptional: false });
+  return buildProductDto({ index: 1, overrides, includeOptional: false });
 }
 
 export function createDeletedProduct(overrides: Partial<CreateProductDto> = {}): Product {
@@ -167,6 +171,20 @@ export function createVariedProducts(count: number): Product[] {
   });
 }
 
+export function createPaginationTestProducts(pageSize = 10): CreateProductDto[] {
+  const categoryIds = ['cat-electronics', 'cat-clothing', 'cat-home'];
+  return Array.from({ length: pageSize * 3 }, (_, i) =>
+    buildProductDto({
+      index: i + 1,
+      overrides: {
+        categoryId: categoryIds[i % 3],
+        price: 10 + i * 5,
+        quantity: 100 - i * 2,
+      },
+    }),
+  );
+}
+
 export const SAMPLE_PRODUCTS: CreateProductDto[] = [
   {
     sku: 'ELEC-001',
@@ -206,29 +224,12 @@ export const SAMPLE_PRODUCTS: CreateProductDto[] = [
   },
 ];
 
-export function createPaginationTestProducts(pageSize: number = 10): CreateProductDto[] {
-  const categoryIds = ['cat-electronics', 'cat-clothing', 'cat-home'];
-  return Array.from({ length: pageSize * 3 }, (_, i) =>
-    createProductDto({
-      index: i + 1,
-      overrides: {
-        categoryId: categoryIds[i % 3],
-        price: 10 + i * 5,
-        quantity: 100 - i * 2,
-      },
-    }),
-  );
-}
-
 export const PRICE_RANGE_TEST_PRODUCTS: CreateProductDto[] = [
-  createProductDto({ index: 1, overrides: { sku: 'PRICE-001', price: 9.99 } }),
-  createProductDto({ index: 2, overrides: { sku: 'PRICE-002', price: 24.99 } }),
-  createProductDto({ index: 3, overrides: { sku: 'PRICE-003', price: 49.99 } }),
-  createProductDto({ index: 4, overrides: { sku: 'PRICE-004', price: 99.99 } }),
-  createProductDto({
-    index: 5,
-    overrides: { sku: 'PRICE-005', price: 199.99 },
-  }),
+  buildProductDto({ index: 1, overrides: { sku: 'PRICE-001', price: 9.99 } }),
+  buildProductDto({ index: 2, overrides: { sku: 'PRICE-002', price: 24.99 } }),
+  buildProductDto({ index: 3, overrides: { sku: 'PRICE-003', price: 49.99 } }),
+  buildProductDto({ index: 4, overrides: { sku: 'PRICE-004', price: 99.99 } }),
+  buildProductDto({ index: 5, overrides: { sku: 'PRICE-005', price: 199.99 } }),
 ];
 
 export const CATEGORY_TEST_PRODUCTS: CreateProductDto[] = [

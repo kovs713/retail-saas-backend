@@ -29,7 +29,7 @@ describe('AnalyticsService', () => {
   });
 
   describe('logChatEvent', () => {
-    const mockChatEvent = createChatEvent({ id: 'chat_001', shopId: 'shop_001' });
+    const mockChatEvent = createChatEvent({ overrides: { id: 'chat_001', shopId: 'shop_001' } });
 
     it('should create chat event and return it', async () => {
       repository.createChatEvent.mockResolvedValue(mockChatEvent);
@@ -82,7 +82,7 @@ describe('AnalyticsService', () => {
   });
 
   describe('logStorefrontView', () => {
-    const mockStorefrontView = createStorefrontView({ id: 'view_001', shopId: 'shop_001' });
+    const mockStorefrontView = createStorefrontView({ overrides: { id: 'view_001', shopId: 'shop_001' } });
 
     it('should create storefront view and return it', async () => {
       repository.createStorefrontView.mockResolvedValue(mockStorefrontView);
