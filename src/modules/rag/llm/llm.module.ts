@@ -14,10 +14,10 @@ export class LLMModule {
         {
           provide: ChatGroqClient,
           inject: [ConfigService],
-          useFactory(config: ConfigService) {
-            const apiKey = config.getOrThrow<string>('GROQ_API_KEY');
-            const model = config.getOrThrow<string>('GROQ_MODEL');
-            const temperature = parseFloat(config.getOrThrow<string>('GROQ_TEMPERATURE'));
+          useFactory(configService: ConfigService) {
+            const apiKey = configService.getOrThrow<string>('GROQ_API_KEY');
+            const model = configService.getOrThrow<string>('GROQ_MODEL');
+            const temperature = parseFloat(configService.getOrThrow<string>('GROQ_TEMPERATURE'));
 
             return new ChatGroq({
               apiKey,
