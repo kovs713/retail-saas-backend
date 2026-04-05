@@ -79,6 +79,47 @@ describe('RagService', () => {
     });
   });
 
+  describe('getDocuments', () => {
+    it('should return paginated documents', async () => {
+      const mockResult = {
+        documents: [
+          {
+            pageContent: 'Test document content',
+            metadata: { source: 'test' },
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      };
+
+      vectorStoreService.getDocuments.mockResolvedValue(mockResult);
+
+      const result = await service.getDocuments(mockTenantContext, 1, 10);
+
+      expect(result).toEqual(mockResult);
+      expect(vectorStoreService.getDocuments).toHaveBeenCalledWith(mockTenantContext, 1, 10);
+    });
+
+    it('should use default pagination values', async () => {
+      const mockResult = {
+        documents: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0,
+      };
+
+      vectorStoreService.getDocuments.mockResolvedValue(mockResult);
+
+      const result = await service.getDocuments(mockTenantContext);
+
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(10);
+    });
+  });
+
   describe('addTexts', () => {
     it('should add texts successfully', async () => {
       const mockTexts = ['Test text content'];

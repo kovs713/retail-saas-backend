@@ -1,5 +1,5 @@
 import { Tenant } from '@/common/decorators';
-import { ApiResponse as AppApiResponse } from '@/common/dto';
+import { ApiResponse as AppApiResponse, Pagination, PaginationResponse } from '@/common/dto';
 import { AuthGuard } from '@/common/guards';
 import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
@@ -11,10 +11,12 @@ import {
   ChatDto,
   ChatResponseDto,
   ChatWithScoresResponseDto,
+  DocumentDto,
+  DocumentResponseDto,
 } from './dto';
 import { RagService } from './rag.service';
 
-import { Body, Controller, Delete, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('RAG')
@@ -111,6 +113,27 @@ export class RagController {
     this.logger.log(`Chat with scores response: ${result.answer.substring(0, 100)}...`);
 
     return { success: true, data: response };
+  }
+
+  @Get('documents')
+  @ApiOperation({ summary: 'Get all documents with pagination' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successful response',
+    type: DocumentDto,
+    isArray: true,
+  })
+  async getDocuments(
+    @Query() query: Pagination,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<PaginationResponse<DocumentResponseDto>> {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    this.logger.log(`Getting documents from shop with id ${tenantContext.shopId}`);
+    const result = await this.ragService.getDocuments(tenantContext, page, limit);
+    this.logger.log(`Received documents from shop with id ${tenantContext.shopId} successfully`);
+
+    return result;
   }
 
   @Post('documents')

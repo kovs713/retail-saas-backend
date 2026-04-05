@@ -60,7 +60,7 @@ describe('VectorStoreService', () => {
   }
 
   describe('getDocuments', () => {
-    it('maps each raw ChromaDB entry to a LangChain Document', async () => {
+    it('maps each raw ChromaDB entry to a LangChain Document with default pagination', async () => {
       const collection = makeCollectionWithDocs({
         ids: ['id-1', 'id-2'],
         documents: ['first content', 'second content'],
@@ -73,16 +73,62 @@ describe('VectorStoreService', () => {
 
       const result = await service.getDocuments(mockTenantContext);
 
-      expect(result).toEqual<Document[]>([
-        {
-          pageContent: 'first content',
-          metadata: { shopId: mockTenantContext.shopId, source: 'manual', _id: 'id-1' },
+      expect(result).toEqual({
+        success: true,
+        data: [
+          {
+            pageContent: 'first content',
+            metadata: { shopId: mockTenantContext.shopId, source: 'manual', _id: 'id-1' },
+          },
+          {
+            pageContent: 'second content',
+            metadata: { shopId: mockTenantContext.shopId, source: 'upload', _id: 'id-2' },
+          },
+        ],
+        pagination: {
+          total: 2,
+          page: 1,
+          limit: 10,
+          totalPages: 1,
         },
-        {
-          pageContent: 'second content',
-          metadata: { shopId: mockTenantContext.shopId, source: 'upload', _id: 'id-2' },
+      });
+    });
+
+    it('applies pagination correctly', async () => {
+      const collection = makeCollectionWithDocs({
+        ids: ['id-1', 'id-2', 'id-3', 'id-4', 'id-5'],
+        documents: ['content 1', 'content 2', 'content 3', 'content 4', 'content 5'],
+        metadatas: [
+          { source: 'test1' },
+          { source: 'test2' },
+          { source: 'test3' },
+          { source: 'test4' },
+          { source: 'test5' },
+        ],
+      });
+      bindCollection(collection);
+
+      const result = await service.getDocuments(mockTenantContext, 2, 2);
+
+      expect(result).toEqual({
+        success: true,
+        data: [
+          {
+            pageContent: 'content 3',
+            metadata: { source: 'test3', _id: 'id-3' },
+          },
+          {
+            pageContent: 'content 4',
+            metadata: { source: 'test4', _id: 'id-4' },
+          },
+        ],
+        pagination: {
+          total: 5,
+          page: 2,
+          limit: 2,
+          totalPages: 3,
         },
-      ]);
+      });
     });
 
     it('injects the ChromaDB id into metadata as _id', async () => {
@@ -93,9 +139,9 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const [doc] = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext);
 
-      expect(doc.metadata._id).toBe('chroma-abc-123');
+      expect(result.data?.[0]?.metadata?._id).toBe('chroma-abc-123');
     });
 
     it('preserves all original metadata fields alongside _id', async () => {
@@ -106,9 +152,9 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const [doc] = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext);
 
-      expect(doc.metadata).toMatchObject({
+      expect(result.data?.[0]?.metadata).toMatchObject({
         shopId: 'shop-x',
         source: 'web',
         customField: 'value',
@@ -141,21 +187,39 @@ describe('VectorStoreService', () => {
       expect(collection.get).toHaveBeenNthCalledWith(2, { where: { shopId: tenantB.shopId } });
     });
 
-    it('returns an empty array when the collection contains no matching documents', async () => {
+    it('returns empty result when the collection contains no matching documents', async () => {
       const collection = makeCollectionWithDocs({ ids: [], documents: [], metadatas: [] });
       bindCollection(collection);
 
       const result = await service.getDocuments(mockTenantContext);
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({
+        success: true,
+        data: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          limit: 10,
+          totalPages: 0,
+        },
+      });
     });
 
-    it('returns an empty array when collection is null', async () => {
+    it('returns empty result when collection is null', async () => {
       bindCollection(null);
 
       const result = await service.getDocuments(mockTenantContext);
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({
+        success: true,
+        data: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          limit: 10,
+          totalPages: 0,
+        },
+      });
     });
 
     it('treats a null document string as an empty string', async () => {
@@ -166,9 +230,9 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const [doc] = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext);
 
-      expect(doc.pageContent).toBe('');
+      expect(result.data?.[0]?.pageContent).toBe('');
     });
 
     it('treats null metadata as an empty object (only _id is present)', async () => {
@@ -179,9 +243,9 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const [doc] = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext);
 
-      expect(doc.metadata).toEqual({ _id: 'id-1' });
+      expect(result.data?.[0]?.metadata).toEqual({ _id: 'id-1' });
     });
 
     it('handles a mix of null and valid entries in the same response', async () => {
@@ -194,8 +258,8 @@ describe('VectorStoreService', () => {
 
       const result = await service.getDocuments(mockTenantContext);
 
-      expect(result[0]).toEqual({ pageContent: '', metadata: { _id: 'id-1' } });
-      expect(result[1]).toEqual({ pageContent: 'real content', metadata: { source: 'test', _id: 'id-2' } });
+      expect(result.data?.[0]).toEqual({ pageContent: '', metadata: { _id: 'id-1' } });
+      expect(result.data?.[1]).toEqual({ pageContent: 'real content', metadata: { source: 'test', _id: 'id-2' } });
     });
   });
 
