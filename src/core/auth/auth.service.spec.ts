@@ -264,5 +264,23 @@ describe('AuthService', () => {
 
       await expect(service.getProfile('nonexistent')).rejects.toThrow(NotFoundException);
     });
+
+    it('should return empty shopId when user has no shop', async () => {
+      const userWithoutShop = { ...mockUser, shopId: null };
+      jest.spyOn(userService, 'findById').mockResolvedValue(userWithoutShop as any);
+      jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(null);
+
+      const result = await service.getProfile('user-123');
+
+      expect(result.shopId).toBe('');
+    });
+  });
+
+  describe('revokeRefreshToken', () => {
+    it('should delete refresh token from cache', async () => {
+      await service.revokeRefreshToken('user-123');
+
+      expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('auth:refresh', 'user-123'));
+    });
   });
 });

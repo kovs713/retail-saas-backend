@@ -1,5 +1,7 @@
+import { PaginationResponse } from '@/common/dto';
 import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
+import { DocumentResponseDto } from './dto';
 import { LLMService } from './llm/llm.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
 
@@ -14,6 +16,34 @@ export class RagService {
     private readonly llmService: LLMService,
     private readonly vectorStoreService: VectorStoreService,
   ) {}
+
+  async getDocuments(
+    tenantContext: TenantContext,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginationResponse<DocumentResponseDto>> {
+    const documents = await this.vectorStoreService.getDocuments(tenantContext);
+
+    const total = documents.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedDocuments = documents.slice(startIndex, endIndex);
+
+    return {
+      success: true,
+      data: paginatedDocuments.map((doc) => ({
+        pageContent: doc.pageContent,
+        metadata: doc.metadata,
+      })),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    };
+  }
 
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
     const ids = await this.vectorStoreService.addDocuments(documents, tenantContext);

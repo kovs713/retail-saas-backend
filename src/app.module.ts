@@ -24,16 +24,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const host = config.getOrThrow<string>('REDIS_HOST');
-        const port = config.getOrThrow<number>('REDIS_PORT');
-        const password = config.getOrThrow<string>('REDIS_PASSWORD');
+      useFactory: (configService: ConfigService) => {
+        const host = configService.getOrThrow<string>('REDIS_HOST');
+        const port = configService.getOrThrow<number>('REDIS_PORT');
+        const password = configService.getOrThrow<string>('REDIS_PASSWORD');
         return {
           throttlers: [
             {
               name: 'default',
-              ttl: config.getOrThrow<number>('THROTTLE_TTL'),
-              limit: config.getOrThrow<number>('THROTTLE_LIMIT'),
+              ttl: configService.getOrThrow<number>('THROTTLE_TTL'),
+              limit: configService.getOrThrow<number>('THROTTLE_LIMIT'),
             },
           ],
           storage: new ThrottlerStorageRedisService(`redis://${host}:${port}`, { password }),

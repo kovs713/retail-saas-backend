@@ -79,6 +79,71 @@ describe('RagController', () => {
     });
   });
 
+  describe('getDocuments endpoint', () => {
+    it('should return paginated documents', async () => {
+      const mockResult = {
+        success: true,
+        data: [
+          {
+            pageContent: 'Document 1',
+            metadata: { source: 'test', _id: 'doc-1' },
+          },
+          {
+            pageContent: 'Document 2',
+            metadata: { source: 'test', _id: 'doc-2' },
+          },
+        ],
+        pagination: {
+          total: 2,
+          page: 1,
+          limit: 10,
+          totalPages: 1,
+        },
+      };
+
+      service.getDocuments.mockResolvedValue(mockResult);
+
+      const result = await controller.getDocuments({ page: 1, limit: 10 }, tenantContext);
+
+      expect(service.getDocuments).toHaveBeenCalledWith(tenantContext, 1, 10);
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(2);
+      expect(result.data?.[0].pageContent).toBe('Document 1');
+      expect(result.data?.[1].pageContent).toBe('Document 2');
+      expect(result.pagination).toEqual({
+        page: 1,
+        limit: 10,
+        total: 2,
+        totalPages: 1,
+      });
+    });
+
+    it('should use default pagination when not provided', async () => {
+      const mockResult = {
+        success: true,
+        data: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          limit: 10,
+          totalPages: 0,
+        },
+      };
+
+      service.getDocuments.mockResolvedValue(mockResult);
+
+      const result = await controller.getDocuments({}, tenantContext);
+
+      expect(service.getDocuments).toHaveBeenCalledWith(tenantContext, 1, 10);
+      expect(result.pagination).toEqual({
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      });
+    });
+  });
+
   describe('addDocuments endpoint', () => {
     it('should call RagService.addDocuments with correct parameters', async () => {
       const mockDocIds = ['doc-1', 'doc-2'];

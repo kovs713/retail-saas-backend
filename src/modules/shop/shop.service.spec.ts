@@ -1,7 +1,6 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { User } from '@/modules/user/entities';
-import { Shop } from './entities';
+import { createShop } from '@/core/database/factories';
 import { ShopRepository } from './repositories';
 import { ShopService } from './shop.service';
 
@@ -14,24 +13,12 @@ describe('ShopService', () => {
   let repository: DeepMocked<ShopRepository>;
   let cacheService: DeepMocked<CacheService>;
 
-  const mockShop: Shop = {
-    id: 'shop-1',
-    ownerId: 'owner-123',
-    owner: null as unknown as User,
+  const mockShop = createShop({
+    id: 'shop_001',
     name: 'Test Shop',
     slug: 'test-shop',
-    description: null,
-    address: null,
-    phone: null,
-    workingHours: null,
-    logoUrl: null,
-    bannerUrl: null,
-    isActive: true,
-    createdAt: new Date(),
-    chatEvents: [],
-    storefrontViews: [],
-    orders: [],
-  };
+    ownerId: 'owner_001',
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -61,7 +48,7 @@ describe('ShopService', () => {
     const createDto = {
       name: 'Test Shop',
       slug: 'test-shop',
-      ownerId: 'owner-123',
+      ownerId: 'owner_001',
     };
 
     it('should create a shop successfully', async () => {
@@ -103,7 +90,7 @@ describe('ShopService', () => {
     it('should return a shop by id', async () => {
       repository.findById.mockResolvedValue(mockShop);
 
-      const result = await service.findById('shop-1');
+      const result = await service.findById('shop_001');
 
       expect(result).toEqual(mockShop);
     });
@@ -120,7 +107,7 @@ describe('ShopService', () => {
     it('should return a shop by owner id', async () => {
       repository.findByOwnerId.mockResolvedValue(mockShop);
 
-      const result = await service.findByOwnerId('owner-123');
+      const result = await service.findByOwnerId('owner_001');
 
       expect(result).toEqual(mockShop);
     });
@@ -144,7 +131,7 @@ describe('ShopService', () => {
       repository.findById.mockResolvedValue({ ...mockShop });
       repository.save.mockResolvedValue({ ...mockShop, ...updateDto });
 
-      const result = await service.update('shop-1', updateDto);
+      const result = await service.update('shop_001', updateDto);
 
       expect(result.name).toBe('Updated Shop');
       expect(result.description).toBe('Updated description');
@@ -155,7 +142,7 @@ describe('ShopService', () => {
       repository.findById.mockResolvedValue({ ...mockShop });
       repository.save.mockResolvedValue(updatedShop);
 
-      await service.update('shop-1', { slug: 'updated-shop' });
+      await service.update('shop_001', { slug: 'updated-shop' });
 
       expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('shop', 'slug', 'test-shop'));
       expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('shop', 'slug', 'updated-shop'));
@@ -173,7 +160,7 @@ describe('ShopService', () => {
       repository.findById.mockResolvedValue({ ...mockShop });
       repository.save.mockResolvedValue({ ...mockShop, ownerId: 'new-owner' });
 
-      const result = await service.updateOwner('shop-1', 'new-owner');
+      const result = await service.updateOwner('shop_001', 'new-owner');
 
       expect(result.ownerId).toBe('new-owner');
     });
@@ -182,9 +169,9 @@ describe('ShopService', () => {
       repository.findById.mockResolvedValue({ ...mockShop });
       repository.save.mockResolvedValue({ ...mockShop, ownerId: 'new-owner' });
 
-      await service.updateOwner('shop-1', 'new-owner');
+      await service.updateOwner('shop_001', 'new-owner');
 
-      expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('shop', 'owner', 'owner-123'));
+      expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('shop', 'owner', 'owner_001'));
       expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('shop', 'owner', 'new-owner'));
     });
 
@@ -200,7 +187,7 @@ describe('ShopService', () => {
       repository.findById.mockResolvedValue({ ...mockShop });
       repository.save.mockResolvedValue({ ...mockShop, logoUrl: 'https://example.com/logo.png' });
 
-      const result = await service.updateMediaUrls('shop-1', 'https://example.com/logo.png');
+      const result = await service.updateMediaUrls('shop_001', 'https://example.com/logo.png');
 
       expect(result.logoUrl).toBe('https://example.com/logo.png');
       expect(result.bannerUrl).toBeNull();
@@ -211,7 +198,7 @@ describe('ShopService', () => {
       repository.findById.mockResolvedValue(shopWithNullLogo);
       repository.save.mockResolvedValue({ ...shopWithNullLogo, bannerUrl: 'https://example.com/banner.png' });
 
-      const result = await service.updateMediaUrls('shop-1', undefined, 'https://example.com/banner.png');
+      const result = await service.updateMediaUrls('shop_001', undefined, 'https://example.com/banner.png');
 
       expect(result.logoUrl).toBeNull();
       expect(result.bannerUrl).toBe('https://example.com/banner.png');
@@ -226,7 +213,7 @@ describe('ShopService', () => {
       });
 
       const result = await service.updateMediaUrls(
-        'shop-1',
+        'shop_001',
         'https://example.com/logo.png',
         'https://example.com/banner.png',
       );
@@ -248,7 +235,7 @@ describe('ShopService', () => {
       repository.findById.mockResolvedValue({ ...mockShop });
       repository.save.mockResolvedValue(inactiveShop);
 
-      const result = await service.toggleActive('shop-1');
+      const result = await service.toggleActive('shop_001');
 
       expect(result.isActive).toBe(false);
     });
@@ -259,7 +246,7 @@ describe('ShopService', () => {
       repository.findById.mockResolvedValue(inactiveShop);
       repository.save.mockResolvedValue(activeShop);
 
-      const result = await service.toggleActive('shop-1');
+      const result = await service.toggleActive('shop_001');
 
       expect(result.isActive).toBe(true);
     });

@@ -1,36 +1,21 @@
 import { Category } from '@/modules/product/entities';
+import { DEFAULT_IDS } from './defaults';
+import { createMany, generateId, generateUniqueName, generateUniqueSlug } from './shared.utils';
 
-export interface CreateCategoryOptions {
-  name?: string;
-  slug?: string;
-  shopId?: string;
-}
-
-export function createCategory(options: CreateCategoryOptions = {}): Partial<Category> {
-  const name = options.name || 'Test Category';
-
+export function createCategory(overrides: Partial<Category> & { index?: number } = {}): Category {
+  const { index = 1, ...fields } = overrides;
+  const name = overrides.name ?? generateUniqueName('Test Category', index);
   return {
+    id: generateId('cat', index),
+    shopId: DEFAULT_IDS.shopId(index),
     name,
-    slug: options.slug || name.toLowerCase().replace(/\s+/g, '-'),
-    shopId: options.shopId || '',
-  };
+    slug: generateUniqueSlug(name, index),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...fields,
+  } as Category;
 }
 
-export function createCategories(count: number, shopId: string): Partial<Category>[] {
-  return Array.from({ length: count }, (_, index) =>
-    createCategory({
-      name: `Category ${index + 1}`,
-      shopId,
-    }),
-  );
-}
-
-export function createNamedCategories(names: { name: string; slug?: string }[], shopId: string): Partial<Category>[] {
-  return names.map((item) =>
-    createCategory({
-      name: item.name,
-      slug: item.slug || item.name.toLowerCase().replace(/\s+/g, '-'),
-      shopId,
-    }),
-  );
+export function createCategories(count: number, overrides: Partial<Category> = {}): Category[] {
+  return createMany(count, (i) => createCategory({ ...overrides, index: i }));
 }

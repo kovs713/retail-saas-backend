@@ -16,10 +16,10 @@ export class CacheModule {
         {
           provide: RedisClient,
           inject: [ConfigService],
-          useFactory: async (config: ConfigService): Promise<RedisClientType> => {
-            const host = config.get<string>('REDIS_HOST') || 'localhost';
-            const port = config.get<number>('REDIS_PORT') || 6379;
-            const password = config.get<string>('REDIS_PASSWORD');
+          useFactory: async (configService: ConfigService): Promise<RedisClientType> => {
+            const host = configService.getOrThrow<string>('REDIS_HOST');
+            const port = configService.getOrThrow<number>('REDIS_PORT');
+            const password = configService.getOrThrow<string>('REDIS_PASSWORD');
 
             const client: RedisClientType = createClient({
               url: `redis://${host}:${port}`,

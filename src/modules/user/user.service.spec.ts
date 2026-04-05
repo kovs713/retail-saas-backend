@@ -1,8 +1,7 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { Shop } from '@/modules/shop/entities';
+import { createUser } from '@/core/database/factories';
 import { CreateUserDto, UpdateUserDto } from './dto';
-import { User } from './entities';
 import { UserRepository } from './repositories';
 import { UserService } from './user.service';
 
@@ -20,17 +19,13 @@ describe('UserService', () => {
   let service: UserService;
   let repository: DeepMocked<UserRepository>;
 
-  const mockUser: User = {
-    id: 'user-123',
+  const mockUser = createUser({
+    id: 'user_001',
     email: 'test@example.com',
     passwordHash: 'hashed-password',
-    role: 'member',
-    isActive: true,
-    shopId: 'shop-456',
-    shop: null as unknown as Shop,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+    role: 'member' as any,
+    shopId: 'shop_001',
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -48,7 +43,7 @@ describe('UserService', () => {
     }).compile();
 
     service = module.get<UserService>(UserService);
-    repository = module.get(UserRepository);
+    repository = module.get<DeepMocked<UserRepository>>(UserRepository);
   });
 
   afterEach(() => {

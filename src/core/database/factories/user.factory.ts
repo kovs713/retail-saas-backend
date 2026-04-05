@@ -1,52 +1,76 @@
+import { Role } from '@/common/enums';
+import { TokenPayload } from '@/common/types';
 import { User } from '@/modules/user/entities';
+import { generateId } from './shared.utils';
+import { createShop } from './shop.factory';
 
-export type UserRole = 'owner' | 'manager' | 'admin';
+type UserOverrides = Partial<User> & { index?: number };
 
-export interface CreateUserOptions {
-  email?: string;
-  passwordHash?: string;
-  role?: UserRole;
-  shopId?: string | null;
-  isActive?: boolean;
-}
-
-export function createUser(options: CreateUserOptions = {}): Partial<User> {
+export function createUser(overrides: UserOverrides = {}): User {
+  const { index = 1, ...fields } = overrides;
+  const now = new Date();
   return {
-    email: options.email || 'test@example.com',
-    passwordHash: options.passwordHash || '',
-    role: options.role || 'owner',
-    isActive: options.isActive ?? true,
-    shopId: options.shopId ?? null,
+    id: generateId('user', index),
+    email: 'test@example.com',
+    passwordHash: 'hashed-password',
+    role: Role.OWNER,
+    isActive: true,
+    shopId: createShop({ index }).id,
+    shop: null,
+    createdAt: now,
+    updatedAt: now,
+    ...fields,
   };
 }
 
-export function createUsers(count: number, options: CreateUserOptions = {}): Partial<User>[] {
-  return Array.from({ length: count }, () => createUser(options));
+export function createUsers(count: number, overrides: Omit<UserOverrides, 'index'> = {}): User[] {
+  return Array.from({ length: count }, (_, i) => createUser({ ...overrides, index: i + 1 }));
 }
 
-export function createOwnerUser(shopId: string, passwordHash: string, email?: string): Partial<User> {
-  return createUser({
-    email: email || 'owner@example.com',
-    passwordHash,
-    role: 'owner',
-    shopId,
-  });
+export function createOwnerUser(shopId: string, overrides: Partial<User> = {}): User {
+  return createUser({ ...overrides, role: Role.OWNER, shopId });
 }
 
-export function createManagerUser(shopId: string, passwordHash: string, email?: string): Partial<User> {
-  return createUser({
-    email: email || 'manager@example.com',
-    passwordHash,
-    role: 'manager',
-    shopId,
-  });
+export function createEmployeeUser(shopId: string, overrides: Partial<User> = {}): User {
+  return createUser({ ...overrides, role: Role.EMPLOYEE, shopId });
 }
 
-export function createAdminUser(passwordHash: string): Partial<User> {
-  return createUser({
-    email: 'admin@retail.com',
-    passwordHash,
-    role: 'admin',
-    shopId: null,
-  });
+export function createAdminUser(overrides: Partial<User> = {}): User {
+  return createUser({ ...overrides, role: Role.ADMIN, shopId: null });
+}
+
+export function createTokenPayload(overrides: Partial<TokenPayload> = {}): TokenPayload {
+  return {
+    sub: 'user_001',
+    email: 'test@example.com',
+    shopId: createShop({ index: 1 }).id,
+    role: Role.OWNER,
+    ...overrides,
+  };
+}
+
+export function createAuthResponseDto(
+  options: {
+    email?: string;
+    accessToken?: string;
+    refreshToken?: string;
+    userId?: string;
+    role?: string;
+    shopId?: string | null;
+    isActive?: boolean;
+  } = {},
+) {
+  const shopId = options.shopId ?? createShop({ index: 1 }).id;
+  return {
+    email: options.email ?? 'test@example.com',
+    accessToken: options.accessToken ?? 'mock-access-token',
+    refreshToken: options.refreshToken ?? 'mock-refresh-token',
+    user: {
+      id: options.userId ?? 'user_001',
+      email: options.email ?? 'test@example.com',
+      role: options.role ?? Role.OWNER,
+      shopId,
+      isActive: options.isActive ?? true,
+    },
+  };
 }

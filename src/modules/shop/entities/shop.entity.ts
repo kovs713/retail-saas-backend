@@ -26,7 +26,7 @@ export class Shop {
 
   @OneToOne(() => User, { eager: false })
   @JoinColumn({ name: 'ownerId' })
-  owner: User;
+  owner: User | null;
 
   @OneToMany(() => ChatEvent, (chatEvent) => chatEvent.shop)
   chatEvents: ChatEvent[];

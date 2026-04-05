@@ -11,13 +11,45 @@ export class VectorStoreService {
   private readonly logger: LoggerService = new LoggerService(VectorStoreService.name);
 
   constructor(
-    private readonly embeddingsService: EmbeddingsService,
     @Inject(ChromaDBClient)
     private readonly chromaDBClient: Chroma,
+    private readonly embeddingsService: EmbeddingsService,
   ) {}
 
   private getTenantFilter(tenantContext: TenantContext): Record<string, any> {
     return { shopId: tenantContext.shopId };
+  }
+
+  async getDocuments(tenantContext: TenantContext): Promise<Document[]> {
+    const tenantFilter = this.getTenantFilter(tenantContext);
+
+    const collection = this.chromaDBClient.collection;
+
+    if (!collection) {
+      return [];
+    }
+
+    const documents = await collection.get({
+      where: tenantFilter,
+    });
+
+    if (!documents.ids?.length) {
+      return [];
+    }
+
+    const result = documents.ids.map((id, index) => {
+      return {
+        pageContent: documents.documents[index] ?? '',
+        metadata: {
+          ...documents.metadatas?.[index],
+          _id: id,
+        },
+      };
+    });
+
+    this.logger.log(`Retrieved ${result.length} documents from vector store for organization: ${tenantContext.shopId}`);
+
+    return result;
   }
 
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
@@ -84,12 +116,9 @@ export class VectorStoreService {
     return results;
   }
 
-  deleteDocuments(ids: string[]): void {
-    this.logger.warn(`Document deletion not implemented for Chroma vector store. IDs: ${ids.join(', ')}`);
-  }
-
-  getVectorStore(): Chroma {
-    return this.chromaDBClient;
+  async deleteDocuments(ids: string[]): Promise<void> {
+    await this.chromaDBClient.delete({ ids });
+    this.logger.log(`Deleted ${ids.length} documents from vector store`);
   }
 
   asRetriever(tenantContext: TenantContext, searchKwargs?: { k?: number; filter?: Record<string, any> }) {

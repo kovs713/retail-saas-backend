@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Transform, Type } from 'class-transformer';
+import { OrderStatus } from './update-order-status.dto';
 
 export class OrderItemResponseDto {
   @ApiProperty({ description: 'Product ID' })
@@ -50,7 +51,7 @@ export class OrderResponseDto {
   @Transform(({ value }) => Number(value))
   totalAmount: number;
 
-  @ApiProperty({ description: 'Order status', enum: ['PENDING', 'CONFIRMED', 'READY', 'COMPLETED', 'CANCELLED'] })
+  @ApiProperty({ description: 'Order status', enum: OrderStatus })
   @Expose()
   status: string;
 
