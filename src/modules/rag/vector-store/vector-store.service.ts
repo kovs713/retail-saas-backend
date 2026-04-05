@@ -84,8 +84,9 @@ export class VectorStoreService {
     return results;
   }
 
-  deleteDocuments(ids: string[]): void {
-    this.logger.warn(`Document deletion not implemented for Chroma vector store. IDs: ${ids.join(', ')}`);
+  async deleteDocuments(ids: string[]): Promise<void> {
+    await this.chromaDBClient.delete({ ids });
+    this.logger.log(`Deleted ${ids.length} documents from vector store`);
   }
 
   getVectorStore(): Chroma {
