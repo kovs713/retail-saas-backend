@@ -81,42 +81,42 @@ describe('RagService', () => {
 
   describe('getDocuments', () => {
     it('should return paginated documents', async () => {
-      const mockResult = {
-        documents: [
+      const mockDocuments = [
+        {
+          pageContent: 'Test document content',
+          metadata: { source: 'test' },
+        },
+      ];
+
+      vectorStoreService.getDocuments.mockResolvedValue(mockDocuments);
+
+      const result = await service.getDocuments(mockTenantContext, 1, 10);
+
+      expect(result).toEqual({
+        success: true,
+        data: [
           {
             pageContent: 'Test document content',
             metadata: { source: 'test' },
           },
         ],
-        total: 1,
-        page: 1,
-        limit: 10,
-        totalPages: 1,
-      };
-
-      vectorStoreService.getDocuments.mockResolvedValue(mockResult);
-
-      const result = await service.getDocuments(mockTenantContext, 1, 10);
-
-      expect(result).toEqual(mockResult);
-      expect(vectorStoreService.getDocuments).toHaveBeenCalledWith(mockTenantContext, 1, 10);
+        pagination: {
+          total: 1,
+          page: 1,
+          limit: 10,
+          totalPages: 1,
+        },
+      });
+      expect(vectorStoreService.getDocuments).toHaveBeenCalledWith(mockTenantContext);
     });
 
     it('should use default pagination values', async () => {
-      const mockResult = {
-        documents: [],
-        total: 0,
-        page: 1,
-        limit: 10,
-        totalPages: 0,
-      };
-
-      vectorStoreService.getDocuments.mockResolvedValue(mockResult);
+      vectorStoreService.getDocuments.mockResolvedValue([]);
 
       const result = await service.getDocuments(mockTenantContext);
 
-      expect(result.page).toBe(1);
-      expect(result.limit).toBe(10);
+      expect(result.pagination?.page).toBe(1);
+      expect(result.pagination?.limit).toBe(10);
     });
   });
 

@@ -1,7 +1,5 @@
-import { PaginationResponse } from '@/common/dto';
 import { ChromaDBClient, TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
-import { DocumentResponseDto } from '../dto';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 
 import { Chroma } from '@langchain/community/vectorstores/chroma';
@@ -22,26 +20,13 @@ export class VectorStoreService {
     return { shopId: tenantContext.shopId };
   }
 
-  async getDocuments(
-    tenantContext: TenantContext,
-    page: number = 1,
-    limit: number = 10,
-  ): Promise<PaginationResponse<DocumentResponseDto>> {
+  async getDocuments(tenantContext: TenantContext): Promise<Document[]> {
     const tenantFilter = this.getTenantFilter(tenantContext);
 
     const collection = this.chromaDBClient.collection;
 
     if (!collection) {
-      return {
-        success: true,
-        data: [],
-        pagination: {
-          total: 0,
-          page,
-          limit,
-          totalPages: 0,
-        },
-      };
+      return [];
     }
 
     const documents = await collection.get({
@@ -49,49 +34,22 @@ export class VectorStoreService {
     });
 
     if (!documents.ids?.length) {
-      return {
-        success: true,
-        data: [],
-        pagination: {
-          total: 0,
-          page,
-          limit,
-          totalPages: 0,
-        },
-      };
+      return [];
     }
 
-    const total = documents.ids.length;
-    const totalPages = Math.ceil(total / limit);
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-
-    const paginatedIds = documents.ids.slice(startIndex, endIndex);
-    const paginatedDocuments = paginatedIds.map((id, index) => {
-      const actualIndex = startIndex + index;
+    const result = documents.ids.map((id, index) => {
       return {
-        pageContent: documents.documents[actualIndex] ?? '',
+        pageContent: documents.documents[index] ?? '',
         metadata: {
-          ...documents.metadatas?.[actualIndex],
+          ...documents.metadatas?.[index],
           _id: id,
         },
       };
     });
 
-    this.logger.log(
-      `Retrieved ${paginatedDocuments.length} documents (page ${page}/${totalPages}, total: ${total}) from vector store for organization: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Retrieved ${result.length} documents from vector store for organization: ${tenantContext.shopId}`);
 
-    return {
-      success: true,
-      data: paginatedDocuments,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages,
-      },
-    };
+    return result;
   }
 
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {

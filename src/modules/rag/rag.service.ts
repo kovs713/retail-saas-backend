@@ -22,8 +22,27 @@ export class RagService {
     page: number = 1,
     limit: number = 10,
   ): Promise<PaginationResponse<DocumentResponseDto>> {
-    const result = await this.vectorStoreService.getDocuments(tenantContext, page, limit);
-    return result;
+    const documents = await this.vectorStoreService.getDocuments(tenantContext);
+
+    const total = documents.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedDocuments = documents.slice(startIndex, endIndex);
+
+    return {
+      success: true,
+      data: paginatedDocuments.map((doc) => ({
+        pageContent: doc.pageContent,
+        metadata: doc.metadata,
+      })),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    };
   }
 
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
