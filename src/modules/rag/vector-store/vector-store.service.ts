@@ -20,6 +20,38 @@ export class VectorStoreService {
     return { shopId: tenantContext.shopId };
   }
 
+  async getDocuments(tenantContext: TenantContext): Promise<Document[]> {
+    const tenantFilter = this.getTenantFilter(tenantContext);
+
+    const collection = this.chromaDBClient.collection;
+
+    if (!collection) {
+      return [];
+    }
+
+    const documents = await collection.get({
+      where: tenantFilter,
+    });
+
+    if (!documents.ids?.length) {
+      return [];
+    }
+
+    const results: Document[] = documents.ids.map((id, index) => ({
+      pageContent: documents.documents[index] ?? '',
+      metadata: {
+        ...documents.metadatas?.[index],
+        _id: id,
+      },
+    }));
+
+    this.logger.log(
+      `Retrieved ${results.length} documents from vector store for organization: ${tenantContext.shopId}`,
+    );
+
+    return results;
+  }
+
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
     const docsWithTenant = documents.map((doc) => ({
       ...doc,
