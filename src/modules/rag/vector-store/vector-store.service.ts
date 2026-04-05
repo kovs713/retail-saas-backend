@@ -89,10 +89,6 @@ export class VectorStoreService {
     this.logger.log(`Deleted ${ids.length} documents from vector store`);
   }
 
-  getVectorStore(): Chroma {
-    return this.chromaDBClient;
-  }
-
   asRetriever(tenantContext: TenantContext, searchKwargs?: { k?: number; filter?: Record<string, any> }) {
     const tenantFilter = this.getTenantFilter(tenantContext);
     const combinedFilter = searchKwargs?.filter ? { ...tenantFilter, ...searchKwargs.filter } : tenantFilter;

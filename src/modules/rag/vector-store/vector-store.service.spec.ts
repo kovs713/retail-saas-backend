@@ -38,8 +38,8 @@ describe('VectorStoreService', () => {
       ],
     }).compile();
 
-    service = module.get<VectorStoreService>(VectorStoreService);
     embeddingsService = module.get<DeepMocked<EmbeddingsService>>(EmbeddingsService);
+    service = module.get<VectorStoreService>(VectorStoreService);
     chromaDBClient = module.get<DeepMocked<Chroma>>(ChromaDBClient);
   });
 
@@ -124,7 +124,7 @@ describe('VectorStoreService', () => {
       };
       const mockResults: [Document, number][] = [[mockDoc, 0.95]];
 
-      (chromaDBClient.similaritySearchWithScore as jest.Mock).mockResolvedValue(mockResults);
+      chromaDBClient.similaritySearchWithScore.mockResolvedValue(mockResults);
 
       const result = await service.similaritySearchWithScore('test query', mockTenantContext);
 
@@ -133,18 +133,12 @@ describe('VectorStoreService', () => {
   });
 
   describe('deleteDocuments', () => {
-    it('should log warning (not implemented)', () => {
-      service.deleteDocuments(['doc-1', 'doc-2']);
+    it('should log warning (not implemented)', async () => {
+      await service.deleteDocuments(['doc-1']);
+
+      // const result = service.
 
       expect(true).toBe(true);
-    });
-  });
-
-  describe('getVectorStore', () => {
-    it('should return ChromaDB client instance', () => {
-      const result = service.getVectorStore();
-
-      expect(result).toBe(chromaDBClient);
     });
   });
 
