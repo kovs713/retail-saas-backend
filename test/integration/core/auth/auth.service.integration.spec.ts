@@ -1,3 +1,4 @@
+import { AuthConfig } from '@/common/types';
 import { mockCacheService } from '@/common/utils';
 import { AuthService } from '@/core/auth/auth.service';
 import { CacheService } from '@/core/cache/cache.service';
@@ -26,6 +27,11 @@ describe('AuthService Integration', () => {
   let shopService: ShopService;
   let dataSource: DataSource;
 
+  const mockAuthConfig = {
+    refreshTokenCookie: 'refreshToken',
+    refreshTokenMaxAge: 604800000,
+  };
+
   beforeAll(async () => {
     const connection = getPostgresConnection();
 
@@ -51,6 +57,7 @@ describe('AuthService Integration', () => {
         ShopService,
         ShopRepository,
         JwtService,
+        { provide: AuthConfig, useValue: mockAuthConfig },
         {
           provide: CacheService,
           useValue: mockCacheService(),
@@ -74,6 +81,9 @@ describe('AuthService Integration', () => {
   }, 120000);
 
   afterEach(async () => {
+    if (!dataSource?.isInitialized) {
+      return;
+    }
     await dataSource.query('DELETE FROM orders');
     await dataSource.query('DELETE FROM products');
     await dataSource.query('DELETE FROM categories');

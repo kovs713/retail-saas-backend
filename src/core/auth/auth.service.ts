@@ -1,4 +1,4 @@
-import { TokenPayload } from '@/common/types';
+import { AuthConfig, TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { Shop } from '@/modules/shop/entities';
 import { ShopService } from '@/modules/shop/shop.service';
@@ -6,18 +6,18 @@ import { User } from '@/modules/user/entities';
 import { UserService } from '@/modules/user/user.service';
 import { AuthResponseDto, RegisterDto, SignInDto, UserInfoDto } from './dto';
 
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { hash } from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
 import { DataSource } from 'typeorm';
+import { AuthOptions } from './auth.module';
 
 @Injectable()
 export class AuthService {
-  private readonly REFRESH_TOKEN_PREFIX = 'auth:refresh';
-  private readonly REFRESH_TOKEN_TTL = 604800;
-
   constructor(
+    @Inject(AuthConfig)
+    private readonly authConfig: AuthOptions,
     private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
@@ -70,9 +70,9 @@ export class AuthService {
       const refreshToken = await this.jwtService.signAsync(tokenPayload, { expiresIn: '7d' });
 
       await this.cacheService.set(
-        this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, user.id),
+        this.cacheService.generateKey(this.authConfig.refreshTokenCookie, user.id),
         refreshToken,
-        this.REFRESH_TOKEN_TTL,
+        this.authConfig.refreshTokenMaxAge,
       );
 
       return {
@@ -111,9 +111,9 @@ export class AuthService {
     const refreshToken = await this.jwtService.signAsync(tokenPayload, { expiresIn: '7d' });
 
     await this.cacheService.set(
-      this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, user.id),
+      this.cacheService.generateKey(this.authConfig.refreshTokenCookie, user.id),
       refreshToken,
-      this.REFRESH_TOKEN_TTL,
+      this.authConfig.refreshTokenMaxAge,
     );
 
     return {
@@ -129,7 +129,7 @@ export class AuthService {
       const payload = await this.jwtService.verifyAsync<TokenPayload>(refreshToken);
 
       const storedToken = await this.cacheService.get<string>(
-        this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, payload.sub),
+        this.cacheService.generateKey(this.authConfig.refreshTokenCookie, payload.sub),
       );
 
       if (!storedToken || storedToken !== refreshToken) {
@@ -150,9 +150,9 @@ export class AuthService {
       const newRefreshToken = await this.jwtService.signAsync(newTokenPayload, { expiresIn: '7d' });
 
       await this.cacheService.set(
-        this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, user.id),
-        newRefreshToken,
-        this.REFRESH_TOKEN_TTL,
+        this.cacheService.generateKey(this.authConfig.refreshTokenCookie, user.id),
+        refreshToken,
+        this.authConfig.refreshTokenMaxAge,
       );
 
       return {
@@ -174,7 +174,7 @@ export class AuthService {
   }
 
   async revokeRefreshToken(userId: string): Promise<void> {
-    await this.cacheService.del(this.cacheService.generateKey(this.REFRESH_TOKEN_PREFIX, userId));
+    await this.cacheService.del(this.cacheService.generateKey(this.authConfig.refreshTokenCookie, userId));
   }
 
   private isUniqueConstraintError(error: unknown): error is { driverError?: { code?: string } } {

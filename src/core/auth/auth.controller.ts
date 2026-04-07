@@ -14,7 +14,8 @@ import { Response } from 'express';
 @Controller('auth')
 export class AuthController {
   constructor(
-    @Inject(AuthConfig) private readonly authConfig: AuthOptions,
+    @Inject(AuthConfig)
+    private readonly authConfig: AuthOptions,
     private readonly authService: AuthService,
   ) {}
 
