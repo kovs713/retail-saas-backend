@@ -1,5 +1,6 @@
 import { TenantContext, TokenPayload } from '@/common/types';
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';

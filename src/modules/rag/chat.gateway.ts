@@ -1,11 +1,11 @@
-import { TenantContext } from '@/common/types';
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
+import { TenantContext } from '@/common/types';
+import { CacheService } from '@/core/cache/cache.service';
 import { ChatSessionService } from './chat-session.service';
 import { RagService } from './rag.service';
-import { CacheService } from '@/core/cache/cache.service';
-import { Logger } from '@nestjs/common';
-import { Injectable, UseGuards } from '@nestjs/common';
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
+
+import { Injectable, Logger, UseGuards } from '@nestjs/common';
+import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
 interface SocketWithData extends Socket {
