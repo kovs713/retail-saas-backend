@@ -11,15 +11,17 @@ A platform enabling small retail businesses (pet shops, garden centers, etc.) to
 - **Public Storefront** — product catalog at `platform/shop/:slug`
 - **RAG Chatbot** — AI assistant answering customer questions based on uploaded documents
 - **Admin Panel API** — shop management, analytics, and knowledge base administration
+- **Order Management** — create, track, and manage orders
+- **Analytics** — storefront views and chat event tracking
 
 ## Technology Stack
 
 - **Framework**: NestJS (Node.js) + TypeScript
 - **Database**: PostgreSQL with TypeORM
-- **Cache**: Redis (ioredis)
+- **Cache**: Redis
 - **Vector Database**: ChromaDB
 - **Object Storage**: MinIO S3
-- **AI/ML**: LangChain, HuggingFace Transformers, Groq API
+- **AI/ML**: LangChain, Ollama Embeddings, Groq API
 - **Auth**: JWT + bcryptjs
 
 ## Getting Started
@@ -70,32 +72,7 @@ pnpm run start:prod
 
 Swagger UI available at `http://localhost:3000/api` when the application is running.
 
-## Configuration
-
-### Environment Variables
-
-| Variable                 | Description         | Default                 | Required              |
-| ------------------------ | ------------------- | ----------------------- | --------------------- |
-| `NODE_ENV`               | Environment mode    | development             | No                    |
-| `PORT`                   | Application port    | 3000                    | No                    |
-| `GROQ_API_KEY`           | Groq AI API key     | -                       | Yes (for AI features) |
-| `GROQ_MODEL`             | AI model            | llama-3.3-70b-versatile | No                    |
-| `DB_HOST`                | PostgreSQL host     | 127.0.0.1               | No                    |
-| `DB_PORT`                | PostgreSQL port     | 5432                    | No                    |
-| `DB_USERNAME`            | Database username   | postgres                | No                    |
-| `DB_PASSWORD`            | Database password   | postgres                | No                    |
-| `DB_DATABASE`            | Database name       | retail_analytics        | No                    |
-| `REDIS_HOST`             | Redis host          | 127.0.0.1               | No                    |
-| `REDIS_PORT`             | Redis port          | 6379                    | No                    |
-| `REDIS_PASSWORD`         | Redis password      | redis                   | No                    |
-| `S3_HOST`                | MinIO host          | 127.0.0.1               | No                    |
-| `S3_PORT`                | MinIO port          | 9000                    | No                    |
-| `S3_USERNAME`            | MinIO username      | admin                   | No                    |
-| `S3_PASSWORD`            | MinIO password      | password                | No                    |
-| `S3_BUCKET`              | Default S3 bucket   | retail-data             | No                    |
-| `VECTOR_COLLECTION_NAME` | ChromaDB collection | documents               | No                    |
-
-### Project Structure
+### Configuration
 
 ```
 src/
