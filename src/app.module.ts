@@ -49,7 +49,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     AnalyticsModule,
     OrderModule,
     ProductModule,
-    RagModule,
+    RagModule.forRoot(),
     ShopModule,
     StorageModule.forRoot(),
     UserModule,
