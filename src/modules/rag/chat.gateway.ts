@@ -1,16 +1,16 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
 import { WsValidationPipe } from '@/common/pipes/ws-validation.pipe';
-import { TenantContext } from '@/common/types';
+import { RagChatConfig, TenantContext } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
-import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from './dto';
 import { ChatSessionService } from './chat-session.service';
+import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from './dto';
+import { RagChatOptions } from './rag.module';
 import { RagService } from './rag.service';
 
-import { Injectable, UseGuards, UsePipes } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Inject, Injectable, UseGuards, UsePipes } from '@nestjs/common';
+import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
+import { Socket } from 'socket.io';
 
 interface SocketWithData extends Socket {
   data: {
@@ -29,18 +29,14 @@ interface SocketWithData extends Socket {
 @Injectable()
 export class ChatGateway {
   private readonly logger = new LoggerService(ChatGateway.name);
-  private readonly rateLimitWindow: number;
-  private readonly rateLimitMax: number;
 
   constructor(
+    @Inject(RagChatConfig)
+    private readonly ragChatConfig: RagChatOptions,
     private readonly sessionService: ChatSessionService,
     private readonly ragService: RagService,
     private readonly cacheService: CacheService,
-    private readonly configService: ConfigService,
-  ) {
-    this.rateLimitWindow = this.configService.get<number>('WS_RATE_LIMIT_WINDOW', 60);
-    this.rateLimitMax = this.configService.get<number>('WS_RATE_LIMIT_MAX', 20);
-  }
+  ) {}
 
   handleConnection(client: SocketWithData) {
     const tenant = client.data.tenantContext;
@@ -63,13 +59,13 @@ export class ChatGateway {
     this.logger.log(`Chat from ${client.id} [shop:${tenant.shopId}]: ${payload.message}`);
 
     const rateLimitKey = `ratelimit:ws:${client.id}`;
-    const count = await this.cacheService.incrementWithTtl(rateLimitKey, this.rateLimitWindow);
+    const count = await this.cacheService.incrementWithTtl(rateLimitKey, this.ragChatConfig.WsRateLimitWindow);
 
-    if (count > this.rateLimitMax) {
+    if (count > this.ragChatConfig.WsRateLimitMax) {
       client.emit('chat:error', {
         message: 'Rate limit exceeded',
         code: 'RATE_LIMITED',
-        retryAfter: this.rateLimitWindow,
+        retryAfter: this.ragChatConfig.WsRateLimitWindow,
       } as ChatErrorEventDto);
       return;
     }

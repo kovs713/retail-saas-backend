@@ -10,7 +10,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 describe('ChatSessionService', () => {
   let service: ChatSessionService;
   let repository: DeepMocked<ChatSessionRepository>;
-  let configService: DeepMocked<ConfigService>;
 
   const mockSession = {
     id: 'session-1',
@@ -47,7 +46,6 @@ describe('ChatSessionService', () => {
 
     service = module.get<ChatSessionService>(ChatSessionService);
     repository = module.get<DeepMocked<ChatSessionRepository>>(ChatSessionRepository);
-    configService = module.get<DeepMocked<ConfigService>>(ConfigService);
   });
 
   afterEach(() => {
@@ -92,10 +90,6 @@ describe('ChatSessionService', () => {
 
   describe('addMessage', () => {
     it('should add message to existing session', async () => {
-      const sessionWithMessages = {
-        ...mockSession,
-        messages: [{ role: 'user' as const, content: 'Hello', timestamp: '2024-01-01T00:00:00.000Z' }],
-      };
       repository.findById.mockResolvedValueOnce(mockSession);
       repository.save.mockResolvedValue(undefined);
 

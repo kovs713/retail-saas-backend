@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsObject, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsArray, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class ChatChunkEventDto {
   @ApiProperty({ description: 'Chat session ID' })

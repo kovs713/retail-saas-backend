@@ -1,22 +1,21 @@
+import { RagChatConfig } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatSessionDto } from './dto';
+import { RagChatOptions } from './rag.module';
 import { ChatSessionRepository } from './repositories';
 
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
 @Injectable()
 export class ChatSessionService {
   private readonly logger = new LoggerService(ChatSessionService.name);
-  private readonly sessionTtl: number;
 
   constructor(
+    @Inject(RagChatConfig)
+    private readonly ragChatConfig: RagChatOptions,
     private readonly repository: ChatSessionRepository,
-    private readonly configService: ConfigService,
-  ) {
-    this.sessionTtl = this.configService.get<number>('CHAT_SESSION_TTL', 1800);
-  }
+  ) {}
 
   async createSession(shopId: string): Promise<ChatSessionDto> {
     const session: ChatSessionDto = {
@@ -27,7 +26,7 @@ export class ChatSessionService {
       updatedAt: new Date().toISOString(),
     };
 
-    await this.repository.save(session, this.sessionTtl);
+    await this.repository.save(session, this.ragChatConfig.ChatSessionTtl);
     this.logger.log(`Created chat session: ${session.id} for shop: ${shopId}`);
     return session;
   }
@@ -46,7 +45,7 @@ export class ChatSessionService {
     session.messages.push({ role, content, timestamp: new Date().toISOString() });
     session.updatedAt = new Date().toISOString();
 
-    await this.repository.save(session, this.sessionTtl);
+    await this.repository.save(session, this.ragChatConfig.ChatSessionTtl);
     return session;
   }
 
