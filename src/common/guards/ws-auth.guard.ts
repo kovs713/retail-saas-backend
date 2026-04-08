@@ -1,0 +1,48 @@
+import { TenantContext, TokenPayload } from '@/common/types';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { WsException } from '@nestjs/websockets';
+import { Socket } from 'socket.io';
+
+@Injectable()
+export class WsAuthGuard implements CanActivate {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const client = context.switchToWs().getClient<Socket>();
+    const token = this.extractToken(client);
+
+    if (!token) {
+      throw new WsException('Unauthorized');
+    }
+
+    try {
+      const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
+        secret: this.configService.getOrThrow<string>('JWT_SECRET'),
+      });
+
+      if (!payload.shopId) {
+        throw new WsException('Missing tenant context');
+      }
+
+      client.data.user = payload;
+      client.data.tenantContext = { shopId: payload.shopId } as TenantContext;
+      return true;
+    } catch (error) {
+      if (error instanceof WsException) throw error;
+      throw new WsException('Unauthorized');
+    }
+  }
+
+  private extractToken(client: Socket): string | null {
+    const auth = client.handshake.auth?.token || client.handshake.headers?.authorization;
+    if (!auth) return null;
+
+    const [type, token] = typeof auth === 'string' ? auth.split(' ') : [];
+    return type === 'Bearer' ? token : auth;
+  }
+}

@@ -1,12 +1,16 @@
-import { LoggerService } from '@/core/logger/logger.service';
+import { TenantContext } from '@/common/types';
+import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
+import { Logger } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
 
-// TODO: Add WebSocket JWT Auth Guard
-// TODO: Add ChatSessionService
-// TODO: Add RagService injection
-// TODO: Implement chat:message handler
+export interface ChatMessagePayload {
+  sessionId?: string;
+  message: string;
+  maxResults?: number;
+  systemPrompt?: string;
+}
 
 @WebSocketGateway({
   namespace: 'chat',
@@ -14,6 +18,7 @@ import { Logger } from '@nestjs/common';
     origin: '*',
   },
 })
+@UseGuards(WsAuthGuard)
 export class ChatGateway {
   private readonly logger = new Logger(ChatGateway.name);
 
@@ -21,7 +26,8 @@ export class ChatGateway {
   server: Server;
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+    const tenant = client.data.tenantContext as TenantContext;
+    this.logger.log(`Client connected: ${client.id} (shop: ${tenant?.shopId})`);
   }
 
   handleDisconnect(client: Socket) {
@@ -29,9 +35,18 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('chat:message')
-  handleMessage(@MessageBody() data: unknown, @ConnectedSocket() client: Socket) {
-    this.logger.log(`Received chat message from ${client.id}`, JSON.stringify(data));
-    // TODO: Implement chat logic
-    return { event: 'chat:response', data: { answer: 'Not implemented yet' } };
+  handleMessage(@MessageBody() payload: ChatMessagePayload, @ConnectedSocket() client: Socket) {
+    const tenant = client.data.tenantContext as TenantContext;
+    this.logger.log(`Chat from ${client.id} [shop:${tenant.shopId}]: ${payload.message}`);
+
+    return {
+      event: 'chat:response',
+      data: {
+        sessionId: payload.sessionId || 'temp',
+        answer: 'Not implemented yet',
+        sources: [],
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 }
