@@ -1,7 +1,8 @@
 import { TenantContext } from '@/common/types';
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
+import { ChatSessionService } from './chat-session.service';
 import { Logger } from '@nestjs/common';
-import { UseGuards } from '@nestjs/common';
+import { Injectable, UseGuards } from '@nestjs/common';
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
@@ -12,6 +13,14 @@ export interface ChatMessagePayload {
   systemPrompt?: string;
 }
 
+export interface ChatResponseData {
+  sessionId: string;
+  answer: string;
+  sources: Array<{ content: string; metadata?: Record<string, unknown> }>;
+  timestamp: string;
+}
+
+@Injectable()
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
@@ -25,6 +34,8 @@ export class ChatGateway {
   @WebSocketServer()
   server: Server;
 
+  constructor(private readonly sessionService: ChatSessionService) {}
+
   handleConnection(client: Socket) {
     const tenant = client.data.tenantContext as TenantContext;
     this.logger.log(`Client connected: ${client.id} (shop: ${tenant?.shopId})`);
@@ -35,18 +46,21 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('chat:message')
-  handleMessage(@MessageBody() payload: ChatMessagePayload, @ConnectedSocket() client: Socket) {
+  async handleMessage(@MessageBody() payload: ChatMessagePayload, @ConnectedSocket() client: Socket) {
     const tenant = client.data.tenantContext as TenantContext;
     this.logger.log(`Chat from ${client.id} [shop:${tenant.shopId}]: ${payload.message}`);
 
-    return {
-      event: 'chat:response',
-      data: {
-        sessionId: payload.sessionId || 'temp',
-        answer: 'Not implemented yet',
-        sources: [],
-        timestamp: new Date().toISOString(),
-      },
+    const session = await this.sessionService.getOrCreateSession(payload.sessionId, tenant.shopId);
+    await this.sessionService.addMessage(session.id, 'user', payload.message);
+
+    // TODO: Call RagService and emit streaming response
+    const responseData: ChatResponseData = {
+      sessionId: session.id,
+      answer: 'Not implemented yet',
+      sources: [],
+      timestamp: new Date().toISOString(),
     };
+
+    return { event: 'chat:response', data: responseData };
   }
 }

@@ -1,4 +1,5 @@
 import { ChatGateway } from './chat.gateway';
+import { ChatSessionService } from './chat-session.service';
 import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { LLMModule } from './llm/llm.module';
 import { RagController } from './rag.controller';
@@ -10,8 +11,8 @@ import { Module } from '@nestjs/common';
 
 @Module({
   imports: [EmbeddingsModule, LLMModule.forRootAsync(), VectorStoreModule.forRootAsync()],
-  providers: [RagService, ChatGateway, WsAuthGuard],
-  exports: [RagService],
+  providers: [RagService, ChatGateway, ChatSessionService, WsAuthGuard],
+  exports: [RagService, ChatSessionService],
   controllers: [RagController],
 })
 export class RagModule {}
