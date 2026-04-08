@@ -1,6 +1,6 @@
-import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatSessionDto } from './dto';
+import { ChatSessionRepository } from './repositories';
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -12,7 +12,7 @@ export class ChatSessionService {
   private readonly sessionTtl: number;
 
   constructor(
-    private readonly cacheService: CacheService,
+    private readonly repository: ChatSessionRepository,
     private readonly configService: ConfigService,
   ) {
     this.sessionTtl = this.configService.get<number>('CHAT_SESSION_TTL', 1800);
@@ -27,13 +27,13 @@ export class ChatSessionService {
       updatedAt: new Date().toISOString(),
     };
 
-    await this.saveSession(session);
+    await this.repository.save(session, this.sessionTtl);
     this.logger.log(`Created chat session: ${session.id} for shop: ${shopId}`);
     return session;
   }
 
   async getSession(sessionId: string): Promise<ChatSessionDto | null> {
-    return this.cacheService.get<ChatSessionDto>(this.getSessionKey(sessionId));
+    return this.repository.findById(sessionId);
   }
 
   async addMessage(sessionId: string, role: 'user' | 'assistant', content: string): Promise<ChatSessionDto | null> {
@@ -46,7 +46,7 @@ export class ChatSessionService {
     session.messages.push({ role, content, timestamp: new Date().toISOString() });
     session.updatedAt = new Date().toISOString();
 
-    await this.saveSession(session);
+    await this.repository.save(session, this.sessionTtl);
     return session;
   }
 
@@ -56,13 +56,5 @@ export class ChatSessionService {
       if (existing) return existing;
     }
     return this.createSession(shopId);
-  }
-
-  private async saveSession(session: ChatSessionDto): Promise<void> {
-    await this.cacheService.set(this.getSessionKey(session.id), session, this.sessionTtl);
-  }
-
-  private getSessionKey(sessionId: string): string {
-    return `chat:session:${sessionId}`;
   }
 }

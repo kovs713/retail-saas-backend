@@ -7,13 +7,14 @@ import { LLMModule } from './llm/llm.module';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
 import { VectorStoreModule } from './vector-store/vector-store.module';
+import { ChatSessionRepository } from './repositories';
 
 import { Module } from '@nestjs/common';
 
 @Module({
   imports: [EmbeddingsModule, LLMModule.forRootAsync(), VectorStoreModule.forRootAsync(), CacheModule.forRootAsync()],
-  providers: [RagService, ChatGateway, ChatSessionService, WsAuthGuard],
-  exports: [RagService, ChatSessionService],
+  providers: [RagService, ChatGateway, ChatSessionService, ChatSessionRepository, WsAuthGuard],
+  exports: [RagService, ChatSessionService, ChatSessionRepository],
   controllers: [RagController],
 })
 export class RagModule {}
