@@ -1,11 +1,10 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
 import { RagChatConfig } from '@/common/types';
 import { CacheModule } from '@/core/cache/cache.module';
-import { ChatSessionService } from './chat-session.service';
-import { ChatGateway } from './chat.gateway';
+import { ProductModule } from '@/modules/product/product.module';
+import { ChatGateway, ChatSessionService } from './chat';
 import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { LLMModule } from './llm/llm.module';
-import { ProductModule } from '@/modules/product/product.module';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
 import { ChatSessionRepository } from './repositories';

@@ -1,12 +1,12 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
 import { WsValidationPipe } from '@/common/pipes/ws-validation.pipe';
-import { TokenPayload, TenantContext, RagChatConfig } from '@/common/types';
+import { RagChatConfig, TenantContext, TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
+import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from '../dto';
+import { RagService } from '../rag.service';
+import { RagChatOptions } from '../rag.types';
 import { ChatSessionService } from './chat-session.service';
-import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from './dto';
-import { RagChatOptions } from './rag.types';
-import { RagService } from './rag.service';
 
 import { Inject, Injectable, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';

@@ -2,9 +2,9 @@ import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
 import { RagChatConfig } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
+import { RagService } from '../rag.service';
 import { ChatSessionService } from './chat-session.service';
 import { ChatGateway } from './chat.gateway';
-import { RagService } from './rag.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConfigService } from '@nestjs/config';
