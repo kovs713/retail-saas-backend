@@ -83,6 +83,7 @@ describe('Auth E2E', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.accessToken).toBe(mockAuthResponse.accessToken);
+      expect(response.body.data.refreshToken).toBeUndefined();
       expect(response.body.data.user.id).toBe('user_001');
       expect(response.body.message).toBe('User registered successfully');
 
@@ -124,6 +125,7 @@ describe('Auth E2E', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.accessToken).toBe(mockAuthResponse.accessToken);
+      expect(response.body.data.refreshToken).toBeUndefined();
       expect(response.body.data.user.email).toBe('test@example.com');
 
       const setCookie = response.headers['set-cookie'];
@@ -151,6 +153,7 @@ describe('Auth E2E', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.accessToken).toBe(mockAuthResponse.accessToken);
+      expect(response.body.data.refreshToken).toBeUndefined();
     });
 
     it('should return 401 when no refresh token', async () => {

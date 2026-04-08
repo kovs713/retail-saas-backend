@@ -1,11 +1,11 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
+import { AuthConfig } from '@/common/types';
 import { Shop } from '@/modules/shop/entities';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
 import { UserService } from '@/modules/user/user.service';
-import { AuthService } from './auth.service';
-import { AuthResponseDto } from './dto';
+import { AuthService, AuthTokensResult } from './auth.service';
 
 import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
@@ -22,7 +22,13 @@ describe('AuthService', () => {
   let cacheService: CacheService;
 
   const mockAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockToken';
+
   const mockRefreshToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refreshToken';
+
+  const mockAuthConfig = {
+    refreshTokenCookie: 'refreshToken',
+    refreshTokenMaxAge: 604800000,
+  };
 
   const mockShop = {
     id: 'shop-456',
@@ -55,6 +61,10 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        {
+          provide: AuthConfig,
+          useValue: mockAuthConfig,
+        },
         {
           provide: DataSource,
           useValue: createMock<DataSource>(),
@@ -96,7 +106,7 @@ describe('AuthService', () => {
       password: 'password123',
     };
 
-    it('should return accessToken, email, and user info', async () => {
+    it('should return accessToken and user info', async () => {
       jest.spyOn(userService, 'findByEmail').mockResolvedValue(mockUser as any);
       jest.spyOn(userService, 'validatePassword').mockResolvedValue(true);
       jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(mockShop as any);
@@ -105,8 +115,7 @@ describe('AuthService', () => {
 
       const result = await service.signIn(mockSignInDto as any);
 
-      expect(result).toEqual<AuthResponseDto>({
-        email: mockSignInDto.email,
+      expect(result).toEqual<AuthTokensResult>({
         accessToken: mockAccessToken,
         refreshToken: mockRefreshToken,
         user: expectedUserInfo,
@@ -135,7 +144,6 @@ describe('AuthService', () => {
 
       const result = await service.signIn(mockSignInDto as any);
 
-      expect(result.email).toBe(mockSignInDto.email);
       expect(result.accessToken).toBe(mockAccessToken);
       expect(result.refreshToken).toBe(mockRefreshToken);
       expect(result.user.id).toBe(mockUser.id);
@@ -177,7 +185,6 @@ describe('AuthService', () => {
 
       const result = await service.register(mockRegisterDto);
 
-      expect(result.email).toBe(mockRegisterDto.email);
       expect(result.accessToken).toBe(mockAccessToken);
       expect(result.refreshToken).toBe(mockRefreshToken);
       expect(result.user).toBeDefined();
@@ -215,11 +222,15 @@ describe('AuthService', () => {
 
       const result = await service.refreshToken(mockRefreshTokenString);
 
-      expect(result.email).toBe(mockPayload.email);
       expect(result.accessToken).toBe(mockAccessToken);
       expect(result.refreshToken).toBe('new-refresh-token');
       expect(result.user).toBeDefined();
       expect(result.user.id).toBe(mockUser.id);
+      expect(cacheService.set).toHaveBeenCalledWith(
+        cacheService.generateKey('refreshToken', 'user-123'),
+        'new-refresh-token',
+        604800000,
+      );
     });
 
     it('should throw UnauthorizedException when refresh token invalid', async () => {
@@ -280,7 +291,7 @@ describe('AuthService', () => {
     it('should delete refresh token from cache', async () => {
       await service.revokeRefreshToken('user-123');
 
-      expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('auth:refresh', 'user-123'));
+      expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('refreshToken', 'user-123'));
     });
   });
 });

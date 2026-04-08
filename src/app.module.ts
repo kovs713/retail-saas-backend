@@ -43,7 +43,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     TypeOrmModule.forRootAsync({ useClass: TypeOrmConfigService }),
 
     CommonModule,
-    AuthModule,
+    AuthModule.forRoot(),
     CacheModule.forRootAsync(),
     LoggerModule,
 

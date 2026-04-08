@@ -1,15 +1,8 @@
+import { Role } from '@/common/enums';
 import { Category, Product } from '@/modules/product/entities';
 import { Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
 import { AppModule } from 'src/app.module';
-import {
-  createAdminUser,
-  createCategory,
-  createEmployeeUser,
-  createOwnerUser,
-  createProduct,
-  createShop,
-} from '../factories';
 
 import { Faker, en } from '@faker-js/faker';
 import { NestFactory } from '@nestjs/core';
@@ -88,7 +81,13 @@ async function seedShops(dataSource: DataSource): Promise<Shop[]> {
   const shopRepo = dataSource.getRepository(Shop);
   return Promise.all(
     SHOP_SEEDS.map((data) =>
-      shopRepo.save(createShop({ name: data.name, slug: data.slug, description: data.description })),
+      shopRepo.save(
+        shopRepo.create({
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+        }),
+      ),
     ),
   );
 }
@@ -99,11 +98,51 @@ async function seedUsers(dataSource: DataSource, shops: Shop[]): Promise<User[]>
   const adminPasswordHash = await hash('admin123', 10);
 
   return Promise.all([
-    userRepo.save(createOwnerUser(shops[0].id, { email: 'owner@electronics-hub.com', passwordHash })),
-    userRepo.save(createOwnerUser(shops[1].id, { email: 'owner@fashion-store.com', passwordHash })),
-    userRepo.save(createAdminUser({ passwordHash: adminPasswordHash })),
-    userRepo.save(createEmployeeUser(shops[0].id, { email: 'manager@electronics-hub.com', passwordHash })),
-    userRepo.save(createEmployeeUser(shops[1].id, { email: 'manager@fashion-store.com', passwordHash })),
+    userRepo.save(
+      userRepo.create({
+        email: 'owner@electronics-hub.com',
+        passwordHash,
+        role: Role.OWNER,
+        shopId: shops[0].id,
+        isActive: true,
+      }),
+    ),
+    userRepo.save(
+      userRepo.create({
+        email: 'owner@fashion-store.com',
+        passwordHash,
+        role: Role.OWNER,
+        shopId: shops[1].id,
+        isActive: true,
+      }),
+    ),
+    userRepo.save(
+      userRepo.create({
+        email: 'admin@retail-saas.com',
+        passwordHash: adminPasswordHash,
+        role: Role.ADMIN,
+        shopId: null,
+        isActive: true,
+      }),
+    ),
+    userRepo.save(
+      userRepo.create({
+        email: 'manager@electronics-hub.com',
+        passwordHash,
+        role: Role.EMPLOYEE,
+        shopId: shops[0].id,
+        isActive: true,
+      }),
+    ),
+    userRepo.save(
+      userRepo.create({
+        email: 'manager@fashion-store.com',
+        passwordHash,
+        role: Role.EMPLOYEE,
+        shopId: shops[1].id,
+        isActive: true,
+      }),
+    ),
   ]);
 }
 
@@ -112,7 +151,13 @@ async function seedCategories(dataSource: DataSource, shops: Shop[]): Promise<Ca
   return Promise.all(
     SHOP_SEEDS.flatMap((seed, i) =>
       seed.categories.map((cat) =>
-        categoryRepo.save(createCategory({ name: cat.name, slug: cat.slug, shopId: shops[i].id })),
+        categoryRepo.save(
+          categoryRepo.create({
+            name: cat.name,
+            slug: cat.slug,
+            shopId: shops[i].id,
+          }),
+        ),
       ),
     ),
   );
@@ -127,7 +172,7 @@ async function seedProducts(dataSource: DataSource, shops: Shop[], categories: C
       seed.products.map((prod) => {
         const category = shopCategories[i][Math.floor(Math.random() * shopCategories[i].length)];
         return productRepo.save(
-          createProduct({
+          productRepo.create({
             name: prod.name,
             price: prod.price,
             cost: prod.cost,

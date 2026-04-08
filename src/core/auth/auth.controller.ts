@@ -14,7 +14,8 @@ import { Response } from 'express';
 @Controller('auth')
 export class AuthController {
   constructor(
-    @Inject(AuthConfig) private readonly authConfig: AuthOptions,
+    @Inject(AuthConfig)
+    private readonly authConfig: AuthOptions,
     private readonly authService: AuthService,
   ) {}
 
@@ -31,7 +32,14 @@ export class AuthController {
     const result = await this.authService.register(registerDto);
     this.setRefreshTokenCookie(res, result.refreshToken);
 
-    return { success: true, data: result, message: 'User registered successfully' };
+    return {
+      success: true,
+      data: {
+        accessToken: result.accessToken,
+        user: result.user,
+      },
+      message: 'User registered successfully',
+    };
   }
 
   @Post('login')
@@ -46,7 +54,14 @@ export class AuthController {
     const result = await this.authService.signIn(signInDto);
     this.setRefreshTokenCookie(res, result.refreshToken);
 
-    return { success: true, data: result, message: 'Login successful' };
+    return {
+      success: true,
+      data: {
+        accessToken: result.accessToken,
+        user: result.user,
+      },
+      message: 'Login successful',
+    };
   }
 
   @Post('refresh')
@@ -69,7 +84,14 @@ export class AuthController {
     const result = await this.authService.refreshToken(refreshToken);
     this.setRefreshTokenCookie(res, result.refreshToken);
 
-    return { success: true, data: result, message: 'Token refreshed successfully' };
+    return {
+      success: true,
+      data: {
+        accessToken: result.accessToken,
+        user: result.user,
+      },
+      message: 'Token refreshed successfully',
+    };
   }
 
   @Get('me')
@@ -82,7 +104,10 @@ export class AuthController {
   async me(@User() payload: TokenPayload): Promise<AppApiResponse<UserInfoDto>> {
     const user = await this.authService.getProfile(payload.sub);
 
-    return { success: true, data: user };
+    return {
+      success: true,
+      data: user,
+    };
   }
 
   private setRefreshTokenCookie(res: Response, refreshToken?: string): void {
