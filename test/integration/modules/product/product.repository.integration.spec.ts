@@ -164,6 +164,35 @@ describe('ProductRepository Integration', () => {
     expect(products).toHaveLength(100);
   });
 
+  it('findAll loads product category relation', async () => {
+    const shop = await createShop('Relation Shop', `relation-shop-${Date.now()}`);
+    const category = await createCategory(shop.id, 'Electronics', `electronics-${Date.now()}`);
+    const productWithCategory = await createProduct({
+      shopId: shop.id,
+      sku: 'SKU-WITH-CAT',
+      name: 'With Category',
+      price: 100,
+      categoryId: category.id,
+    });
+    const productWithoutCategory = await createProduct({
+      shopId: shop.id,
+      sku: 'SKU-WITHOUT-CAT',
+      name: 'Without Category',
+      price: 50,
+      categoryId: null,
+    });
+
+    const [products] = await repository.findAll(shop.id, {});
+
+    const withCat = products.find((p) => p.id === productWithCategory.id);
+    const withoutCat = products.find((p) => p.id === productWithoutCategory.id);
+
+    expect(withCat?.category).toBeDefined();
+    expect(withCat?.category?.id).toBe(category.id);
+    expect(withCat?.category?.name).toBe('Electronics');
+    expect(withoutCat?.category).toBeNull();
+  });
+
   it('findById, findBySku and findByBarcode stay scoped to shop and exclude soft-deleted rows', async () => {
     const shopA = await createShop('Lookup Shop A', `lookup-a-${Date.now()}`);
     const shopB = await createShop('Lookup Shop B', `lookup-b-${Date.now()}`);
