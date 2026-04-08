@@ -14,7 +14,12 @@ export interface ChatMessagePayload {
   systemPrompt?: string;
 }
 
-export interface ChatResponseData {
+export interface ChatChunkData {
+  sessionId: string;
+  chunk: string;
+}
+
+export interface ChatCompleteData {
   sessionId: string;
   answer: string;
   sources: Array<{ content: string; metadata?: Record<string, unknown> }>;
@@ -58,24 +63,34 @@ export class ChatGateway {
       const session = await this.sessionService.getOrCreateSession(payload.sessionId, tenant.shopId);
       await this.sessionService.addMessage(session.id, 'user', payload.message);
 
-      const result = await this.ragService.query(payload.message, tenant, payload.maxResults, payload.systemPrompt);
+      let fullAnswer = '';
+      const sources: Array<{ content: string; metadata?: Record<string, unknown> }> = [];
 
-      await this.sessionService.addMessage(session.id, 'assistant', result.answer);
+      for await (const event of this.ragService.queryStream(
+        payload.message,
+        tenant,
+        payload.maxResults,
+        payload.systemPrompt,
+      )) {
+        if (event.type === 'chunk') {
+          fullAnswer += event.content;
+          client.emit('chat:chunk', { sessionId: session.id, chunk: event.content } as ChatChunkData);
+        } else if (event.type === 'complete') {
+          sources.push(...event.sources.map((s) => ({ content: s.pageContent, metadata: s.metadata })));
+        }
+      }
 
-      const responseData: ChatResponseData = {
+      await this.sessionService.addMessage(session.id, 'assistant', fullAnswer);
+
+      client.emit('chat:complete', {
         sessionId: session.id,
-        answer: result.answer,
-        sources: result.sources.map((s) => ({ content: s.pageContent, metadata: s.metadata })),
+        answer: fullAnswer,
+        sources,
         timestamp: new Date().toISOString(),
-      };
-
-      return { event: 'chat:response', data: responseData };
+      } as ChatCompleteData);
     } catch (error) {
       this.logger.error(`Chat error: ${error.message}`, error.stack);
-      return {
-        event: 'chat:error',
-        data: { message: 'Failed to process chat message', code: 'CHAT_ERROR' },
-      };
+      client.emit('chat:error', { message: 'Failed to process chat message', code: 'CHAT_ERROR' });
     }
   }
 }

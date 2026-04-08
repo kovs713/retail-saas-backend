@@ -178,4 +178,58 @@ export class RagService {
     const documentIds = await this.vectorStoreService.addTexts(texts, tenantContext, metadata);
     return documentIds;
   }
+
+  async *queryStream(
+    query: string,
+    tenantContext: TenantContext,
+    maxResults: number = 5,
+    systemPrompt?: string,
+  ): AsyncGenerator<
+    | { type: 'chunk'; content: string }
+    | { type: 'complete'; sources: Array<{ pageContent: string; metadata: Record<string, any> }> }
+  > {
+    this.logger.log(`Processing streaming RAG query: "${query}" for organization: ${tenantContext.shopId}`);
+
+    const relevantDocs = await this.vectorStoreService.similaritySearch(query, tenantContext, maxResults);
+    this.logger.log(`Found ${relevantDocs.length} relevant documents`);
+
+    const context = relevantDocs.map((doc, index) => `[${index + 1}] ${doc.pageContent}`).join('\n\n');
+    const baseInstructions =
+      'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
+
+    let prompt: string;
+    if (systemPrompt) {
+      prompt = `${systemPrompt}
+
+Context:
+${context}
+
+Question: ${query}
+
+${baseInstructions}`;
+    } else {
+      prompt = `You are a helpful assistant that answers questions based on the provided context. ${baseInstructions}
+
+Context:
+${context}
+
+Question: ${query}`;
+    }
+
+    let fullAnswer = '';
+    for await (const chunk of this.llmService.generateStream(prompt)) {
+      fullAnswer += chunk;
+      yield { type: 'chunk', content: chunk };
+    }
+
+    this.logger.log(`Generated streaming answer for query: "${query.substring(0, 50)}..."`);
+
+    yield {
+      type: 'complete',
+      sources: relevantDocs.map((doc) => ({
+        pageContent: doc.pageContent,
+        metadata: doc.metadata,
+      })),
+    };
+  }
 }
