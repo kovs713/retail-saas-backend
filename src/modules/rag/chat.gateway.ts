@@ -2,6 +2,7 @@ import { TenantContext } from '@/common/types';
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
 import { ChatSessionService } from './chat-session.service';
 import { RagService } from './rag.service';
+import { CacheService } from '@/core/cache/cache.service';
 import { Logger } from '@nestjs/common';
 import { Injectable, UseGuards } from '@nestjs/common';
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
@@ -26,6 +27,9 @@ export interface ChatCompleteData {
   timestamp: string;
 }
 
+const RATE_LIMIT_WINDOW = 60; // seconds
+const RATE_LIMIT_MAX = 20; // messages per window
+
 @Injectable()
 @WebSocketGateway({
   namespace: 'chat',
@@ -43,6 +47,7 @@ export class ChatGateway {
   constructor(
     private readonly sessionService: ChatSessionService,
     private readonly ragService: RagService,
+    private readonly cacheService: CacheService,
   ) {}
 
   handleConnection(client: Socket) {
@@ -58,6 +63,18 @@ export class ChatGateway {
   async handleMessage(@MessageBody() payload: ChatMessagePayload, @ConnectedSocket() client: Socket) {
     const tenant = client.data.tenantContext as TenantContext;
     this.logger.log(`Chat from ${client.id} [shop:${tenant.shopId}]: ${payload.message}`);
+
+    const rateLimitKey = `ratelimit:ws:${client.id}`;
+    const count = await this.cacheService.incrementWithTtl(rateLimitKey, RATE_LIMIT_WINDOW);
+
+    if (count > RATE_LIMIT_MAX) {
+      client.emit('chat:error', {
+        message: 'Rate limit exceeded',
+        code: 'RATE_LIMITED',
+        retryAfter: RATE_LIMIT_WINDOW,
+      });
+      return;
+    }
 
     try {
       const session = await this.sessionService.getOrCreateSession(payload.sessionId, tenant.shopId);
