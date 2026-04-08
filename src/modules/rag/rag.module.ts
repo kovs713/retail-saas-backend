@@ -5,6 +5,7 @@ import { ChatSessionService } from './chat-session.service';
 import { ChatGateway } from './chat.gateway';
 import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { LLMModule } from './llm/llm.module';
+import { ProductModule } from '@/modules/product/product.module';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
 import { ChatSessionRepository } from './repositories';
@@ -25,6 +26,7 @@ export class RagModule {
         LLMModule.forRootAsync(),
         VectorStoreModule.forRootAsync(),
         CacheModule.forRootAsync(),
+        ProductModule,
       ],
       providers: [
         {
