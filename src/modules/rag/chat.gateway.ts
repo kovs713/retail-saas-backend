@@ -1,4 +1,5 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
+import { WsValidationPipe } from '@/common/pipes/ws-validation.pipe';
 import { TenantContext } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
@@ -6,7 +7,7 @@ import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessage
 import { ChatSessionService } from './chat-session.service';
 import { RagService } from './rag.service';
 
-import { Injectable, UseGuards } from '@nestjs/common';
+import { Injectable, UseGuards, UsePipes } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
@@ -21,9 +22,7 @@ interface SocketWithData extends Socket {
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: (origin, callback) => {
-      callback(null, true);
-    },
+    origin: '*',
   },
 })
 @UseGuards(WsAuthGuard)
@@ -32,7 +31,6 @@ export class ChatGateway {
   private readonly logger = new LoggerService(ChatGateway.name);
   private readonly rateLimitWindow: number;
   private readonly rateLimitMax: number;
-  private readonly wsCorsOrigin: string;
 
   constructor(
     private readonly sessionService: ChatSessionService,
@@ -42,7 +40,6 @@ export class ChatGateway {
   ) {
     this.rateLimitWindow = this.configService.get<number>('WS_RATE_LIMIT_WINDOW', 60);
     this.rateLimitMax = this.configService.get<number>('WS_RATE_LIMIT_MAX', 20);
-    this.wsCorsOrigin = this.configService.get<string>('WS_CORS_ORIGIN', '*');
   }
 
   handleConnection(client: SocketWithData) {
@@ -55,6 +52,7 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('chat:message')
+  @UsePipes(new WsValidationPipe(ChatMessageDto))
   async handleMessage(@MessageBody() payload: ChatMessageDto, @ConnectedSocket() client: SocketWithData) {
     const tenant = client.data.tenantContext;
     if (!tenant) {
