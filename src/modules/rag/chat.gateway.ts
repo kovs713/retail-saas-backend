@@ -1,6 +1,6 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
 import { WsValidationPipe } from '@/common/pipes/ws-validation.pipe';
-import { RagChatConfig, TenantContext } from '@/common/types';
+import { TokenPayload, TenantContext, RagChatConfig } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatSessionService } from './chat-session.service';
@@ -8,13 +8,15 @@ import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessage
 import { RagChatOptions } from './rag.types';
 import { RagService } from './rag.service';
 
-import { Inject, Injectable, UseGuards, UsePipes } from '@nestjs/common';
+import { Inject, Injectable, UseGuards } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 
 interface SocketWithData extends Socket {
   data: {
-    user?: Record<string, unknown>;
+    user?: TokenPayload;
     tenantContext?: TenantContext;
   };
 }
@@ -36,11 +38,51 @@ export class ChatGateway {
     private readonly sessionService: ChatSessionService,
     private readonly ragService: RagService,
     private readonly cacheService: CacheService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
-  handleConnection(client: SocketWithData) {
-    const tenant = client.data.tenantContext;
-    this.logger.log(`Client connected: ${client.id} (shop: ${tenant?.shopId})`);
+  async handleConnection(client: SocketWithData) {
+    try {
+      const token = this.extractToken(client);
+      if (!token) {
+        this.logger.warn(`Client connected without token: ${client.id}`);
+        client.disconnect();
+        return;
+      }
+
+      const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
+        secret: this.configService.getOrThrow<string>('JWT_SECRET'),
+      });
+
+      if (!payload.shopId) {
+        this.logger.warn(`Client connected without shopId: ${client.id}`);
+        client.disconnect();
+        return;
+      }
+
+      client.data.user = payload;
+      client.data.tenantContext = { shopId: payload.shopId } as TenantContext;
+      this.logger.log(`Client connected: ${client.id} (shop: ${payload.shopId})`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Invalid token for client ${client.id}: ${errorMessage}`);
+      client.disconnect();
+    }
+  }
+
+  private extractToken(client: Socket): string | null {
+    const handshakeAuth = client.handshake.auth?.token as string | undefined;
+    const headerAuth = client.handshake.headers?.authorization;
+    const auth = handshakeAuth || headerAuth;
+    if (!auth) return null;
+
+    if (typeof auth === 'string') {
+      const [type, token] = auth.split(' ');
+      return type === 'Bearer' ? token : auth;
+    }
+
+    return null;
   }
 
   handleDisconnect(client: Socket) {
@@ -48,8 +90,10 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('chat:message')
-  @UsePipes(new WsValidationPipe(ChatMessageDto))
-  async handleMessage(@MessageBody() payload: ChatMessageDto, @ConnectedSocket() client: SocketWithData) {
+  async handleMessage(
+    @MessageBody(new WsValidationPipe(ChatMessageDto)) payload: ChatMessageDto,
+    @ConnectedSocket() client: SocketWithData,
+  ) {
     const tenant = client.data.tenantContext;
     if (!tenant) {
       client.emit('chat:error', { message: 'Missing tenant context', code: 'MISSING_TENANT' } as ChatErrorEventDto);
