@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
+import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from './modules/rag/dto';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
@@ -42,14 +44,80 @@ async function bootstrap() {
     .addTag('Admin orders', 'Admin order management')
     .addTag('Analytics', 'Analytics and reporting')
     .addTag('RAG', 'AI-powered document analysis and chat')
-    .addTag('Public RAG', 'Public AI chat interface')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
     .addCookieAuth('refreshToken')
     .addServer('http://localhost:3000', 'Development')
     .build();
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory, {
+  const document = documentFactory();
+
+  SwaggerModule.createDocument(app, config, {
+    extraModels: [ChatMessageDto, ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto],
+  });
+
+  const wsPath = '/api/chat';
+  document.paths = document.paths || {};
+  document.paths[wsPath] = {
+    post: {
+      tags: ['RAG'],
+      summary: 'WebSocket Chat Endpoint',
+      description:
+        'Connect to `ws://localhost:3000/chat` with JWT bearer token. Send `chat:message` events and receive `chat:chunk`, `chat:complete`, `chat:error` events.',
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ChatMessageDto' },
+            example: {
+              message: 'What products do you have?',
+              sessionId: 'optional-session-id',
+              maxResults: 5,
+              systemPrompt: 'You are a helpful assistant.',
+            } as ChatMessageDto,
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Streaming response events',
+          content: {
+            'application/json': {
+              schema: {
+                oneOf: [
+                  { $ref: '#/components/schemas/ChatChunkEventDto' },
+                  { $ref: '#/components/schemas/ChatCompleteEventDto' },
+                  { $ref: '#/components/schemas/ChatErrorEventDto' },
+                ],
+              },
+              examples: {
+                chunk: {
+                  summary: 'Streaming chunk',
+                  value: { sessionId: 'abc-123', chunk: 'We have ' },
+                },
+                complete: {
+                  summary: 'Response complete',
+                  value: {
+                    sessionId: 'abc-123',
+                    answer: 'We have electronics and clothing.',
+                    sources: [{ content: 'Catalog page 1', metadata: { source: 'catalog' } }],
+                    timestamp: '2024-01-01T00:00:00.000Z',
+                  },
+                },
+                error: {
+                  summary: 'Error response',
+                  value: { message: 'Rate limit exceeded', code: 'RATE_LIMITED', retryAfter: 60 },
+                },
+              },
+            },
+          },
+        },
+        '401': { description: 'Unauthorized - Invalid or missing JWT token' },
+      },
+      security: [{ JWT: [] }],
+    },
+  };
+
+  SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
       displayRequestDuration: true,

@@ -1,18 +1,20 @@
 # Retail SaaS Backend
 
-Multi-tenant SaaS backend for micro-business storefronts with RAG-powered AI chatbot and file storage.
+Multi-tenant SaaS backend for micro-business storefronts with RAG-powered AI chatbot, order management, and file storage.
 
 ## Overview
 
-A platform enabling small retail businesses (pet shops, garden centers, etc.) to quickly launch a public storefront with a product catalog and an AI chatbot trained on their business documents.
+A platform enabling small retail businesses (pet shops, garden centers, etc.) to quickly launch a public storefront with a product catalog, order processing, analytics, and an AI chatbot trained on their business documents.
 
 ### Key Features
 
 - **Public Storefront** — product catalog at `platform/shop/:slug`
 - **RAG Chatbot** — AI assistant answering customer questions based on uploaded documents
 - **Admin Panel API** — shop management, analytics, and knowledge base administration
-- **Order Management** — create, track, and manage orders
+- **Order Management** — create, track, and manage orders (admin + public endpoints)
 - **Analytics** — storefront views and chat event tracking
+- **File Storage** — MinIO S3-based document and media storage
+- **Multi-tenant Architecture** — isolated data per tenant/organization
 
 ## Technology Stack
 
@@ -23,6 +25,8 @@ A platform enabling small retail businesses (pet shops, garden centers, etc.) to
 - **Object Storage**: MinIO S3
 - **AI/ML**: LangChain, Ollama Embeddings, Groq API
 - **Auth**: JWT + bcryptjs
+- **Real-time**: Socket.IO for WebSocket support
+- **Rate Limiting**: Redis-backed throttling
 
 ## Getting Started
 
@@ -55,6 +59,11 @@ docker-compose up -d
 
 # Verify services are running
 docker-compose ps
+
+# Seed database (optional)
+pnpm run seed:default    # Seed default tenant
+pnpm run seed:fake       # Seed fake data for testing
+pnpm run seed:clear      # Clear seeded data
 ```
 
 ### Running the Application
@@ -72,11 +81,29 @@ pnpm run start:prod
 
 Swagger UI available at `http://localhost:3000/api` when the application is running.
 
+### Testing
+
+```bash
+# Unit tests
+pnpm run test
+
+# Integration tests (uses testcontainers)
+pnpm run test:integration
+
+# E2E tests
+pnpm run test:e2e
+
+# Test coverage
+pnpm run test:cov
+```
+
 ### Configuration
 
 ```
 src/
 ├── modules/
+│   ├── analytics/        # Storefront views and chat event tracking
+│   ├── order/            # Order management (admin + public)
 │   ├── product/          # Product catalog and categories
 │   ├── rag/              # RAG system (embeddings, LLM, vector store)
 │   ├── shop/             # Shop profile management
@@ -85,15 +112,14 @@ src/
 ├── core/
 │   ├── auth/             # JWT authentication and authorization
 │   ├── cache/            # Redis caching
+│   ├── database/         # TypeORM config, migrations, seeds
 │   └── logger/           # Logging service
-├── common/               # Shared decorators, DTOs, guards, types, utils
-├── database/
-│   └── seeds/            # Database seeding
+├── common/               # Shared decorators, DTOs, guards, pipes, types, utils
 ├── app.module.ts         # Root application module
 └── main.ts               # Entry point (Swagger, CORS, ValidationPipe)
 
 test/
-├── http/                 # HTTP request tests (*.http)
+├── e2e/                  # End-to-end tests
 └── integration/          # Integration tests
     └── modules/          # Module-specific integration tests
 ```

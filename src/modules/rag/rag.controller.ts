@@ -8,9 +8,6 @@ import {
   AddDocumentsResponseDto,
   AddTextsDto,
   AddTextsResponseDto,
-  ChatDto,
-  ChatResponseDto,
-  ChatWithScoresResponseDto,
   DocumentDto,
   DocumentResponseDto,
 } from './dto';
@@ -27,93 +24,6 @@ export class RagController {
   private readonly logger = new LoggerService(RagController.name);
 
   constructor(private readonly ragService: RagService) {}
-
-  @Post('chat')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Chat with AI using RAG' })
-  @ApiBody({
-    type: ChatDto,
-    examples: {
-      default: {
-        summary: 'Basic chat',
-        value: { message: 'What is NestJS?', maxResults: 5 },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Successful response',
-    type: ChatResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  async chat(
-    @Body() chatRequest: ChatDto,
-    @Tenant() tenantContext: TenantContext,
-  ): Promise<AppApiResponse<ChatResponseDto>> {
-    this.logger.log(`Chat request: ${chatRequest.message.substring(0, 100)}...`);
-    const result = await this.ragService.query(
-      chatRequest.message,
-      tenantContext,
-      chatRequest.maxResults || 5,
-      chatRequest.systemPrompt,
-    );
-    const response: ChatResponseDto = {
-      answer: result.answer,
-      sources: result.sources.map((source) => ({
-        content: source.pageContent,
-        metadata: source.metadata,
-      })),
-      timestamp: new Date().toISOString(),
-    };
-    this.logger.log(`Chat response: ${result.answer.substring(0, 100)}...`);
-
-    return { success: true, data: response };
-  }
-
-  @Post('chat-with-scores')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Chat with AI and get relevance scores' })
-  @ApiBody({
-    type: ChatDto,
-    examples: {
-      example: {
-        summary: 'Chat with scores',
-        value: { message: 'What are vector databases?', maxResults: 5 },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Successful response',
-    type: ChatWithScoresResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  async chatWithScores(
-    @Body() chatRequest: ChatDto,
-    @Tenant() tenantContext: TenantContext,
-  ): Promise<AppApiResponse<ChatWithScoresResponseDto>> {
-    this.logger.log(`Chat with scores request: ${chatRequest.message.substring(0, 100)}...`);
-    const result = await this.ragService.queryWithScores(
-      chatRequest.message,
-      tenantContext,
-      chatRequest.maxResults || 5,
-      chatRequest.systemPrompt,
-    );
-    const response: ChatWithScoresResponseDto = {
-      answer: result.answer,
-      sources: result.sources.map((source) => ({
-        document: {
-          content: source.document.pageContent,
-          metadata: source.document.metadata,
-        },
-        score: source.score,
-      })),
-      timestamp: new Date().toISOString(),
-    };
-    this.logger.log(`Chat with scores response: ${result.answer.substring(0, 100)}...`);
-
-    return { success: true, data: response };
-  }
 
   @Get('documents')
   @ApiOperation({ summary: 'Get all documents with pagination' })

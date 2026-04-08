@@ -25,6 +25,21 @@ export class LLMService {
     return response.content as string;
   }
 
+  async *generateStream(prompt: string, systemMessage?: string): AsyncGenerator<string> {
+    const messages = systemMessage
+      ? [new SystemMessage(systemMessage), new HumanMessage(prompt)]
+      : [new HumanMessage(prompt)];
+
+    const stream = await this.chatGroqClient.stream(messages);
+
+    for await (const chunk of stream) {
+      const content = chunk.content as string;
+      if (content) {
+        yield content;
+      }
+    }
+  }
+
   getLLM(): ChatGroq {
     return this.chatGroqClient;
   }

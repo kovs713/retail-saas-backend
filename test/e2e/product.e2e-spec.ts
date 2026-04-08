@@ -15,18 +15,16 @@ describe('Product E2E', () => {
   let app: INestApplication;
   let service: DeepMocked<ProductService>;
 
-  const mockUser = createTokenPayload({ overrides: { sub: 'user_001', shopId: 'shop_001' } });
+  const mockUser = createTokenPayload({ sub: 'user_001', shopId: 'shop_001' });
 
   const mockProduct = createProduct({
     id: 'prod_001',
     index: 1,
-    overrides: {
-      sku: 'TEST-001',
-      name: 'Test Product',
-      price: 29.99,
-      quantity: 100,
-      description: 'A test product',
-    },
+    sku: 'TEST-001',
+    name: 'Test Product',
+    price: 29.99,
+    quantity: 100,
+    description: 'A test product',
   });
 
   beforeAll(async () => {
