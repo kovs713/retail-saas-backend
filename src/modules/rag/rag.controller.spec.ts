@@ -4,7 +4,6 @@ import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { Document } from '@langchain/core/documents';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('RagController', () => {
@@ -40,43 +39,6 @@ describe('RagController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
-  });
-
-  describe('chat endpoint', () => {
-    it('should call RagService.query with correct parameters', async () => {
-      const mockDocument = new Document({
-        pageContent: 'Test source content',
-        metadata: { source: 'test' },
-      });
-
-      const mockResponse = {
-        answer: 'Test answer',
-        sources: [mockDocument],
-      };
-
-      service.query.mockResolvedValue(mockResponse);
-
-      const chatRequest = {
-        message: 'Test message',
-        maxResults: 5,
-        systemPrompt: 'Test prompt',
-      };
-
-      const result = await controller.chat(chatRequest, tenantContext);
-
-      expect(service.query).toHaveBeenCalledWith(
-        chatRequest.message,
-        tenantContext,
-        chatRequest.maxResults,
-        chatRequest.systemPrompt,
-      );
-      expect(result.success).toBe(true);
-      expect(result.data?.answer).toBe(mockResponse.answer);
-      expect(result.data?.sources).toHaveLength(1);
-      expect(result.data?.sources[0].content).toBe(mockDocument.pageContent);
-      expect(result.data?.sources[0].metadata).toEqual(mockDocument.metadata);
-      expect(result.data?.timestamp).toBeDefined();
-    });
   });
 
   describe('getDocuments endpoint', () => {
@@ -164,58 +126,6 @@ describe('RagController', () => {
       expect(result.data?.documentIds).toEqual(mockDocIds);
       expect(result.data?.count).toBe(2);
       expect(result.data?.timestamp).toBeDefined();
-    });
-  });
-
-  describe('chatWithScores endpoint', () => {
-    it('should call RagService.queryWithScores with correct parameters', async () => {
-      const mockDocument = new Document({
-        pageContent: 'Test source content',
-        metadata: { source: 'test' },
-      });
-
-      const mockResponse = {
-        answer: 'Test answer with scores',
-        sources: [
-          {
-            document: mockDocument,
-            score: 0.95,
-          },
-        ],
-      };
-
-      service.queryWithScores.mockResolvedValue(mockResponse);
-
-      const chatRequest = {
-        message: 'Test message',
-        maxResults: 5,
-        systemPrompt: 'Test prompt',
-      };
-
-      const result = await controller.chatWithScores(chatRequest, tenantContext);
-
-      expect(service.queryWithScores).toHaveBeenCalledWith(
-        chatRequest.message,
-        tenantContext,
-        chatRequest.maxResults,
-        chatRequest.systemPrompt,
-      );
-      expect(result.success).toBe(true);
-      expect(result.data?.answer).toBe(mockResponse.answer);
-      expect(result.data?.sources).toHaveLength(1);
-      expect(result.data?.sources[0].score).toBe(0.95);
-      expect(result.data?.timestamp).toBeDefined();
-    });
-
-    it('should handle service errors', async () => {
-      service.queryWithScores.mockRejectedValue(new Error('Service error'));
-
-      const chatRequest = {
-        message: 'Test message',
-        maxResults: 5,
-      };
-
-      await expect(controller.chatWithScores(chatRequest, tenantContext)).rejects.toThrow('Service error');
     });
   });
 

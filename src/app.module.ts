@@ -6,7 +6,6 @@ import { LoggerModule } from './core/logger/logger.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { OrderModule } from './modules/order/order.module';
 import { ProductModule } from './modules/product/product.module';
-import { PublicRagModule } from './modules/rag/public-rag.module';
 import { RagModule } from './modules/rag/rag.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { StorageModule } from './modules/storage/storage.module';
@@ -50,7 +49,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     AnalyticsModule,
     OrderModule,
     ProductModule,
-    PublicRagModule,
     RagModule,
     ShopModule,
     StorageModule.forRoot(),
