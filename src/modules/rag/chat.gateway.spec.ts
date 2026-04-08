@@ -1,4 +1,5 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
+import { RagChatConfig } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatSessionService } from './chat-session.service';
@@ -39,6 +40,14 @@ describe('ChatGateway', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ChatGateway,
+        {
+          provide: RagChatConfig,
+          useValue: {
+            WsRateLimitWindow: 60,
+            WsRateLimitMax: 20,
+            ChatSessionTtl: 3600,
+          },
+        },
         {
           provide: ChatSessionService,
           useValue: createMock<ChatSessionService>(),

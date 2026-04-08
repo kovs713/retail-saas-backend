@@ -1,3 +1,4 @@
+import { RagChatConfig } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatSessionService } from './chat-session.service';
@@ -23,6 +24,12 @@ describe('ChatSessionService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ChatSessionService,
+        {
+          provide: RagChatConfig,
+          useValue: {
+            ChatSessionTtl: 3600,
+          },
+        },
         {
           provide: ChatSessionRepository,
           useValue: createMock<ChatSessionRepository>(),

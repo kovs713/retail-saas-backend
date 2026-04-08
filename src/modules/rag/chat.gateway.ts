@@ -5,7 +5,7 @@ import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatSessionService } from './chat-session.service';
 import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from './dto';
-import { RagChatOptions } from './rag.module';
+import { RagChatOptions } from './rag.types';
 import { RagService } from './rag.service';
 
 import { Inject, Injectable, UseGuards, UsePipes } from '@nestjs/common';

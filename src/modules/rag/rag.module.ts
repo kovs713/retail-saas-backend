@@ -13,11 +13,7 @@ import { VectorStoreModule } from './vector-store/vector-store.module';
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-export interface RagChatOptions {
-  WsRateLimitWindow: number;
-  WsRateLimitMax: number;
-  ChatSessionTtl: number;
-}
+import { RagChatOptions } from './rag.types';
 
 @Module({})
 export class RagModule {

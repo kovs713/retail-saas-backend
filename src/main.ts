@@ -42,7 +42,6 @@ async function bootstrap() {
     .addTag('Admin orders', 'Admin order management')
     .addTag('Analytics', 'Analytics and reporting')
     .addTag('RAG', 'AI-powered document analysis and chat')
-    .addTag('Public RAG', 'Public AI chat interface')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
     .addCookieAuth('refreshToken')
     .addServer('http://localhost:3000', 'Development')
