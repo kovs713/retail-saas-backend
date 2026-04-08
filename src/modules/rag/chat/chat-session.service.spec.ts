@@ -1,8 +1,8 @@
 import { RagChatConfig } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
+import { ChatSessionRepository } from '../repositories';
 import { ChatSessionService } from './chat-session.service';
-import { ChatSessionRepository } from './repositories';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConfigService } from '@nestjs/config';

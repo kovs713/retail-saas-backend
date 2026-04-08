@@ -1,6 +1,7 @@
 import { PaginationResponse } from '@/common/dto';
 import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
+import { ProductService } from '@/modules/product/product.service';
 import { DocumentResponseDto } from './dto';
 import { LLMService } from './llm/llm.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
@@ -15,6 +16,7 @@ export class RagService {
   constructor(
     private readonly llmService: LLMService,
     private readonly vectorStoreService: VectorStoreService,
+    private readonly productService: ProductService,
   ) {}
 
   async getDocuments(
@@ -54,6 +56,61 @@ export class RagService {
     this.logger.warn('clearDocuments not fully implemented for LangChain Chroma wrapper');
   }
 
+  private async buildCombinedContext(
+    query: string,
+    tenantContext: TenantContext,
+    maxResults: number,
+  ): Promise<{ context: string; sources: Array<{ pageContent: string; metadata: Record<string, any> }> }> {
+    const [vectorDocs, productsResult] = await Promise.all([
+      this.vectorStoreService.similaritySearch(query, tenantContext, maxResults),
+      this.productService.findAll({ page: 1, limit: 50, search: query }, tenantContext).catch(() => ({
+        data: [],
+        pagination: { total: 0 },
+      })),
+    ]);
+
+    this.logger.log(`Found ${vectorDocs.length} vector docs, ${productsResult.data?.length || 0} products`);
+
+    const sources: Array<{ pageContent: string; metadata: Record<string, any> }> = [];
+    const productContextParts: string[] = [];
+    const vectorContextParts: string[] = [];
+
+    for (const product of productsResult.data || []) {
+      const productInfo = [
+        `Product: ${product.name}`,
+        `SKU: ${product.sku}`,
+        `Price: ${product.price}`,
+        `Quantity: ${product.quantity}`,
+        ...(product.description ? [`Description: ${product.description}`] : []),
+        ...(product.barcode ? [`Barcode: ${product.barcode}`] : []),
+      ].join('\n');
+      productContextParts.push(productInfo);
+      sources.push({
+        pageContent: productInfo,
+        metadata: { source: 'postgresql', productId: product.id, type: 'product' },
+      });
+    }
+
+    for (let i = 0; i < vectorDocs.length; i++) {
+      const doc = vectorDocs[i];
+      vectorContextParts.push(`[${i + 1}] ${doc.pageContent}`);
+      sources.push({
+        pageContent: doc.pageContent,
+        metadata: { ...doc.metadata, source: 'vector_store' },
+      });
+    }
+
+    const parts: string[] = [];
+    if (productContextParts.length > 0) {
+      parts.push('## Products from catalog:\n\n' + productContextParts.join('\n\n'));
+    }
+    if (vectorContextParts.length > 0) {
+      parts.push('## Additional context:\n\n' + vectorContextParts.join('\n\n'));
+    }
+
+    return { context: parts.join('\n\n'), sources };
+  }
+
   async query(
     query: string,
     tenantContext: TenantContext,
@@ -68,11 +125,7 @@ export class RagService {
   }> {
     this.logger.log(`Processing RAG query: "${query}" for organization: ${tenantContext.shopId}`);
 
-    const relevantDocs = await this.vectorStoreService.similaritySearch(query, tenantContext, maxResults);
-
-    this.logger.log(`Found ${relevantDocs.length} relevant documents`);
-
-    const context = relevantDocs.map((doc, index) => `[${index + 1}] ${doc.pageContent}`).join('\n\n');
+    const { context, sources } = await this.buildCombinedContext(query, tenantContext, maxResults);
 
     const baseInstructions =
       'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
@@ -81,32 +134,26 @@ export class RagService {
     if (systemPrompt) {
       prompt = `${systemPrompt}
 
-                Context:
-                ${context}
+Context:
+${context}
 
-                Question: ${query}
+Question: ${query}
 
-                ${baseInstructions}`;
+${baseInstructions}`;
     } else {
       prompt = `You are a helpful assistant that answers questions based on the provided context. ${baseInstructions}
 
-                Context:
-                ${context}
+Context:
+${context}
 
-                Question: ${query}`;
+Question: ${query}`;
     }
 
     const answer = await this.llmService.generateText(prompt);
 
     this.logger.log(`Generated answer for query: "${query.substring(0, 50)}..."`);
 
-    return {
-      answer,
-      sources: relevantDocs.map((doc) => ({
-        pageContent: doc.pageContent,
-        metadata: doc.metadata,
-      })),
-    };
+    return { answer, sources };
   }
 
   async queryWithScores(
@@ -126,15 +173,12 @@ export class RagService {
   }> {
     this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${tenantContext.shopId}`);
 
-    const relevantDocsWithScores = await this.vectorStoreService.similaritySearchWithScore(
-      query,
-      tenantContext,
-      maxResults,
-    );
+    const [vectorDocsWithScores, { context, sources }] = await Promise.all([
+      this.vectorStoreService.similaritySearchWithScore(query, tenantContext, maxResults),
+      this.buildCombinedContext(query, tenantContext, maxResults),
+    ]);
 
-    this.logger.log(`Found ${relevantDocsWithScores.length} relevant documents with scores`);
-
-    const context = relevantDocsWithScores.map((doc, index) => `[${index + 1}] ${doc[0].pageContent}`).join('\n\n');
+    this.logger.log(`Found ${vectorDocsWithScores.length} vector documents with scores`);
 
     const baseInstructions =
       'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
@@ -143,19 +187,19 @@ export class RagService {
     if (systemPrompt) {
       prompt = `${systemPrompt}
 
-                Context:
-                ${context}
+Context:
+${context}
 
-                Question: ${query}
+Question: ${query}
 
-                ${baseInstructions}`;
+${baseInstructions}`;
     } else {
       prompt = `You are a helpful assistant that answers questions based on the provided context. ${baseInstructions}
 
-                Context:
-                ${context}
+Context:
+${context}
 
-                Question: ${query}`;
+Question: ${query}`;
     }
 
     const answer = await this.llmService.generateText(prompt);
@@ -164,12 +208,9 @@ export class RagService {
 
     return {
       answer,
-      sources: relevantDocsWithScores.map(([doc, score]) => ({
-        document: {
-          pageContent: doc.pageContent,
-          metadata: doc.metadata,
-        },
-        score,
+      sources: sources.map((src, idx) => ({
+        document: { pageContent: src.pageContent, metadata: src.metadata },
+        score: idx < vectorDocsWithScores.length ? vectorDocsWithScores[idx][1] : 0,
       })),
     };
   }
@@ -190,10 +231,8 @@ export class RagService {
   > {
     this.logger.log(`Processing streaming RAG query: "${query}" for organization: ${tenantContext.shopId}`);
 
-    const relevantDocs = await this.vectorStoreService.similaritySearch(query, tenantContext, maxResults);
-    this.logger.log(`Found ${relevantDocs.length} relevant documents`);
+    const { context, sources } = await this.buildCombinedContext(query, tenantContext, maxResults);
 
-    const context = relevantDocs.map((doc, index) => `[${index + 1}] ${doc.pageContent}`).join('\n\n');
     const baseInstructions =
       'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
 
@@ -222,12 +261,6 @@ Question: ${query}`;
 
     this.logger.log(`Generated streaming answer for query: "${query.substring(0, 50)}..."`);
 
-    yield {
-      type: 'complete',
-      sources: relevantDocs.map((doc) => ({
-        pageContent: doc.pageContent,
-        metadata: doc.metadata,
-      })),
-    };
+    yield { type: 'complete', sources };
   }
 }

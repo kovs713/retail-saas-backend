@@ -62,6 +62,7 @@ export class ProductRepository extends Repository<Product> {
             } as FindOptionsWhere<Product>,
           ]
         : where,
+      relations: ['category'],
       skip,
       take: limit,
       order: this.getOrderOptions(query.sortBy, query.sortOrder),

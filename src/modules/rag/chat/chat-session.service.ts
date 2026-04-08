@@ -1,8 +1,8 @@
 import { RagChatConfig } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
-import { ChatSessionDto } from './dto';
-import { RagChatOptions } from './rag.types';
-import { ChatSessionRepository } from './repositories';
+import { ChatSessionDto } from '../dto';
+import { RagChatOptions } from '../rag.types';
+import { ChatSessionRepository } from '../repositories';
 
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';

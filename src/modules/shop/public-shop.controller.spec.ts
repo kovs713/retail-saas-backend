@@ -104,9 +104,38 @@ describe('PublicShopController', () => {
     expect(result.data.shop.name).toBe('Test Shop');
     expect(result.data.products).toHaveLength(1);
     expect(result.data.products[0].availability).toBe('IN_STOCK');
+    expect(result.data.products[0].category).toBe('Test Category');
     expect(result.data.categories).toHaveLength(1);
     expect(result.data.totalProducts).toBe(1);
     expect(result.data.timestamp).toBeDefined();
+  });
+
+  it('should return null category for products without category', async () => {
+    const mockShop = {
+      id: 'shop-1',
+      slug: 'test-shop',
+      isActive: true,
+    };
+
+    const mockProducts = [
+      {
+        id: 'product-1',
+        sku: 'SKU001',
+        name: 'No Category Product',
+        price: 50,
+        quantity: 20,
+        category: null,
+        images: [],
+      },
+    ];
+
+    shopService.findBySlug.mockResolvedValue(mockShop as any);
+    productRepository.findAll.mockResolvedValue([mockProducts as any, 1]);
+    categoryRepository.findAllByShop.mockResolvedValue([]);
+
+    const result = await controller.getStorefront('test-shop');
+
+    expect(result.data.products[0].category).toBeNull();
   });
 
   it('should mark products as LOW_STOCK when quantity < 10', async () => {

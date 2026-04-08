@@ -1,8 +1,8 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
 import { RagChatConfig } from '@/common/types';
 import { CacheModule } from '@/core/cache/cache.module';
-import { ChatSessionService } from './chat-session.service';
-import { ChatGateway } from './chat.gateway';
+import { ProductModule } from '@/modules/product/product.module';
+import { ChatGateway, ChatSessionService } from './chat';
 import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { LLMModule } from './llm/llm.module';
 import { RagController } from './rag.controller';
@@ -25,6 +25,7 @@ export class RagModule {
         LLMModule.forRootAsync(),
         VectorStoreModule.forRootAsync(),
         CacheModule.forRootAsync(),
+        ProductModule,
       ],
       providers: [
         {
