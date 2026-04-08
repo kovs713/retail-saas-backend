@@ -1,10 +1,13 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
 import { TenantContext } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
+import { LoggerService } from '@/core/logger/logger.service';
+import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from './dto';
 import { ChatSessionService } from './chat-session.service';
 import { RagService } from './rag.service';
 
-import { Injectable, Logger, UseGuards } from '@nestjs/common';
+import { Injectable, UseGuards } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
@@ -15,47 +18,32 @@ interface SocketWithData extends Socket {
   };
 }
 
-export interface ChatMessagePayload {
-  sessionId?: string;
-  message: string;
-  maxResults?: number;
-  systemPrompt?: string;
-}
-
-export interface ChatChunkData {
-  sessionId: string;
-  chunk: string;
-}
-
-export interface ChatCompleteData {
-  sessionId: string;
-  answer: string;
-  sources: Array<{ content: string; metadata?: Record<string, unknown> }>;
-  timestamp: string;
-}
-
-const RATE_LIMIT_WINDOW = 60; // seconds
-const RATE_LIMIT_MAX = 20; // messages per window
-
-@Injectable()
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: '*',
+    origin: (origin, callback) => {
+      callback(null, true);
+    },
   },
 })
 @UseGuards(WsAuthGuard)
+@Injectable()
 export class ChatGateway {
-  private readonly logger = new Logger(ChatGateway.name);
-
-  @WebSocketServer()
-  server: Server;
+  private readonly logger = new LoggerService(ChatGateway.name);
+  private readonly rateLimitWindow: number;
+  private readonly rateLimitMax: number;
+  private readonly wsCorsOrigin: string;
 
   constructor(
     private readonly sessionService: ChatSessionService,
     private readonly ragService: RagService,
     private readonly cacheService: CacheService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.rateLimitWindow = this.configService.get<number>('WS_RATE_LIMIT_WINDOW', 60);
+    this.rateLimitMax = this.configService.get<number>('WS_RATE_LIMIT_MAX', 20);
+    this.wsCorsOrigin = this.configService.get<string>('WS_CORS_ORIGIN', '*');
+  }
 
   handleConnection(client: SocketWithData) {
     const tenant = client.data.tenantContext;
@@ -67,24 +55,24 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('chat:message')
-  async handleMessage(@MessageBody() payload: ChatMessagePayload, @ConnectedSocket() client: SocketWithData) {
+  async handleMessage(@MessageBody() payload: ChatMessageDto, @ConnectedSocket() client: SocketWithData) {
     const tenant = client.data.tenantContext;
     if (!tenant) {
-      client.emit('chat:error', { message: 'Missing tenant context', code: 'MISSING_TENANT' });
+      client.emit('chat:error', { message: 'Missing tenant context', code: 'MISSING_TENANT' } as ChatErrorEventDto);
       return;
     }
 
     this.logger.log(`Chat from ${client.id} [shop:${tenant.shopId}]: ${payload.message}`);
 
     const rateLimitKey = `ratelimit:ws:${client.id}`;
-    const count = await this.cacheService.incrementWithTtl(rateLimitKey, RATE_LIMIT_WINDOW);
+    const count = await this.cacheService.incrementWithTtl(rateLimitKey, this.rateLimitWindow);
 
-    if (count > RATE_LIMIT_MAX) {
+    if (count > this.rateLimitMax) {
       client.emit('chat:error', {
         message: 'Rate limit exceeded',
         code: 'RATE_LIMITED',
-        retryAfter: RATE_LIMIT_WINDOW,
-      });
+        retryAfter: this.rateLimitWindow,
+      } as ChatErrorEventDto);
       return;
     }
 
@@ -103,7 +91,7 @@ export class ChatGateway {
       )) {
         if (event.type === 'chunk') {
           fullAnswer += event.content;
-          client.emit('chat:chunk', { sessionId: session.id, chunk: event.content } as ChatChunkData);
+          client.emit('chat:chunk', { sessionId: session.id, chunk: event.content } as ChatChunkEventDto);
         } else if (event.type === 'complete') {
           sources.push(...event.sources.map((s) => ({ content: s.pageContent, metadata: s.metadata })));
         }
@@ -116,11 +104,11 @@ export class ChatGateway {
         answer: fullAnswer,
         sources,
         timestamp: new Date().toISOString(),
-      } as ChatCompleteData);
+      } as ChatCompleteEventDto);
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(`Chat error: ${error.message}`, error.stack);
-      client.emit('chat:error', { message: 'Failed to process chat message', code: 'CHAT_ERROR' });
+      client.emit('chat:error', { message: 'Failed to process chat message', code: 'CHAT_ERROR' } as ChatErrorEventDto);
     }
   }
 }

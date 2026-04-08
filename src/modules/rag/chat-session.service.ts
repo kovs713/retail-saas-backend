@@ -1,24 +1,25 @@
 import { CacheService } from '@/core/cache/cache.service';
+import { LoggerService } from '@/core/logger/logger.service';
+import { ChatSessionDto } from './dto';
 
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-
-export interface ChatSession {
-  id: string;
-  shopId: string;
-  messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const SESSION_TTL = 1800; // 30 minutes
 
 @Injectable()
 export class ChatSessionService {
-  constructor(private readonly cacheService: CacheService) {}
+  private readonly logger = new LoggerService(ChatSessionService.name);
+  private readonly sessionTtl: number;
 
-  async createSession(shopId: string): Promise<ChatSession> {
-    const session: ChatSession = {
+  constructor(
+    private readonly cacheService: CacheService,
+    private readonly configService: ConfigService,
+  ) {
+    this.sessionTtl = this.configService.get<number>('CHAT_SESSION_TTL', 1800);
+  }
+
+  async createSession(shopId: string): Promise<ChatSessionDto> {
+    const session: ChatSessionDto = {
       id: randomUUID(),
       shopId,
       messages: [],
@@ -27,16 +28,20 @@ export class ChatSessionService {
     };
 
     await this.saveSession(session);
+    this.logger.log(`Created chat session: ${session.id} for shop: ${shopId}`);
     return session;
   }
 
-  async getSession(sessionId: string): Promise<ChatSession | null> {
-    return this.cacheService.get<ChatSession>(this.getSessionKey(sessionId));
+  async getSession(sessionId: string): Promise<ChatSessionDto | null> {
+    return this.cacheService.get<ChatSessionDto>(this.getSessionKey(sessionId));
   }
 
-  async addMessage(sessionId: string, role: 'user' | 'assistant', content: string): Promise<ChatSession | null> {
+  async addMessage(sessionId: string, role: 'user' | 'assistant', content: string): Promise<ChatSessionDto | null> {
     const session = await this.getSession(sessionId);
-    if (!session) return null;
+    if (!session) {
+      this.logger.warn(`Session not found: ${sessionId}`);
+      return null;
+    }
 
     session.messages.push({ role, content, timestamp: new Date().toISOString() });
     session.updatedAt = new Date().toISOString();
@@ -45,7 +50,7 @@ export class ChatSessionService {
     return session;
   }
 
-  async getOrCreateSession(sessionId: string | undefined, shopId: string): Promise<ChatSession> {
+  async getOrCreateSession(sessionId: string | undefined, shopId: string): Promise<ChatSessionDto> {
     if (sessionId) {
       const existing = await this.getSession(sessionId);
       if (existing) return existing;
@@ -53,8 +58,8 @@ export class ChatSessionService {
     return this.createSession(shopId);
   }
 
-  private async saveSession(session: ChatSession): Promise<void> {
-    await this.cacheService.set(this.getSessionKey(session.id), session, SESSION_TTL);
+  private async saveSession(session: ChatSessionDto): Promise<void> {
+    await this.cacheService.set(this.getSessionKey(session.id), session, this.sessionTtl);
   }
 
   private getSessionKey(sessionId: string): string {
