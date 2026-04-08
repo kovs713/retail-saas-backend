@@ -62,7 +62,6 @@ export function createAuthResponseDto(
 ) {
   const shopId = options.shopId ?? createShop({ index: 1 }).id;
   return {
-    email: options.email ?? 'test@example.com',
     accessToken: options.accessToken ?? 'mock-access-token',
     refreshToken: options.refreshToken ?? 'mock-refresh-token',
     user: {

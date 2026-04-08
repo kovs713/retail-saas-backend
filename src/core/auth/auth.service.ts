@@ -76,7 +76,6 @@ export class AuthService {
       );
 
       return {
-        email: user.email,
         accessToken,
         refreshToken,
         user: plainToInstance(UserInfoDto, { ...user, shopId: shop.id }, { excludeExtraneousValues: true }),
@@ -117,7 +116,6 @@ export class AuthService {
     );
 
     return {
-      email: user.email,
       accessToken,
       refreshToken,
       user: plainToInstance(UserInfoDto, { ...user, shopId: shop?.id || '' }, { excludeExtraneousValues: true }),
@@ -156,7 +154,6 @@ export class AuthService {
       );
 
       return {
-        email: user.email,
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
         user: plainToInstance(UserInfoDto, { ...user, shopId: shop?.id || '' }, { excludeExtraneousValues: true }),

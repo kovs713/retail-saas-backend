@@ -129,7 +129,7 @@ describe('AuthService Integration', () => {
       shopSlug: 'new-shop',
     });
 
-    expect(result.email).toBe('new@example.com');
+    expect(result.user.email).toBe('new@example.com');
     expect(result.accessToken).toBe('token');
 
     const user = await userService.findByEmail('new@example.com');
@@ -153,7 +153,7 @@ describe('AuthService Integration', () => {
       password: 'password123',
     });
 
-    expect(result.email).toBe('signin@example.com');
+    expect(result.user.email).toBe('signin@example.com');
     expect(result.accessToken).toBe('token');
   });
 

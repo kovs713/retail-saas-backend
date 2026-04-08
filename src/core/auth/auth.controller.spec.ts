@@ -28,7 +28,6 @@ describe('AuthController', () => {
   };
 
   const mockAuthResponse: AuthResponseDto = {
-    email: 'test@example.com',
     accessToken: 'access-token',
     refreshToken: 'refresh-token',
     user: mockUserInfo,

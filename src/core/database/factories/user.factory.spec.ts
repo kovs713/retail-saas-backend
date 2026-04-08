@@ -160,7 +160,6 @@ describe('user.factory', () => {
     it('should create auth response with default values', () => {
       const authResponse = createAuthResponseDto();
 
-      expect(authResponse.email).toBe('test@example.com');
       expect(authResponse.accessToken).toBe('mock-access-token');
       expect(authResponse.refreshToken).toBe('mock-refresh-token');
       expect(authResponse.user.id).toBe('user_001');
@@ -173,7 +172,6 @@ describe('user.factory', () => {
     it('should allow overriding email', () => {
       const authResponse = createAuthResponseDto({ email: 'custom@test.com' });
 
-      expect(authResponse.email).toBe('custom@test.com');
       expect(authResponse.user.email).toBe('custom@test.com');
     });
 
