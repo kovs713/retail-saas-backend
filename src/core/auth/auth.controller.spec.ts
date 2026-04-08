@@ -1,7 +1,7 @@
-import { AuthController } from './auth.controller';
 import { AuthConfig } from '@/common/types';
-import { AuthService } from './auth.service';
-import { AuthResponseDto, RegisterDto, SignInDto, UserInfoDto } from './dto';
+import { AuthController } from './auth.controller';
+import { AuthService, AuthTokensResult } from './auth.service';
+import { RegisterDto, SignInDto, UserInfoDto } from './dto';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { UnauthorizedException } from '@nestjs/common';
@@ -27,10 +27,15 @@ describe('AuthController', () => {
     isActive: true,
   };
 
-  const mockAuthResponse: AuthResponseDto = {
+  const mockAuthResponse: AuthTokensResult = {
     accessToken: 'access-token',
     refreshToken: 'refresh-token',
     user: mockUserInfo,
+  };
+
+  const expectedPublicAuthResponse = {
+    accessToken: mockAuthResponse.accessToken,
+    user: mockAuthResponse.user,
   };
 
   const mockResponse = () => {
@@ -83,7 +88,7 @@ describe('AuthController', () => {
       );
       expect(result).toEqual({
         success: true,
-        data: mockAuthResponse,
+        data: expectedPublicAuthResponse,
         message: 'User registered successfully',
       });
     });
@@ -108,7 +113,7 @@ describe('AuthController', () => {
       );
       expect(result).toEqual({
         success: true,
-        data: mockAuthResponse,
+        data: expectedPublicAuthResponse,
         message: 'Login successful',
       });
       expect(result.data?.user).toBeDefined();
@@ -136,7 +141,7 @@ describe('AuthController', () => {
       );
       expect(result).toEqual({
         success: true,
-        data: mockAuthResponse,
+        data: expectedPublicAuthResponse,
         message: 'Token refreshed successfully',
       });
     });

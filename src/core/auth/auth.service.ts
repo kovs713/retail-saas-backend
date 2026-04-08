@@ -13,6 +13,8 @@ import { plainToInstance } from 'class-transformer';
 import { DataSource } from 'typeorm';
 import { AuthOptions } from './auth.module';
 
+export type AuthTokensResult = AuthResponseDto & { refreshToken: string };
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -25,7 +27,7 @@ export class AuthService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+  async register(registerDto: RegisterDto): Promise<AuthTokensResult> {
     try {
       const { shop, user } = await this.dataSource.transaction(async (manager) => {
         const shopRepository = manager.getRepository(Shop);
@@ -88,7 +90,7 @@ export class AuthService {
     }
   }
 
-  async signIn(signInDto: SignInDto): Promise<AuthResponseDto> {
+  async signIn(signInDto: SignInDto): Promise<AuthTokensResult> {
     const user = await this.userService.findByEmail(signInDto.email);
 
     const isValid = await this.userService.validatePassword(user, signInDto.password);
@@ -122,7 +124,7 @@ export class AuthService {
     };
   }
 
-  async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
+  async refreshToken(refreshToken: string): Promise<AuthTokensResult> {
     try {
       const payload = await this.jwtService.verifyAsync<TokenPayload>(refreshToken);
 
@@ -149,7 +151,7 @@ export class AuthService {
 
       await this.cacheService.set(
         this.cacheService.generateKey(this.authConfig.refreshTokenCookie, user.id),
-        refreshToken,
+        newRefreshToken,
         this.authConfig.refreshTokenMaxAge,
       );
 

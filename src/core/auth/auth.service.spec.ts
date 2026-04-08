@@ -5,8 +5,7 @@ import { Shop } from '@/modules/shop/entities';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
 import { UserService } from '@/modules/user/user.service';
-import { AuthService } from './auth.service';
-import { AuthResponseDto } from './dto';
+import { AuthService, AuthTokensResult } from './auth.service';
 
 import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
@@ -116,7 +115,7 @@ describe('AuthService', () => {
 
       const result = await service.signIn(mockSignInDto as any);
 
-      expect(result).toEqual<AuthResponseDto>({
+      expect(result).toEqual<AuthTokensResult>({
         accessToken: mockAccessToken,
         refreshToken: mockRefreshToken,
         user: expectedUserInfo,
@@ -227,6 +226,11 @@ describe('AuthService', () => {
       expect(result.refreshToken).toBe('new-refresh-token');
       expect(result.user).toBeDefined();
       expect(result.user.id).toBe(mockUser.id);
+      expect(cacheService.set).toHaveBeenCalledWith(
+        cacheService.generateKey('refreshToken', 'user-123'),
+        'new-refresh-token',
+        604800000,
+      );
     });
 
     it('should throw UnauthorizedException when refresh token invalid', async () => {
