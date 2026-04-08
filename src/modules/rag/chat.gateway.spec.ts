@@ -8,6 +8,7 @@ import { RagService } from './rag.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Server, Socket } from 'socket.io';
 
@@ -16,17 +17,20 @@ describe('ChatGateway', () => {
   let sessionService: DeepMocked<ChatSessionService>;
   let ragService: DeepMocked<RagService>;
   let cacheService: DeepMocked<CacheService>;
+  let jwtService: DeepMocked<JwtService>;
 
   const mockTenantContext = { shopId: 'shop-1' };
 
   const mockSocket = {
     id: 'socket-1',
+    handshake: { auth: { token: 'valid-token' }, headers: {} },
     data: {
       user: { sub: 'user-1', email: 'test@example.com' },
       tenantContext: mockTenantContext,
     },
     emit: jest.fn(),
-  } as unknown as Socket & { emit: jest.Mock };
+    disconnect: jest.fn(),
+  } as unknown as Socket & { emit: jest.Mock; disconnect: jest.Mock };
 
   const mockSession = {
     id: 'session-1',
@@ -64,7 +68,12 @@ describe('ChatGateway', () => {
           provide: ConfigService,
           useValue: {
             get: jest.fn((key: string, defaultValue: unknown) => defaultValue),
+            getOrThrow: jest.fn((key: string, defaultValue: unknown) => defaultValue),
           },
+        },
+        {
+          provide: JwtService,
+          useValue: createMock<JwtService>(),
         },
         {
           provide: LoggerService,
@@ -80,21 +89,39 @@ describe('ChatGateway', () => {
     sessionService = module.get<DeepMocked<ChatSessionService>>(ChatSessionService);
     ragService = module.get<DeepMocked<RagService>>(RagService);
     cacheService = module.get<DeepMocked<CacheService>>(CacheService);
+    jwtService = module.get<DeepMocked<JwtService>>(JwtService);
 
     gateway.server = createMock<Server>();
     jest.clearAllMocks();
   });
 
   describe('handleConnection', () => {
-    it('should handle client connection without error', () => {
-      const socketWithTenant = {
+    it('should handle client connection with valid token', async () => {
+      jwtService.verifyAsync.mockResolvedValue({ sub: 'user-1', shopId: 'shop-1' } as never);
+
+      await gateway.handleConnection(mockSocket as Parameters<typeof gateway.handleConnection>[0]);
+
+      expect(mockSocket.data.tenantContext).toEqual({ shopId: 'shop-1' });
+      expect(mockSocket.disconnect).not.toHaveBeenCalled();
+    });
+
+    it('should disconnect client without token', async () => {
+      const socketWithoutToken = {
         ...mockSocket,
-        data: { tenantContext: mockTenantContext },
+        handshake: { auth: {}, headers: {} },
       };
 
-      expect(() =>
-        gateway.handleConnection(socketWithTenant as Parameters<typeof gateway.handleConnection>[0]),
-      ).not.toThrow();
+      await gateway.handleConnection(socketWithoutToken as Parameters<typeof gateway.handleConnection>[0]);
+
+      expect(socketWithoutToken.disconnect).toHaveBeenCalled();
+    });
+
+    it('should disconnect client with invalid token', async () => {
+      jwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
+
+      await gateway.handleConnection(mockSocket as Parameters<typeof gateway.handleConnection>[0]);
+
+      expect(mockSocket.disconnect).toHaveBeenCalled();
     });
   });
 

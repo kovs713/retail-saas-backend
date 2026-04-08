@@ -1,5 +1,6 @@
 import { createMockTenantContext } from '@/common/utils';
 import { LoggerService } from '@/core/logger/logger.service';
+import { ProductService } from '@/modules/product/product.service';
 import { EmbeddingsService } from './embeddings/embeddings.service';
 import { LLMService } from './llm/llm.service';
 import { RagService } from './rag.service';
@@ -12,6 +13,7 @@ describe('RagService', () => {
   let service: RagService;
   let llmService: DeepMocked<LLMService>;
   let vectorStoreService: DeepMocked<VectorStoreService>;
+  let productService: DeepMocked<ProductService>;
 
   const mockTenantContext = createMockTenantContext();
 
@@ -32,6 +34,10 @@ describe('RagService', () => {
           useValue: createMock<VectorStoreService>(),
         },
         {
+          provide: ProductService,
+          useValue: createMock<ProductService>(),
+        },
+        {
           provide: LoggerService,
           useValue: createMock<LoggerService>(),
         },
@@ -41,6 +47,7 @@ describe('RagService', () => {
     service = module.get<RagService>(RagService);
     llmService = module.get<DeepMocked<LLMService>>(LLMService);
     vectorStoreService = module.get<DeepMocked<VectorStoreService>>(VectorStoreService);
+    productService = module.get<DeepMocked<ProductService>>(ProductService);
   });
 
   it('should be defined', () => {
@@ -148,12 +155,22 @@ describe('RagService', () => {
 
       vectorStoreService.similaritySearch.mockResolvedValue(mockRelevantDocs);
       llmService.generateText.mockResolvedValue(mockAnswer);
+      productService.findAll.mockResolvedValue({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
 
       const result = await service.query(mockQuery, mockTenantContext);
 
       expect(result).toEqual({
         answer: mockAnswer,
-        sources: mockRelevantDocs,
+        sources: [
+          {
+            pageContent: 'NestJS is a Node.js framework',
+            metadata: { source: 'vector_store' },
+          },
+        ],
       });
     });
 
@@ -163,6 +180,11 @@ describe('RagService', () => {
 
       vectorStoreService.similaritySearch.mockResolvedValue([]);
       llmService.generateText.mockResolvedValue(mockEmptyAnswer);
+      productService.findAll.mockResolvedValue({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
 
       const result = await service.query(mockQuery, mockTenantContext);
 
@@ -184,6 +206,11 @@ describe('RagService', () => {
 
       vectorStoreService.similaritySearch.mockResolvedValue(mockRelevantDocs);
       llmService.generateText.mockResolvedValue('Test answer');
+      productService.findAll.mockResolvedValue({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
 
       const result = await service.query(mockQuery, mockTenantContext, mockMaxResults);
 
@@ -202,7 +229,13 @@ describe('RagService', () => {
       const mockAnswer = 'Test answer with scores';
 
       vectorStoreService.similaritySearchWithScore.mockResolvedValue(mockDocsWithScores);
+      vectorStoreService.similaritySearch.mockResolvedValue([mockDocument]);
       llmService.generateText.mockResolvedValue(mockAnswer);
+      productService.findAll.mockResolvedValue({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
 
       const result = await service.queryWithScores(mockQuery, mockTenantContext);
 
@@ -210,7 +243,10 @@ describe('RagService', () => {
         answer: mockAnswer,
         sources: [
           {
-            document: mockDocument,
+            document: {
+              pageContent: 'Test content',
+              metadata: { source: 'vector_store' },
+            },
             score: 0.95,
           },
         ],
