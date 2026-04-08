@@ -39,6 +39,7 @@
     "@nestjs/swagger": "^11.2.3",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
+    "@nestjs/websockets": "^11.1.18",
     "bcryptjs": "^3.0.3",
     "chromadb": "^3.1.7",
     "class-transformer": "^0.5.1",
@@ -50,6 +51,7 @@
     "redis": "^5.10.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
+    "socket.io": "^4.8.3",
     "typeorm": "^0.3.27",
     "zod": "^4.3.6"
   },

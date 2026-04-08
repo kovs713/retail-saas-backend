@@ -1,3 +1,4 @@
+import { ChatGateway } from './chat.gateway';
 import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { LLMModule } from './llm/llm.module';
 import { RagController } from './rag.controller';
@@ -8,7 +9,7 @@ import { Module } from '@nestjs/common';
 
 @Module({
   imports: [EmbeddingsModule, LLMModule.forRootAsync(), VectorStoreModule.forRootAsync()],
-  providers: [RagService],
+  providers: [RagService, ChatGateway],
   exports: [RagService],
   controllers: [RagController],
 })
