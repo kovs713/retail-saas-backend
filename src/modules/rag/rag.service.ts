@@ -216,9 +216,7 @@ ${context}
 Question: ${query}`;
     }
 
-    let fullAnswer = '';
     for await (const chunk of this.llmService.generateStream(prompt)) {
-      fullAnswer += chunk;
       yield { type: 'chunk', content: chunk };
     }
 

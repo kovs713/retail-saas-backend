@@ -8,6 +8,13 @@ import { Injectable, UseGuards } from '@nestjs/common';
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
+interface SocketWithData extends Socket {
+  data: {
+    user?: Record<string, unknown>;
+    tenantContext?: TenantContext;
+  };
+}
+
 export interface ChatMessagePayload {
   sessionId?: string;
   message: string;
@@ -50,8 +57,8 @@ export class ChatGateway {
     private readonly cacheService: CacheService,
   ) {}
 
-  handleConnection(client: Socket) {
-    const tenant = client.data.tenantContext as TenantContext;
+  handleConnection(client: SocketWithData) {
+    const tenant = client.data.tenantContext;
     this.logger.log(`Client connected: ${client.id} (shop: ${tenant?.shopId})`);
   }
 
@@ -60,8 +67,13 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('chat:message')
-  async handleMessage(@MessageBody() payload: ChatMessagePayload, @ConnectedSocket() client: Socket) {
-    const tenant = client.data.tenantContext as TenantContext;
+  async handleMessage(@MessageBody() payload: ChatMessagePayload, @ConnectedSocket() client: SocketWithData) {
+    const tenant = client.data.tenantContext;
+    if (!tenant) {
+      client.emit('chat:error', { message: 'Missing tenant context', code: 'MISSING_TENANT' });
+      return;
+    }
+
     this.logger.log(`Chat from ${client.id} [shop:${tenant.shopId}]: ${payload.message}`);
 
     const rateLimitKey = `ratelimit:ws:${client.id}`;
@@ -105,7 +117,8 @@ export class ChatGateway {
         sources,
         timestamp: new Date().toISOString(),
       } as ChatCompleteData);
-    } catch (error) {
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(`Chat error: ${error.message}`, error.stack);
       client.emit('chat:error', { message: 'Failed to process chat message', code: 'CHAT_ERROR' });
     }
