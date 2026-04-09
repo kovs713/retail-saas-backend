@@ -65,7 +65,7 @@ describe('AnalyticsController', () => {
 
       const result = await controller.getChatStats('2024-01-01', '2024-01-31', mockTenantContext);
 
-      expect(result).toEqual(mockStats);
+      expect(result).toEqual({ success: true, data: mockStats });
       expect(analyticsService.getChatStats).toHaveBeenCalledWith(
         'shop-1',
         new Date('2024-01-01'),
@@ -81,7 +81,7 @@ describe('AnalyticsController', () => {
 
       const result = await controller.getTopQuestions(undefined, mockTenantContext);
 
-      expect(result).toEqual(mockQuestions);
+      expect(result).toEqual({ success: true, data: mockQuestions });
       expect(analyticsService.getTopQuestions).toHaveBeenCalledWith('shop-1', 10);
     });
 
@@ -101,7 +101,7 @@ describe('AnalyticsController', () => {
 
       const result = await controller.getStorefrontViews('2024-01-01', '2024-01-31', mockTenantContext);
 
-      expect(result).toBe(42);
+      expect(result).toEqual({ success: true, data: 42 });
       expect(analyticsService.getStorefrontViewCount).toHaveBeenCalledWith(
         'shop-1',
         new Date('2024-01-01'),

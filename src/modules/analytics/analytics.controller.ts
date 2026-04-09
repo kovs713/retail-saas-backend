@@ -27,7 +27,8 @@ export class AnalyticsController {
   @ApiQuery({ name: 'to', type: String, required: true, description: 'ISO date string' })
   @ApiResponse({ status: 200, description: 'Returns chat events', type: [ChatEvent] })
   async getChatStats(@Query('from') from: string, @Query('to') to: string, @Tenant() tenantContext: TenantContext) {
-    return this.analyticsService.getChatStats(tenantContext.shopId, new Date(from), new Date(to));
+    const data = await this.analyticsService.getChatStats(tenantContext.shopId, new Date(from), new Date(to));
+    return { success: true, data };
   }
 
   @Get('top-questions')
@@ -38,7 +39,8 @@ export class AnalyticsController {
   @ApiQuery({ name: 'limit', type: Number, required: false, default: 10 })
   @ApiResponse({ status: 200, description: 'Returns top questions and their counts' })
   async getTopQuestions(@Query('limit') limit: number = 10, @Tenant() tenantContext: TenantContext) {
-    return this.analyticsService.getTopQuestions(tenantContext.shopId, limit);
+    const data = await this.analyticsService.getTopQuestions(tenantContext.shopId, limit);
+    return { success: true, data };
   }
 
   @Get('storefront-views')
@@ -54,7 +56,8 @@ export class AnalyticsController {
     @Query('to') to: string,
     @Tenant() tenantContext: TenantContext,
   ) {
-    return this.analyticsService.getStorefrontViewCount(tenantContext.shopId, new Date(from), new Date(to));
+    const data = await this.analyticsService.getStorefrontViewCount(tenantContext.shopId, new Date(from), new Date(to));
+    return { success: true, data };
   }
 
   @Get('stock-report')
