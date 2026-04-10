@@ -1,7 +1,7 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { createShop } from '@/core/database/factories';
-import { ShopRepository } from './repositories';
+import { LocationRepository, ShopRepository } from './repositories';
 import { ShopService } from './shop.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
@@ -27,6 +27,10 @@ describe('ShopService', () => {
         {
           provide: ShopRepository,
           useValue: createMock<ShopRepository>(),
+        },
+        {
+          provide: LocationRepository,
+          useValue: createMock<LocationRepository>(),
         },
         {
           provide: CacheService,

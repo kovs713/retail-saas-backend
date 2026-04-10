@@ -1,14 +1,17 @@
 import { CacheService } from '@/core/cache/cache.service';
-import { CreateShopDto, UpdateShopDto } from './dto';
-import { Shop } from './entities';
-import { ShopRepository } from './repositories';
+import { CreateLocationDto, CreateShopDto, UpdateLocationDto, UpdateShopDto } from './dto';
+import { Location, Shop } from './entities';
+import { LocationRepository, ShopRepository } from './repositories';
 
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class ShopService {
+  private readonly MAX_ACTIVE_LOCATIONS = 3;
+
   constructor(
     private readonly shopRepository: ShopRepository,
+    private readonly locationRepository: LocationRepository,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -141,6 +144,90 @@ export class ShopService {
       ownerId: updated.ownerId,
     });
     return updated;
+  }
+
+  async createLocation(shopId: string, dto: CreateLocationDto): Promise<Location> {
+    await this.verifyShopExists(shopId);
+
+    const activeCount = await this.locationRepository.countActiveByShopId(shopId);
+    if (activeCount >= this.MAX_ACTIVE_LOCATIONS) {
+      throw new BadRequestException(`Maximum ${this.MAX_ACTIVE_LOCATIONS} active locations per shop`);
+    }
+
+    if (dto.isDefault) {
+      await this.unsetDefaultLocations(shopId);
+    }
+
+    const location = this.locationRepository.create({
+      ...dto,
+      shopId,
+      isDefault: dto.isDefault ?? false,
+    });
+    return this.locationRepository.save(location);
+  }
+
+  async findLocations(shopId: string): Promise<Location[]> {
+    await this.verifyShopExists(shopId);
+    return this.locationRepository.findByShopId(shopId);
+  }
+
+  async findLocation(shopId: string, id: string): Promise<Location> {
+    await this.verifyShopExists(shopId);
+
+    const location = await this.locationRepository.findByIdAndShopId(id, shopId);
+    if (!location) {
+      throw new NotFoundException('Location not found');
+    }
+    return location;
+  }
+
+  async updateLocation(shopId: string, id: string, dto: UpdateLocationDto): Promise<Location> {
+    const location = await this.findLocation(shopId, id);
+
+    if (dto.isDefault && !location.isDefault) {
+      await this.unsetDefaultLocations(shopId, id);
+    }
+
+    if (dto.isActive === false && location.isDefault) {
+      const oldest = await this.locationRepository.findOldestActiveByShopId(shopId);
+      if (oldest && oldest.id !== id) {
+        oldest.isDefault = true;
+        await this.locationRepository.save(oldest);
+      }
+    }
+
+    Object.assign(location, dto);
+    return this.locationRepository.save(location);
+  }
+
+  async deleteLocation(shopId: string, id: string): Promise<void> {
+    const location = await this.findLocation(shopId, id);
+
+    if (location.isDefault) {
+      const oldest = await this.locationRepository.findOldestActiveByShopId(shopId);
+      if (oldest && oldest.id !== id) {
+        oldest.isDefault = true;
+        await this.locationRepository.save(oldest);
+      }
+    }
+
+    location.isActive = false;
+    await this.locationRepository.save(location);
+  }
+
+  private async verifyShopExists(shopId: string): Promise<void> {
+    const shop = await this.shopRepository.findById(shopId);
+    if (!shop) {
+      throw new NotFoundException('Shop not found');
+    }
+  }
+
+  private async unsetDefaultLocations(shopId: string, excludeId?: string): Promise<void> {
+    const currentDefault = await this.locationRepository.findDefaultByShopId(shopId);
+    if (currentDefault && currentDefault.id !== excludeId) {
+      currentDefault.isDefault = false;
+      await this.locationRepository.save(currentDefault);
+    }
   }
 
   private async invalidateShopCache(

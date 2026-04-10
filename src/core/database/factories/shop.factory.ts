@@ -21,6 +21,7 @@ export function createShop(overrides: ShopOverrides = {}): Shop {
     chatEvents: [],
     storefrontViews: [],
     orders: [],
+    locations: [],
     createdAt: new Date(),
     ...fields,
   };
