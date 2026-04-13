@@ -226,6 +226,53 @@ describe('VectorStoreService', () => {
     });
   });
 
+  describe('addDocuments', () => {
+    it('should split large documents into chunks and add them', async () => {
+      const docs = [
+        {
+          pageContent: 'This is a test document with some content.',
+          metadata: { source: 'test' },
+        },
+      ];
+
+      const result = await service.addDocuments(docs, mockTenantContext);
+
+      expect(chromaDBClient.addDocuments).toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it('should inject shopId into metadata for each chunk', async () => {
+      const docs = [
+        {
+          pageContent: 'Test content here.',
+          metadata: { source: 'api' },
+        },
+      ];
+
+      await service.addDocuments(docs, mockTenantContext);
+
+      const calledDocs = chromaDBClient.addDocuments.mock.calls[0][0];
+      for (const doc of calledDocs) {
+        expect(doc.metadata.shopId).toBe(mockTenantContext.shopId);
+      }
+    });
+
+    it('should handle multiple documents and split them into chunks', async () => {
+      const longContent = 'Word '.repeat(2000);
+      const docs = [
+        { pageContent: 'Short doc.', metadata: { source: 'test1' } },
+        { pageContent: longContent, metadata: { source: 'test2' } },
+      ];
+
+      chromaDBClient.addDocuments.mockResolvedValue(['id-1', 'id-2', 'id-3']);
+
+      const result = await service.addDocuments(docs, mockTenantContext);
+
+      expect(result).toBeDefined();
+      expect(chromaDBClient.addDocuments).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('addTexts', () => {
     it('should add texts and return ids', async () => {
       const texts = ['Test text'];

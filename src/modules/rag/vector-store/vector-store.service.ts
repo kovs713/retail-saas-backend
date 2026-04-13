@@ -4,6 +4,7 @@ import { EmbeddingsService } from '../embeddings/embeddings.service';
 
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { Document } from '@langchain/core/documents';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
@@ -53,6 +54,11 @@ export class VectorStoreService {
   }
 
   async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
+
     const docsWithTenant = documents.map((doc) => ({
       ...doc,
       metadata: {
@@ -61,8 +67,18 @@ export class VectorStoreService {
       },
     }));
 
-    const ids = await this.chromaDBClient.addDocuments(docsWithTenant);
-    this.logger.log(`Added ${documents.length} documents to vector store for organization: ${tenantContext.shopId}`);
+    const splitDocs: Document[] = [];
+    for (const doc of docsWithTenant) {
+      const chunks = await splitter.splitDocuments([doc]);
+      splitDocs.push(...chunks);
+    }
+
+    this.logger.log(`Split ${documents.length} documents into ${splitDocs.length} chunks`);
+
+    const ids = await this.chromaDBClient.addDocuments(splitDocs);
+    this.logger.log(
+      `Added ${splitDocs.length} document chunks to vector store for organization: ${tenantContext.shopId}`,
+    );
     return ids;
   }
 
