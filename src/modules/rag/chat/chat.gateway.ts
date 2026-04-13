@@ -1,6 +1,6 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
 import { WsValidationPipe } from '@/common/pipes/ws-validation.pipe';
-import { RagChatConfig, TenantContext, TokenPayload } from '@/common/types';
+import { JwtOptions, JwtConfig, RagChatConfig, TenantContext, TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from '../dto';
@@ -9,7 +9,6 @@ import { RagChatOptions } from '../rag.types';
 import { ChatSessionService } from './chat-session.service';
 
 import { Inject, Injectable, UseGuards } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
@@ -39,7 +38,7 @@ export class ChatGateway {
     private readonly ragService: RagService,
     private readonly cacheService: CacheService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    @Inject(JwtConfig) private readonly jwtConfig: JwtOptions,
   ) {}
 
   async handleConnection(client: SocketWithData) {
@@ -52,7 +51,7 @@ export class ChatGateway {
       }
 
       const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
-        secret: this.configService.getOrThrow<string>('JWT_SECRET'),
+        secret: this.jwtConfig.secret,
       });
 
       if (!payload.shopId) {

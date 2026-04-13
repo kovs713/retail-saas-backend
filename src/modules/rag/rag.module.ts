@@ -7,13 +7,12 @@ import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { LLMModule } from './llm/llm.module';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
+import { RagChatOptions } from './rag.types';
 import { ChatSessionRepository } from './repositories';
 import { VectorStoreModule } from './vector-store/vector-store.module';
 
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
-import { RagChatOptions } from './rag.types';
 
 @Module({})
 export class RagModule {

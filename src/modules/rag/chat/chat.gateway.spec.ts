@@ -1,5 +1,5 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
-import { RagChatConfig } from '@/common/types';
+import { JwtConfig, RagChatConfig } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { RagService } from '../rag.service';
@@ -7,7 +7,6 @@ import { ChatSessionService } from './chat-session.service';
 import { ChatGateway } from './chat.gateway';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Server, Socket } from 'socket.io';
@@ -65,10 +64,10 @@ describe('ChatGateway', () => {
           useValue: createMock<CacheService>(),
         },
         {
-          provide: ConfigService,
+          provide: JwtConfig,
           useValue: {
-            get: jest.fn((key: string, defaultValue: unknown) => defaultValue),
-            getOrThrow: jest.fn((key: string, defaultValue: unknown) => defaultValue),
+            secret: 'test-secret',
+            expiresIn: '1d',
           },
         },
         {

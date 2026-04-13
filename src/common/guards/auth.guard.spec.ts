@@ -1,15 +1,13 @@
-import { Request, TokenPayload } from '../types';
+import { JwtOptions, Request, TokenPayload } from '../types';
 import { AuthGuard } from './auth.guard';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;
   let jwtService: DeepMocked<JwtService>;
-  let configService: DeepMocked<ConfigService>;
   let mockExecutionContext: ExecutionContext;
 
   const mockTokenPayload: TokenPayload = {
@@ -20,11 +18,14 @@ describe('AuthGuard', () => {
   };
 
   const mockSecret = 'test-secret-key';
+  const mockJwtConfig: JwtOptions = {
+    secret: mockSecret,
+    expiresIn: '1d',
+  };
 
   beforeEach(() => {
     jwtService = createMock<JwtService>();
-    configService = createMock<ConfigService>();
-    guard = new AuthGuard(jwtService, configService);
+    guard = new AuthGuard(jwtService, mockJwtConfig);
 
     mockExecutionContext = createMock<ExecutionContext>();
   });
@@ -45,7 +46,6 @@ describe('AuthGuard', () => {
         getRequest: () => mockRequest,
       });
       jwtService.verifyAsync.mockResolvedValue(mockTokenPayload);
-      configService.getOrThrow.mockReturnValue(mockSecret);
 
       const result = await guard.canActivate(mockExecutionContext);
 
@@ -106,7 +106,6 @@ describe('AuthGuard', () => {
         getRequest: () => mockRequest,
       });
       jwtService.verifyAsync.mockResolvedValue(mockTokenPayload);
-      configService.getOrThrow.mockReturnValue(mockSecret);
 
       await guard.canActivate(mockExecutionContext);
 

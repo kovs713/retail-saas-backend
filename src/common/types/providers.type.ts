@@ -6,3 +6,9 @@ export const MinioClient = Symbol('MINIO_CLIENT');
 export const RedisClient = Symbol('REDIS_CLIENT');
 export const CacheTTL = Symbol('CacheTTL');
 export const AuthConfig = Symbol('AUTH_CONFIG');
+export const JwtConfig = Symbol('JWT_CONFIG');
+
+export interface JwtOptions {
+  secret: string;
+  expiresIn: import('ms').StringValue;
+}

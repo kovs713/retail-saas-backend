@@ -6,7 +6,7 @@ import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
 import { PublicMediaController } from '@/modules/product/public-media.controller';
 import { CategoryRepository, ProductRepository } from '@/modules/product/repositories';
-import { Shop } from '@/modules/shop/entities';
+import { Location, Shop } from '@/modules/shop/entities';
 import { StorageService } from '@/modules/storage/storage.service';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
@@ -45,7 +45,7 @@ describe('PublicMedia Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, User, Product, Category, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([Shop, Location, User, Product, Category, ChatEvent, StorefrontView, Order]),
       ],
       controllers: [PublicMediaController],
       providers: [

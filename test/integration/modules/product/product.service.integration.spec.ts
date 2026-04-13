@@ -5,8 +5,8 @@ import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
 import { CategoryRepository, ProductRepository } from '@/modules/product/repositories';
-import { Shop } from '@/modules/shop/entities';
-import { ShopRepository } from '@/modules/shop/repositories';
+import { Location, Shop } from '@/modules/shop/entities';
+import { LocationRepository, ShopRepository } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { StorageService } from '@/modules/storage/storage.service';
 import { User } from '@/modules/user/entities';
@@ -41,7 +41,7 @@ describe('ProductService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, User, Product, Category, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([Shop, Location, User, Product, Category, ChatEvent, StorefrontView, Order]),
       ],
       providers: [
         ProductService,
@@ -49,6 +49,7 @@ describe('ProductService Integration', () => {
         CategoryRepository,
         ShopService,
         ShopRepository,
+        LocationRepository,
         { provide: CacheService, useValue: mockCacheService() },
         {
           provide: StorageService,
@@ -84,7 +85,9 @@ describe('ProductService Integration', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   }, 30000);
 
   describe('create', () => {
