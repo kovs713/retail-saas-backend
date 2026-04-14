@@ -343,16 +343,6 @@ describe('VectorStoreService', () => {
     });
   });
 
-  describe('deleteDocuments', () => {
-    it('should log warning (not implemented)', async () => {
-      await service.deleteDocuments(['doc-1']);
-
-      // const result = service.
-
-      expect(true).toBe(true);
-    });
-  });
-
   describe('asRetriever', () => {
     it('should create retriever instance', () => {
       const result = service.asRetriever(mockTenantContext.shopId, { k: 5 });

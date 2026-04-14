@@ -120,9 +120,19 @@ export class VectorStoreService {
     return results;
   }
 
-  async deleteDocuments(ids: string[]): Promise<void> {
-    await this.chromaDBClient.delete({ ids });
-    this.logger.log(`Deleted ${ids.length} documents from vector store`);
+  async deleteDocuments(shopId: string): Promise<void> {
+    const collection = this.chromaDBClient.collection;
+
+    if (!collection) {
+      return;
+    }
+    const documents = await collection.get({
+      where: { shopId },
+    });
+
+    await this.chromaDBClient.delete({ ids: documents.ids });
+
+    this.logger.log(`Deleted ${documents.ids.length} documents from vector store`);
   }
 
   asRetriever(shopId: string, searchKwargs?: { k?: number; filter?: Record<string, any> }) {

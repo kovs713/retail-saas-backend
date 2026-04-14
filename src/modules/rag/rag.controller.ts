@@ -136,9 +136,9 @@ export class RagController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Clear all documents from RAG system' })
   @ApiResponse({ status: 200, description: 'Documents cleared' })
-  clearDocuments(@Tenant() tenantContext: TenantContext): AppApiResponse<void> {
+  async clearDocuments(@Tenant() tenantContext: TenantContext): Promise<AppApiResponse<void>> {
     this.logger.log('Clearing all documents from RAG system');
-    this.ragService.clearDocuments(tenantContext.shopId);
+    await this.ragService.clearDocuments(tenantContext.shopId);
     this.logger.log('All documents cleared successfully');
 
     return { success: true, message: 'Documents cleared successfully' };

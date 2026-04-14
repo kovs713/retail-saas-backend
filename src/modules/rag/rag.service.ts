@@ -51,7 +51,8 @@ export class RagService {
     return ids;
   }
 
-  clearDocuments(shopId: string): void {
+  async clearDocuments(shopId: string): Promise<void> {
+    await this.vectorStoreService.deleteDocuments(shopId);
     this.logger.warn('clearDocuments not fully implemented for LangChain Chroma wrapper');
   }
 
