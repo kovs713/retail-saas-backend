@@ -13,3 +13,4 @@ export * from './document-with-score.dto';
 export * from './document.dto';
 export * from './rag-stats-response.dto';
 export * from './source.dto';
+export * from './upload-rag-document.dto';

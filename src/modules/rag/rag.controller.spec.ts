@@ -1,14 +1,17 @@
 import { AuthGuard } from '@/common/guards';
 import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
+import { DocPreprocessorService } from '@/modules/doc-preprocessor/doc-preprocessor.service';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('RagController', () => {
   let controller: RagController;
   let service: DeepMocked<RagService>;
+  let docPreprocessorService: DeepMocked<DocPreprocessorService>;
 
   const tenantContext = createMockTenantContext();
 
@@ -18,6 +21,14 @@ describe('RagController', () => {
         {
           provide: RagService,
           useValue: createMock<RagService>(),
+        },
+        {
+          provide: DocPreprocessorService,
+          useValue: createMock<DocPreprocessorService>(),
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('5') },
         },
       ],
       controllers: [RagController],
@@ -35,6 +46,7 @@ describe('RagController', () => {
 
     controller = module.get<RagController>(RagController);
     service = module.get(RagService);
+    docPreprocessorService = module.get(DocPreprocessorService);
   });
 
   it('should be defined', () => {
@@ -129,6 +141,61 @@ describe('RagController', () => {
     });
   });
 
+  describe('uploadDocument endpoint', () => {
+    it('should preprocess uploaded file and ingest into RAG', async () => {
+      docPreprocessorService.preprocess.mockResolvedValue({
+        buffer: Buffer.from(
+          JSON.stringify({
+            text: 'Normalized text',
+          }),
+        ),
+        contentType: 'application/json',
+        contentDisposition: 'attachment; filename="sample.json"',
+      });
+      service.addDocuments.mockResolvedValue(['doc-1']);
+
+      const file = {
+        originalname: 'sample.pdf',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('raw'),
+      } as Express.Multer.File;
+
+      const result = await controller.uploadDocument(file, { removeNoise: true }, tenantContext);
+
+      expect(docPreprocessorService.preprocess).toHaveBeenCalledWith(
+        file,
+        expect.objectContaining({ removeNoise: true }),
+      );
+      expect(service.addDocuments).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            pageContent: 'Normalized text',
+            metadata: expect.objectContaining({
+              filename: 'sample.pdf',
+              source: 'upload',
+              origin: 'doc-preprocessor',
+            }),
+          }),
+        ],
+        tenantContext.shopId,
+      );
+      expect(result.success).toBe(true);
+      expect(result.data?.documentIds).toEqual(['doc-1']);
+    });
+
+    it('should reject unsupported file type', async () => {
+      const file = {
+        originalname: 'malware.exe',
+        mimetype: 'application/octet-stream',
+        size: 1024,
+        buffer: Buffer.from('raw'),
+      } as Express.Multer.File;
+
+      await expect(controller.uploadDocument(file, {}, tenantContext)).rejects.toThrow('Unsupported file type');
+    });
+  });
+
   describe('addTexts endpoint', () => {
     it('should call RagService.addTexts with correct parameters', async () => {
       const mockTextIds = ['text-1', 'text-2'];
@@ -166,19 +233,19 @@ describe('RagController', () => {
   });
 
   describe('clearDocuments endpoint', () => {
-    it('should call RagService.clearDocuments', () => {
-      const result = controller.clearDocuments(tenantContext);
+    it('should call RagService.clearDocuments', async () => {
+      const result = await controller.clearDocuments(tenantContext);
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Documents cleared successfully');
     });
 
-    it('should handle service errors', () => {
+    it('should handle service errors', async () => {
       jest.spyOn(service, 'clearDocuments').mockImplementation(() => {
         throw new Error('Clear failed');
       });
 
-      expect(() => controller.clearDocuments(tenantContext)).toThrow('Clear failed');
+      await expect(controller.clearDocuments(tenantContext)).rejects.toThrow('Clear failed');
     });
   });
 });
