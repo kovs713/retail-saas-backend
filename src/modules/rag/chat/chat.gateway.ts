@@ -1,6 +1,6 @@
 import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
 import { WsValidationPipe } from '@/common/pipes/ws-validation.pipe';
-import { JwtOptions, JwtConfig, RagChatConfig, TenantContext, TokenPayload } from '@/common/types';
+import { JwtConfig, JwtOptions, RagChatConfig, TenantContext, TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from '../dto';
@@ -122,7 +122,7 @@ export class ChatGateway {
 
       for await (const event of this.ragService.queryStream(
         payload.message,
-        tenant,
+        tenant.shopId,
         payload.maxResults,
         payload.systemPrompt,
       )) {

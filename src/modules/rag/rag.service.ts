@@ -1,5 +1,4 @@
 import { PaginationResponse } from '@/common/dto';
-import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ProductService } from '@/modules/product/product.service';
 import { DocumentResponseDto } from './dto';
@@ -20,11 +19,11 @@ export class RagService {
   ) {}
 
   async getDocuments(
-    tenantContext: TenantContext,
+    shopId: string,
     page: number = 1,
     limit: number = 10,
   ): Promise<PaginationResponse<DocumentResponseDto>> {
-    const documents = await this.vectorStoreService.getDocuments(tenantContext);
+    const documents = await this.vectorStoreService.getDocuments(shopId);
 
     const total = documents.length;
     const totalPages = Math.ceil(total / limit);
@@ -47,23 +46,23 @@ export class RagService {
     };
   }
 
-  async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
-    const ids = await this.vectorStoreService.addDocuments(documents, tenantContext);
+  async addDocuments(documents: Document[], shopId: string): Promise<string[]> {
+    const ids = await this.vectorStoreService.addDocuments(documents, shopId);
     return ids;
   }
 
-  clearDocuments(): void {
+  clearDocuments(shopId: string): void {
     this.logger.warn('clearDocuments not fully implemented for LangChain Chroma wrapper');
   }
 
   private async buildCombinedContext(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     maxResults: number,
   ): Promise<{ context: string; sources: Array<{ pageContent: string; metadata: Record<string, any> }> }> {
     const [vectorDocs, productsResult] = await Promise.all([
-      this.vectorStoreService.similaritySearch(query, tenantContext, maxResults),
-      this.productService.findAll({ page: 1, limit: 50, search: query }, tenantContext).catch(() => ({
+      this.vectorStoreService.similaritySearch(query, shopId, maxResults),
+      this.productService.findAll({ page: 1, limit: 50, search: query }, shopId).catch(() => ({
         data: [],
         pagination: { total: 0 },
       })),
@@ -113,7 +112,7 @@ export class RagService {
 
   async query(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     maxResults: number = 5,
     systemPrompt?: string,
   ): Promise<{
@@ -123,9 +122,9 @@ export class RagService {
       metadata: Record<string, any>;
     }>;
   }> {
-    this.logger.log(`Processing RAG query: "${query}" for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Processing RAG query: "${query}" for organization: ${shopId}`);
 
-    const { context, sources } = await this.buildCombinedContext(query, tenantContext, maxResults);
+    const { context, sources } = await this.buildCombinedContext(query, shopId, maxResults);
 
     const baseInstructions =
       'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
@@ -158,7 +157,7 @@ Question: ${query}`;
 
   async queryWithScores(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     maxResults: number = 5,
     systemPrompt?: string,
   ): Promise<{
@@ -171,11 +170,11 @@ Question: ${query}`;
       score: number;
     }>;
   }> {
-    this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${shopId}`);
 
     const [vectorDocsWithScores, { context, sources }] = await Promise.all([
-      this.vectorStoreService.similaritySearchWithScore(query, tenantContext, maxResults),
-      this.buildCombinedContext(query, tenantContext, maxResults),
+      this.vectorStoreService.similaritySearchWithScore(query, shopId, maxResults),
+      this.buildCombinedContext(query, shopId, maxResults),
     ]);
 
     this.logger.log(`Found ${vectorDocsWithScores.length} vector documents with scores`);
@@ -215,23 +214,23 @@ Question: ${query}`;
     };
   }
 
-  async addTexts(texts: string[], tenantContext: TenantContext, metadata?: Record<string, any>[]): Promise<string[]> {
-    const documentIds = await this.vectorStoreService.addTexts(texts, tenantContext, metadata);
+  async addTexts(texts: string[], shopId: string, metadata?: Record<string, any>[]): Promise<string[]> {
+    const documentIds = await this.vectorStoreService.addTexts(texts, shopId, metadata);
     return documentIds;
   }
 
   async *queryStream(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     maxResults: number = 5,
     systemPrompt?: string,
   ): AsyncGenerator<
     | { type: 'chunk'; content: string }
     | { type: 'complete'; sources: Array<{ pageContent: string; metadata: Record<string, any> }> }
   > {
-    this.logger.log(`Processing streaming RAG query: "${query}" for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Processing streaming RAG query: "${query}" for organization: ${shopId}`);
 
-    const { context, sources } = await this.buildCombinedContext(query, tenantContext, maxResults);
+    const { context, sources } = await this.buildCombinedContext(query, shopId, maxResults);
 
     const baseInstructions =
       'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';

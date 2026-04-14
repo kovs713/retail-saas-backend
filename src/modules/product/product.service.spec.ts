@@ -287,7 +287,7 @@ describe('ProductService', () => {
   describe('countByCategory', () => {
     it('should return count for specific category', async () => {
       productRepository.countByCategory.mockResolvedValue(25);
-      const result = await service.countByCategory('Electronics', mockTenantContext);
+      const result = await service.countByCategory('Electronics', mockTenantContext.shopId);
       expect(result).toBe(25);
     });
   });

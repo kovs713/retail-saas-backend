@@ -40,7 +40,7 @@ export class RagController {
     const page = query.page || 1;
     const limit = query.limit || 10;
     this.logger.log(`Getting documents from shop with id ${tenantContext.shopId}`);
-    const result = await this.ragService.getDocuments(tenantContext, page, limit);
+    const result = await this.ragService.getDocuments(tenantContext.shopId, page, limit);
     this.logger.log(`Received documents from shop with id ${tenantContext.shopId} successfully`);
 
     return result;
@@ -80,7 +80,7 @@ export class RagController {
         timestamp: new Date().toISOString(),
       },
     }));
-    const docIds = await this.ragService.addDocuments(documents, tenantContext);
+    const docIds = await this.ragService.addDocuments(documents, tenantContext.shopId);
     const response: AddDocumentsResponseDto = {
       documentIds: docIds,
       count: docIds.length,
@@ -117,7 +117,11 @@ export class RagController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<AddTextsResponseDto>> {
     this.logger.log(`Adding ${addTextsRequest.texts.length} texts`);
-    const textIds = await this.ragService.addTexts(addTextsRequest.texts, tenantContext, addTextsRequest.metadata);
+    const textIds = await this.ragService.addTexts(
+      addTextsRequest.texts,
+      tenantContext.shopId,
+      addTextsRequest.metadata,
+    );
     const response: AddTextsResponseDto = {
       textIds,
       count: textIds.length,
@@ -132,9 +136,9 @@ export class RagController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Clear all documents from RAG system' })
   @ApiResponse({ status: 200, description: 'Documents cleared' })
-  clearDocuments(): AppApiResponse<void> {
+  clearDocuments(@Tenant() tenantContext: TenantContext): AppApiResponse<void> {
     this.logger.log('Clearing all documents from RAG system');
-    this.ragService.clearDocuments();
+    this.ragService.clearDocuments(tenantContext.shopId);
     this.logger.log('All documents cleared successfully');
 
     return { success: true, message: 'Documents cleared successfully' };

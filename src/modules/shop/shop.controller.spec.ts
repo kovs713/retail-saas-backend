@@ -185,7 +185,7 @@ describe('ShopController', () => {
       const expectedDto = ShopDto.fromEntity(updatedShop);
       const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
 
-      const result = await controller.updateMedia('shop-1', logoUrl, undefined, ownerTenantContext, ownerRequest);
+      const result = await controller.updateMedia('shop-1', ownerTenantContext, ownerRequest, logoUrl, undefined);
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', logoUrl, undefined);
       expect(result).toEqual(expectedResult);
@@ -198,7 +198,7 @@ describe('ShopController', () => {
       const expectedDto = ShopDto.fromEntity(updatedShop);
       const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
 
-      const result = await controller.updateMedia('shop-1', undefined, bannerUrl, ownerTenantContext, ownerRequest);
+      const result = await controller.updateMedia('shop-1', ownerTenantContext, ownerRequest, undefined, bannerUrl);
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', undefined, bannerUrl);
       expect(result).toEqual(expectedResult);
@@ -212,7 +212,7 @@ describe('ShopController', () => {
       const expectedDto = ShopDto.fromEntity(updatedShop);
       const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
 
-      const result = await controller.updateMedia('shop-1', logoUrl, bannerUrl, ownerTenantContext, ownerRequest);
+      const result = await controller.updateMedia('shop-1', ownerTenantContext, ownerRequest, logoUrl, bannerUrl);
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', logoUrl, bannerUrl);
       expect(result).toEqual(expectedResult);
@@ -220,7 +220,7 @@ describe('ShopController', () => {
 
     it('should reject owner updating media for another shop', async () => {
       await expect(
-        controller.updateMedia('shop-2', 'https://example.com/logo.png', undefined, ownerTenantContext, ownerRequest),
+        controller.updateMedia('shop-2', ownerTenantContext, ownerRequest, 'https://example.com/logo.png', undefined),
       ).rejects.toThrow(ForbiddenException);
       expect(service.updateMediaUrls).not.toHaveBeenCalled();
     });
@@ -234,10 +234,10 @@ describe('ShopController', () => {
 
       await controller.updateMedia(
         'shop-2',
-        'https://example.com/logo.png',
-        undefined,
         otherTenantContext,
         adminRequest,
+        'https://example.com/logo.png',
+        undefined,
       );
 
       expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-2', 'https://example.com/logo.png', undefined);

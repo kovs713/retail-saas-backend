@@ -67,7 +67,7 @@ describe('RagController', () => {
 
       const result = await controller.getDocuments({ page: 1, limit: 10 }, tenantContext);
 
-      expect(service.getDocuments).toHaveBeenCalledWith(tenantContext, 1, 10);
+      expect(service.getDocuments).toHaveBeenCalledWith(tenantContext.shopId, 1, 10);
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(2);
       expect(result.data?.[0].pageContent).toBe('Document 1');
@@ -96,7 +96,7 @@ describe('RagController', () => {
 
       const result = await controller.getDocuments({}, tenantContext);
 
-      expect(service.getDocuments).toHaveBeenCalledWith(tenantContext, 1, 10);
+      expect(service.getDocuments).toHaveBeenCalledWith(tenantContext.shopId, 1, 10);
       expect(result.pagination).toEqual({
         page: 1,
         limit: 10,
@@ -141,7 +141,7 @@ describe('RagController', () => {
 
       const result = await controller.addTexts(addRequest, tenantContext);
 
-      expect(service.addTexts).toHaveBeenCalledWith(addRequest.texts, tenantContext, addRequest.metadata);
+      expect(service.addTexts).toHaveBeenCalledWith(addRequest.texts, tenantContext.shopId, addRequest.metadata);
       expect(result.success).toBe(true);
       expect(result.data?.textIds).toEqual(mockTextIds);
       expect(result.data?.count).toBe(2);
@@ -167,7 +167,7 @@ describe('RagController', () => {
 
   describe('clearDocuments endpoint', () => {
     it('should call RagService.clearDocuments', () => {
-      const result = controller.clearDocuments();
+      const result = controller.clearDocuments(tenantContext);
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Documents cleared successfully');
@@ -178,7 +178,7 @@ describe('RagController', () => {
         throw new Error('Clear failed');
       });
 
-      expect(() => controller.clearDocuments()).toThrow('Clear failed');
+      expect(() => controller.clearDocuments(tenantContext)).toThrow('Clear failed');
     });
   });
 });

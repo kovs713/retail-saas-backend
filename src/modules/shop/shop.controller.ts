@@ -88,10 +88,10 @@ export class ShopController {
   @ApiResponse({ status: 404, description: 'Shop not found' })
   async updateMedia(
     @Param('id') id: string,
+    @Tenant() tenantContext: TenantContext,
+    @Req() req: Request,
     @Body('logoUrl') logoUrl?: string,
     @Body('bannerUrl') bannerUrl?: string,
-    @Tenant() tenantContext?: TenantContext,
-    @Req() req?: Request,
   ): Promise<AppApiResponse<ShopDto>> {
     this.assertShopAccess(id, tenantContext, req);
     const shop = await this.shopService.updateMediaUrls(id, logoUrl, bannerUrl);
@@ -198,12 +198,12 @@ export class ShopController {
     return { success: true, message: 'Location deleted successfully' };
   }
 
-  private assertShopAccess(id: string, tenantContext?: TenantContext, req?: Request): void {
+  private assertShopAccess(id: string, tenantContext: TenantContext, req?: Request): void {
     if (req?.user?.role === Role.ADMIN) {
       return;
     }
 
-    if (!tenantContext || tenantContext.shopId !== id) {
+    if (tenantContext.shopId !== id) {
       throw new ForbiddenException('You do not have access to this shop');
     }
   }

@@ -1,4 +1,4 @@
-import { ChromaDBClient, TenantContext } from '@/common/types';
+import { ChromaDBClient } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 
@@ -17,13 +17,7 @@ export class VectorStoreService {
     private readonly embeddingsService: EmbeddingsService,
   ) {}
 
-  private getTenantFilter(tenantContext: TenantContext): Record<string, any> {
-    return { shopId: tenantContext.shopId };
-  }
-
-  async getDocuments(tenantContext: TenantContext): Promise<Document[]> {
-    const tenantFilter = this.getTenantFilter(tenantContext);
-
+  async getDocuments(shopId: string): Promise<Document[]> {
     const collection = this.chromaDBClient.collection;
 
     if (!collection) {
@@ -31,7 +25,7 @@ export class VectorStoreService {
     }
 
     const documents = await collection.get({
-      where: tenantFilter,
+      where: { shopId },
     });
 
     if (!documents.ids?.length) {
@@ -48,12 +42,12 @@ export class VectorStoreService {
       };
     });
 
-    this.logger.log(`Retrieved ${result.length} documents from vector store for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Retrieved ${result.length} documents from vector store for organization: ${shopId}`);
 
     return result;
   }
 
-  async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
+  async addDocuments(documents: Document[], shopId: string): Promise<string[]> {
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
       chunkOverlap: 200,
@@ -63,7 +57,7 @@ export class VectorStoreService {
       ...doc,
       metadata: {
         ...doc.metadata,
-        shopId: tenantContext.shopId,
+        shopId: shopId,
       },
     }));
 
@@ -76,13 +70,11 @@ export class VectorStoreService {
     this.logger.log(`Split ${documents.length} documents into ${splitDocs.length} chunks`);
 
     const ids = await this.chromaDBClient.addDocuments(splitDocs);
-    this.logger.log(
-      `Added ${splitDocs.length} document chunks to vector store for organization: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Added ${splitDocs.length} document chunks to vector store for organization: ${shopId}`);
     return ids;
   }
 
-  async addTexts(texts: string[], tenantContext: TenantContext, metadatas?: Record<string, any>[]): Promise<string[]> {
+  async addTexts(texts: string[], shopId: string, metadatas?: Record<string, any>[]): Promise<string[]> {
     const docs = texts.map((text, index) => {
       const metadata = metadatas?.length === 1 ? metadatas[0] : metadatas?.[index] || {};
       if (Object.keys(metadata).length === 0) {
@@ -92,43 +84,39 @@ export class VectorStoreService {
         pageContent: text,
         metadata: {
           ...metadata,
-          shopId: tenantContext.shopId,
+          shopId: shopId,
         },
       };
     });
 
     const resultIds = await this.chromaDBClient.addVectors(await this.embeddingsService.embedDocuments(texts), docs);
-    this.logger.log(`Added ${texts.length} texts to vector store for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Added ${texts.length} texts to vector store for organization: ${shopId}`);
     return resultIds;
   }
 
   async similaritySearch(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     k: number = 5,
     filter?: Record<string, any>,
   ): Promise<Document[]> {
-    const tenantFilter = this.getTenantFilter(tenantContext);
-    const combinedFilter = filter ? { ...tenantFilter, ...filter } : tenantFilter;
+    const combinedFilter = filter ? { shopId, ...filter } : { shopId };
 
     const results = await this.chromaDBClient.similaritySearch(query, k, combinedFilter);
-    this.logger.log(`Similarity search completed for query: "${query}" for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Similarity search completed for query: "${query}" for organization: ${shopId}`);
     return results;
   }
 
   async similaritySearchWithScore(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     k: number = 5,
     filter?: Record<string, any>,
   ): Promise<[Document, number][]> {
-    const tenantFilter = this.getTenantFilter(tenantContext);
-    const combinedFilter = filter ? { ...tenantFilter, ...filter } : tenantFilter;
+    const combinedFilter = filter ? { shopId, ...filter } : { shopId };
 
     const results = await this.chromaDBClient.similaritySearchWithScore(query, k, combinedFilter);
-    this.logger.log(
-      `Similarity search with scores completed for query: "${query}" for organization: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Similarity search with scores completed for query: "${query}" for organization: ${shopId}`);
     return results;
   }
 
@@ -137,9 +125,8 @@ export class VectorStoreService {
     this.logger.log(`Deleted ${ids.length} documents from vector store`);
   }
 
-  asRetriever(tenantContext: TenantContext, searchKwargs?: { k?: number; filter?: Record<string, any> }) {
-    const tenantFilter = this.getTenantFilter(tenantContext);
-    const combinedFilter = searchKwargs?.filter ? { ...tenantFilter, ...searchKwargs.filter } : tenantFilter;
+  asRetriever(shopId: string, searchKwargs?: { k?: number; filter?: Record<string, any> }) {
+    const combinedFilter = searchKwargs?.filter ? { shopId, ...searchKwargs.filter } : { shopId };
     return this.chromaDBClient.asRetriever({ ...searchKwargs, filter: combinedFilter });
   }
 }
