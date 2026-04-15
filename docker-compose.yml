@@ -39,7 +39,9 @@ services:
     network_mode: bridge
 
   ollama:
-    image: ollama/ollama:latest
+    build:
+      context: .
+      dockerfile: docker/ollama/Dockerfile
     container_name: ollama-embeddings
 
     ports:
@@ -54,6 +56,22 @@ services:
       timeout: 30s
       retries: 3
       start_period: 60s
+
+    network_mode: bridge
+
+  doc-preprocessor:
+    build:
+      context: ./apps/doc-preprocessor
+    container_name: doc-preprocessor
+
+    ports:
+      - '4000:4000'
+
+    healthcheck:
+      test: ['CMD', 'python', '-c', 'import urllib.request; urllib.request.urlopen("http://localhost:4000/health")']
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
     network_mode: bridge
 
