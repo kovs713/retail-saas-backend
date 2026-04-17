@@ -1,6 +1,7 @@
 import { AuthGuard } from '@/common/guards';
 import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
 import { DocPreprocessorService } from '@/modules/doc-preprocessor/doc-preprocessor.service';
+import { ProductDto } from '@/modules/product/dto/product.dto';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
 
@@ -114,6 +115,37 @@ describe('RagController', () => {
         limit: 10,
         total: 0,
         totalPages: 0,
+      });
+    });
+  });
+
+  describe('getAvailableProducts endpoint', () => {
+    it('should return in-stock products for tenant shop', async () => {
+      const products = [
+        {
+          id: 'product-1',
+          sku: 'MILK-001',
+          name: 'Milk',
+          description: 'Fresh milk',
+          price: 120,
+          cost: null,
+          quantity: 8,
+          category: 'Dairy',
+          barcode: null,
+          images: null,
+          metadata: null,
+          createdAt: new Date('2024-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+        },
+      ];
+      service.getAvailableProducts.mockResolvedValue(products as any);
+
+      const result = await controller.getAvailableProducts(tenantContext);
+
+      expect(service.getAvailableProducts).toHaveBeenCalledWith(tenantContext.shopId);
+      expect(result).toEqual({
+        success: true,
+        data: ProductDto.fromEntities(products as any),
       });
     });
   });

@@ -1,23 +1,30 @@
-import { RagChatConfig } from '@/common/types';
-import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
-import { ChatSessionRepository } from '../repositories';
+import { ChatMessageRepository, ChatSessionRepository } from '../repositories';
 import { ChatSessionService } from './chat-session.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { ConfigService } from '@nestjs/config';
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('ChatSessionService', () => {
   let service: ChatSessionService;
-  let repository: DeepMocked<ChatSessionRepository>;
+  let sessionRepository: DeepMocked<ChatSessionRepository>;
+  let messageRepository: DeepMocked<ChatMessageRepository>;
 
   const mockSession = {
     id: 'session-1',
     shopId: 'shop-1',
+    userId: 'user-1',
+    title: 'Need phones',
+    status: 'active' as const,
+    warmStatus: 'pending' as const,
+    warmProductSummary: null,
+    warmProductSnapshotAt: null,
+    lastMessageAt: new Date('2024-01-01T00:00:00.000Z'),
+    createdAt: new Date('2024-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+    deletedAt: null,
     messages: [],
-    createdAt: '2024-01-01T00:00:00.000Z',
-    updatedAt: '2024-01-01T00:00:00.000Z',
   };
 
   beforeEach(async () => {
@@ -25,34 +32,23 @@ describe('ChatSessionService', () => {
       providers: [
         ChatSessionService,
         {
-          provide: RagChatConfig,
-          useValue: {
-            ChatSessionTtl: 3600,
-          },
-        },
-        {
           provide: ChatSessionRepository,
           useValue: createMock<ChatSessionRepository>(),
         },
         {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn((key: string, defaultValue: unknown) => defaultValue),
-          },
+          provide: ChatMessageRepository,
+          useValue: createMock<ChatMessageRepository>(),
         },
         {
           provide: LoggerService,
           useValue: createMock<LoggerService>(),
         },
-        {
-          provide: CacheService,
-          useValue: createMock<CacheService>(),
-        },
       ],
     }).compile();
 
     service = module.get<ChatSessionService>(ChatSessionService);
-    repository = module.get<DeepMocked<ChatSessionRepository>>(ChatSessionRepository);
+    sessionRepository = module.get(ChatSessionRepository);
+    messageRepository = module.get(ChatMessageRepository);
   });
 
   afterEach(() => {
@@ -64,86 +60,152 @@ describe('ChatSessionService', () => {
   });
 
   describe('createSession', () => {
-    it('should create a new session', async () => {
-      repository.save.mockResolvedValue(undefined);
+    it('should create owned session with default metadata', async () => {
+      sessionRepository.create.mockReturnValue(mockSession as any);
+      sessionRepository.save.mockResolvedValue(mockSession as any);
 
-      const result = await service.createSession('shop-1');
+      const result = await service.createSession('shop-1', 'user-1');
 
-      expect(result.shopId).toBe('shop-1');
-      expect(result.id).toBeDefined();
-      expect(result.messages).toEqual([]);
-      expect(repository.save).toHaveBeenCalled();
+      expect(sessionRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          shopId: 'shop-1',
+          userId: 'user-1',
+          title: 'New chat',
+          status: 'active',
+          warmStatus: 'pending',
+        }),
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: 'session-1',
+          shopId: 'shop-1',
+          userId: 'user-1',
+          title: 'Need phones',
+          status: 'active',
+          warmStatus: 'pending',
+          warmProductSummary: null,
+          warmProductSnapshotAt: null,
+          messages: [],
+          lastMessageAt: '2024-01-01T00:00:00.000Z',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        }),
+      );
     });
   });
 
-  describe('getSession', () => {
-    it('should return session when found', async () => {
-      repository.findById.mockResolvedValue(mockSession);
+  describe('getOwnedSession', () => {
+    it('should return owned session', async () => {
+      sessionRepository.findOwnedById.mockResolvedValue(mockSession as any);
 
-      const result = await service.getSession('session-1');
+      const result = await service.getOwnedSession('session-1', 'shop-1', 'user-1');
 
-      expect(result).toEqual(mockSession);
-      expect(repository.findById).toHaveBeenCalledWith('session-1');
+      expect(sessionRepository.findOwnedById).toHaveBeenCalledWith('session-1', 'shop-1', 'user-1');
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: 'session-1',
+          shopId: 'shop-1',
+          userId: 'user-1',
+          title: 'Need phones',
+          status: 'active',
+          warmStatus: 'pending',
+          warmProductSummary: null,
+          warmProductSnapshotAt: null,
+          messages: [],
+          lastMessageAt: '2024-01-01T00:00:00.000Z',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        }),
+      );
     });
 
-    it('should return null when session not found', async () => {
-      repository.findById.mockResolvedValue(null);
+    it('should throw when session missing', async () => {
+      sessionRepository.findOwnedById.mockResolvedValue(null);
 
-      const result = await service.getSession('non-existent');
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('addMessage', () => {
-    it('should add message to existing session', async () => {
-      repository.findById.mockResolvedValueOnce(mockSession);
-      repository.save.mockResolvedValue(undefined);
-
-      const result = await service.addMessage('session-1', 'user', 'Hello');
-
-      expect(result).toBeDefined();
-      expect(result?.messages).toHaveLength(1);
-      expect(result?.messages[0].content).toBe('Hello');
-      expect(repository.save).toHaveBeenCalled();
-    });
-
-    it('should return null when session not found', async () => {
-      repository.findById.mockResolvedValue(null);
-
-      const result = await service.addMessage('non-existent', 'user', 'Hello');
-
-      expect(result).toBeNull();
-      expect(repository.save).not.toHaveBeenCalled();
+      await expect(service.getOwnedSession('missing', 'shop-1', 'user-1')).rejects.toThrow(NotFoundException);
     });
   });
 
-  describe('getOrCreateSession', () => {
-    it('should return existing session when found', async () => {
-      repository.findById.mockResolvedValue(mockSession);
+  describe('listSessions', () => {
+    it('should return metadata sorted by latest activity', async () => {
+      sessionRepository.listOwnedByUser.mockResolvedValue([mockSession as any]);
 
-      const result = await service.getOrCreateSession('session-1', 'shop-1');
+      const result = await service.listSessions('shop-1', 'user-1');
 
-      expect(result).toEqual(mockSession);
+      expect(sessionRepository.listOwnedByUser).toHaveBeenCalledWith('shop-1', 'user-1', 'active');
+      expect(result[0]).toEqual({
+        id: 'session-1',
+        title: 'Need phones',
+        status: 'active',
+        warmStatus: 'pending',
+        lastMessageAt: '2024-01-01T00:00:00.000Z',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+      });
     });
+  });
 
-    it('should create new session when id not provided', async () => {
-      repository.save.mockResolvedValue(undefined);
+  describe('appendMessage', () => {
+    it('should set title from first user message and update activity', async () => {
+      const session = {
+        ...mockSession,
+        title: 'New chat',
+        messages: [],
+      };
+      sessionRepository.findOwnedById.mockResolvedValue(session as any);
+      messageRepository.create.mockReturnValue({
+        sessionId: 'session-1',
+        role: 'user',
+        content: 'Need latest smartphones',
+      } as any);
+      messageRepository.save.mockResolvedValue({
+        id: 'message-1',
+        sessionId: 'session-1',
+        role: 'user',
+        content: 'Need latest smartphones',
+        createdAt: new Date('2024-01-01T00:00:05.000Z'),
+      } as any);
+      sessionRepository.save.mockResolvedValue({
+        ...session,
+        title: 'Need latest smartphones',
+      } as any);
 
-      const result = await service.getOrCreateSession(undefined, 'shop-1');
+      const result = await service.appendMessage('session-1', 'shop-1', 'user-1', 'user', 'Need latest smartphones');
 
-      expect(result.shopId).toBe('shop-1');
-      expect(result.id).toBeDefined();
+      expect(messageRepository.create).toHaveBeenCalledWith({
+        sessionId: 'session-1',
+        role: 'user',
+        content: 'Need latest smartphones',
+      });
+      expect(sessionRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Need latest smartphones',
+          lastMessageAt: expect.any(Date),
+        }),
+      );
+      expect(result.title).toBe('Need latest smartphones');
     });
+  });
 
-    it('should create new session when existing not found', async () => {
-      repository.findById.mockResolvedValue(null);
-      repository.save.mockResolvedValue(undefined);
+  describe('archiveSession', () => {
+    it('should archive owned session', async () => {
+      sessionRepository.findOwnedById.mockResolvedValue(mockSession as any);
+      sessionRepository.save.mockResolvedValue({ ...mockSession, status: 'archived' } as any);
 
-      const result = await service.getOrCreateSession('non-existent', 'shop-1');
+      const result = await service.archiveSession('session-1', 'shop-1', 'user-1');
 
-      expect(result.shopId).toBe('shop-1');
-      expect(result.id).toBeDefined();
+      expect(result.status).toBe('archived');
+    });
+  });
+
+  describe('deleteSession', () => {
+    it('should soft delete owned session', async () => {
+      sessionRepository.findOwnedById.mockResolvedValue(mockSession as any);
+      sessionRepository.softDeleteById.mockResolvedValue(undefined);
+
+      await service.deleteSession('session-1', 'shop-1', 'user-1');
+
+      expect(sessionRepository.softDeleteById).toHaveBeenCalledWith('session-1');
     });
   });
 });

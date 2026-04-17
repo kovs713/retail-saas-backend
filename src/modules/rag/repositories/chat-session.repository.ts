@@ -1,27 +1,52 @@
-import { CacheService } from '@/core/cache/cache.service';
-import { ChatSessionDto } from '../dto';
+import { ChatSession } from '../entities/';
 
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
-export class ChatSessionRepository {
-  private readonly keyPrefix = 'chat:session:';
-
-  constructor(private readonly cacheService: CacheService) {}
-
-  async findById(sessionId: string): Promise<ChatSessionDto | null> {
-    return this.cacheService.get<ChatSessionDto>(this.buildKey(sessionId));
+export class ChatSessionRepository extends Repository<ChatSession> {
+  constructor(
+    @InjectRepository(ChatSession)
+    private readonly repository: Repository<ChatSession>,
+  ) {
+    super(ChatSession, repository.manager);
   }
 
-  async save(session: ChatSessionDto, ttl: number): Promise<void> {
-    await this.cacheService.set(this.buildKey(session.id), session, ttl);
+  async findOwnedById(sessionId: string, shopId: string, userId: string): Promise<ChatSession | null> {
+    return this.repository.findOne({
+      where: {
+        id: sessionId,
+        shopId,
+        userId,
+      },
+      order: {
+        messages: {
+          createdAt: 'ASC',
+        },
+      },
+      relations: ['messages'],
+    });
   }
 
-  async delete(sessionId: string): Promise<void> {
-    await this.cacheService.del(this.buildKey(sessionId));
+  async listOwnedByUser(
+    shopId: string,
+    userId: string,
+    status: 'active' | 'archived' = 'active',
+  ): Promise<ChatSession[]> {
+    return this.repository.find({
+      where: {
+        shopId,
+        userId,
+        status,
+      },
+      order: {
+        lastMessageAt: 'DESC',
+      },
+    });
   }
 
-  private buildKey(sessionId: string): string {
-    return `${this.keyPrefix}${sessionId}`;
+  async softDeleteById(sessionId: string): Promise<void> {
+    await this.repository.softDelete(sessionId);
   }
 }

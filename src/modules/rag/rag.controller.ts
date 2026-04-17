@@ -5,6 +5,7 @@ import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import { TargetDocumentType } from '@/modules/doc-preprocessor/doc-preprocessor.enum';
 import { DocPreprocessorService } from '@/modules/doc-preprocessor/doc-preprocessor.service';
+import { ProductDto } from '@/modules/product/dto/product.dto';
 import {
   AddDocumentsDto,
   AddDocumentsResponseDto,
@@ -75,6 +76,18 @@ export class RagController {
     this.logger.log(`Received documents from shop with id ${tenantContext.shopId} successfully`);
 
     return result;
+  }
+
+  @Get('available-products')
+  @ApiOperation({ summary: 'Get in-stock catalog products for chatbot and operators' })
+  @ApiResponse({ status: 200, description: 'Available products retrieved', type: ProductDto, isArray: true })
+  async getAvailableProducts(@Tenant() tenantContext: TenantContext): Promise<AppApiResponse<ProductDto[]>> {
+    const products = await this.ragService.getAvailableProducts(tenantContext.shopId);
+
+    return {
+      success: true,
+      data: ProductDto.fromEntities(products),
+    };
   }
 
   @Post('documents')
@@ -149,7 +162,23 @@ export class RagController {
     @Body() dto: UploadRagDocumentDto,
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<AddDocumentsResponseDto>> {
-    this.validateUploadedFile(file);
+    if (!file) {
+      throw new BadRequestException('file is required');
+    }
+
+    const maxUploadSizeMb = Number(this.configService.get<string>('UPLOAD_MAX_MB') ?? 5);
+    if (file.size > maxUploadSizeMb * 1024 * 1024) {
+      throw new BadRequestException(`File too large. Max size is ${maxUploadSizeMb}MB`);
+    }
+
+    const extension = file.originalname.split('.').pop()?.toLowerCase();
+    if (
+      !extension ||
+      !RagController.allowedExtensions.has(extension) ||
+      !RagController.allowedMimeTypes.has(file.mimetype)
+    ) {
+      throw new BadRequestException('Unsupported file type');
+    }
 
     const processed = await this.docPreprocessorService.preprocess(file, {
       ...dto,
@@ -242,26 +271,6 @@ export class RagController {
     this.logger.log('All documents cleared successfully');
 
     return { success: true, message: 'Documents cleared successfully' };
-  }
-
-  private validateUploadedFile(file?: Express.Multer.File): void {
-    if (!file) {
-      throw new BadRequestException('file is required');
-    }
-
-    const maxUploadSizeMb = Number(this.configService.get<string>('UPLOAD_MAX_MB') ?? 5);
-    if (file.size > maxUploadSizeMb * 1024 * 1024) {
-      throw new BadRequestException(`File too large. Max size is ${maxUploadSizeMb}MB`);
-    }
-
-    const extension = file.originalname.split('.').pop()?.toLowerCase();
-    if (
-      !extension ||
-      !RagController.allowedExtensions.has(extension) ||
-      !RagController.allowedMimeTypes.has(file.mimetype)
-    ) {
-      throw new BadRequestException('Unsupported file type');
-    }
   }
 
   private extractProcessedText(buffer: Buffer, contentType: string): string {
