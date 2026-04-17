@@ -3,7 +3,7 @@ import { ApiResponse as AppApiResponse, Pagination, PaginationResponse } from '@
 import { AuthGuard } from '@/common/guards';
 import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
-import { TargetDocumentType } from '@/modules/doc-preprocessor/dto';
+import { TargetDocumentType } from '@/modules/doc-preprocessor/doc-preprocessor.enum';
 import { DocPreprocessorService } from '@/modules/doc-preprocessor/doc-preprocessor.service';
 import {
   AddDocumentsDto,
@@ -35,7 +35,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Express } from 'express';
 
 @ApiTags('RAG')
 @ApiBearerAuth('JWT')

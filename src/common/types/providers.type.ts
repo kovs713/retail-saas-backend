@@ -1,3 +1,4 @@
+export const DocPreprocessorConfig = Symbol('DOC_PREPROCESSOR_CONFIG');
 export const RagChatConfig = Symbol('RAG_CHAT_CONFIG');
 export const ChromaDBClient = Symbol('CHROMADB_CLIENT');
 export const ChatGroqClient = Symbol('CHAT_GROQ_CLIENT');

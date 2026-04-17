@@ -1,8 +1,10 @@
+import { DocPreprocessorConfig } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
-import { PreprocessDocumentDto, TargetDocumentType } from './dto';
+import { TargetDocumentType } from './doc-preprocessor.enum';
+import { DocPreprocessorOptions } from './doc-preprocessor.type';
+import { PreprocessDocumentDto } from './dto';
 
-import { BadGatewayException, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { BadGatewayException, Inject, Injectable } from '@nestjs/common';
 
 interface PreprocessResult {
   buffer: Buffer;
@@ -14,11 +16,14 @@ interface PreprocessResult {
 export class DocPreprocessorService {
   private readonly logger: LoggerService = new LoggerService(DocPreprocessorService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    @Inject(DocPreprocessorConfig)
+    private readonly docPreprocessorConfig: DocPreprocessorOptions,
+  ) {}
 
   async preprocess(file: Express.Multer.File, dto: PreprocessDocumentDto): Promise<PreprocessResult> {
-    const serviceUrl = this.configService.getOrThrow<string>('DOC_PREPROCESSOR_URL');
-    const timeoutMs = Number(this.configService.getOrThrow<number>('DOC_PREPROCESSOR_TIMEOUT_MS'));
+    const serviceUrl = this.docPreprocessorConfig.docPreprocessorUrl;
+    const timeoutMs = Number(this.docPreprocessorConfig.docPreprocessorTimeoutMs);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 

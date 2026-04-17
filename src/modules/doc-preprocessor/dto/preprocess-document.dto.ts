@@ -1,21 +1,8 @@
+import { DocumentType, TargetDocumentType } from '../doc-preprocessor.enum';
+
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
-
-export enum DocumentType {
-  TXT = 'txt',
-  MD = 'md',
-  JSON = 'json',
-  DOCX = 'docx',
-  PDF = 'pdf',
-}
-
-export enum TargetDocumentType {
-  TXT = 'txt',
-  MD = 'md',
-  JSON = 'json',
-  DOCX = 'docx',
-}
 
 export class PreprocessDocumentDto {
   @ApiPropertyOptional({ enum: TargetDocumentType })

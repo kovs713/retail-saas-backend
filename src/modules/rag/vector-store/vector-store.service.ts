@@ -11,6 +11,8 @@ import { Inject, Injectable } from '@nestjs/common';
 export class VectorStoreService {
   private readonly logger: LoggerService = new LoggerService(VectorStoreService.name);
 
+  private static readonly allowedMetadataTypes = new Set(['string', 'number', 'boolean']);
+
   constructor(
     @Inject(ChromaDBClient)
     private readonly chromaDBClient: Chroma,
@@ -55,10 +57,10 @@ export class VectorStoreService {
 
     const docsWithTenant = documents.map((doc) => ({
       ...doc,
-      metadata: {
+      metadata: this.sanitizeMetadata({
         ...doc.metadata,
-        shopId: shopId,
-      },
+        shopId,
+      }),
     }));
 
     const splitDocs: Document[] = [];
@@ -82,10 +84,10 @@ export class VectorStoreService {
       }
       return {
         pageContent: text,
-        metadata: {
+        metadata: this.sanitizeMetadata({
           ...metadata,
-          shopId: shopId,
-        },
+          shopId,
+        }),
       };
     });
 
@@ -138,5 +140,29 @@ export class VectorStoreService {
   asRetriever(shopId: string, searchKwargs?: { k?: number; filter?: Record<string, any> }) {
     const combinedFilter = searchKwargs?.filter ? { shopId, ...searchKwargs.filter } : { shopId };
     return this.chromaDBClient.asRetriever({ ...searchKwargs, filter: combinedFilter });
+  }
+
+  private sanitizeMetadata(metadata?: Record<string, unknown>): Record<string, string | number | boolean | null> {
+    const safeMetadata: Record<string, string | number | boolean | null> = {};
+
+    for (const [key, value] of Object.entries(metadata ?? {})) {
+      if (value === null) {
+        safeMetadata[key] = null;
+        continue;
+      }
+
+      if (value === undefined) {
+        continue;
+      }
+
+      if (VectorStoreService.allowedMetadataTypes.has(typeof value)) {
+        safeMetadata[key] = value as string | number | boolean;
+        continue;
+      }
+
+      safeMetadata[key] = JSON.stringify(value);
+    }
+
+    return safeMetadata;
   }
 }

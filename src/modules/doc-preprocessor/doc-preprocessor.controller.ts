@@ -1,7 +1,8 @@
 import { AuthGuard } from '@/common/guards';
 import { LoggerService } from '@/core/logger/logger.service';
+import { TargetDocumentType } from './doc-preprocessor.enum';
 import { DocPreprocessorService } from './doc-preprocessor.service';
-import { PreprocessDocumentDto, TargetDocumentType } from './dto';
+import { PreprocessDocumentDto } from './dto';
 
 import {
   BadRequestException,

@@ -25,7 +25,7 @@ export class RagModule {
         LLMModule.forRootAsync(),
         VectorStoreModule.forRootAsync(),
         CacheModule.forRootAsync(),
-        DocPreprocessorModule,
+        DocPreprocessorModule.forRoot(),
         ProductModule,
       ],
       providers: [
