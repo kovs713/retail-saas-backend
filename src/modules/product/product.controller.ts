@@ -10,6 +10,7 @@ import {
   CreateCategoryDto,
   CreateProductDto,
   ProductDto,
+  ProductImageUploadResponseDto,
   ProductImagePresignedUploadDto,
   ProductImagePresignedUploadResponseDto,
   UpdateCategoryDto,
@@ -19,6 +20,7 @@ import {
 import { ProductService } from './product.service';
 
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -29,9 +31,24 @@ import {
   Patch,
   Post,
   Query,
+  Req,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request, Response } from 'express';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')
@@ -39,6 +56,9 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags }
 @UseGuards(AuthGuard, RolesGuard)
 export class ProductController {
   private readonly logger = new LoggerService(ProductController.name);
+  private static readonly allowedImageExtensions = new Set(['jpg', 'jpeg', 'png', 'webp']);
+  private static readonly allowedImageMimeTypes = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+  private static readonly maxUploadSizeBytes = 10 * 1024 * 1024;
 
   constructor(private readonly productService: ProductService) {}
 
@@ -244,7 +264,7 @@ export class ProductController {
   }
 
   @Post(':id/images/presigned-upload')
-  @ApiOperation({ summary: 'Generate presigned upload URL for product image' })
+  @ApiOperation({ summary: 'Generate presigned upload URL for product image', deprecated: true })
   @ApiParam({ name: 'id', type: String, description: 'Product ID' })
   @ApiResponse({
     status: 201,
@@ -259,6 +279,58 @@ export class ProductController {
   ): Promise<AppApiResponse<ProductImagePresignedUploadResponseDto>> {
     const result = await this.productService.createImageUploadUrl(id, body.fileName, tenantContext.shopId);
     return { success: true, data: result };
+  }
+
+  @Post(':id/images')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload product image and persist public URL' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Product image uploaded successfully', type: ProductImageUploadResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid file or request payload' })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<ProductImageUploadResponseDto>> {
+    this.validateUploadedImage(file);
+    const result = await this.productService.uploadProductImage(id, file, tenantContext.shopId);
+    return { success: true, data: result, message: 'Product image uploaded successfully' };
+  }
+
+  @Get(':id/images/:imageName')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiOperation({ summary: 'Stream private product image for owner/admin' })
+  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
+  @ApiParam({ name: 'imageName', type: String, description: 'Image filename' })
+  @ApiResponse({ status: 200, description: 'Private product image streamed successfully' })
+  @ApiResponse({ status: 404, description: 'Product or image not found' })
+  async getPrivateImage(
+    @Param('id') id: string,
+    @Param('imageName') imageName: string,
+    @Tenant() tenantContext: TenantContext,
+    @Req() _req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.productService.getPrivateImageStream(id, imageName, tenantContext.shopId);
+
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate');
+    res.setHeader('ETag', result.etag);
+    res.setHeader('Last-Modified', result.lastModified.toUTCString());
+
+    result.stream.pipe(res);
   }
 
   @Delete(':id/images/:imageName')
@@ -326,5 +398,24 @@ export class ProductController {
     await this.productService.deleteCategory(id, tenantContext.shopId);
     this.logger.log(`Category ${id} deleted successfully`);
     return { success: true, message: 'Category deleted successfully' };
+  }
+
+  private validateUploadedImage(file?: Express.Multer.File): void {
+    if (!file) {
+      throw new BadRequestException('file is required');
+    }
+
+    if (file.size > ProductController.maxUploadSizeBytes) {
+      throw new BadRequestException('File too large. Max size is 10MB');
+    }
+
+    const extension = file.originalname.split('.').pop()?.toLowerCase();
+    if (
+      !extension ||
+      !ProductController.allowedImageExtensions.has(extension) ||
+      !ProductController.allowedImageMimeTypes.has(file.mimetype)
+    ) {
+      throw new BadRequestException('Unsupported file type');
+    }
   }
 }

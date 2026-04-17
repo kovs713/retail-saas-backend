@@ -22,6 +22,38 @@ export class ProductService {
     private readonly configService: ConfigService,
   ) {}
 
+  async uploadProductImage(
+    productId: string,
+    file: Express.Multer.File,
+    shopId: string,
+  ): Promise<{ key: string; publicUrl: string; contentType: string; size: number; etag: string }> {
+    const product = await this.productRepository.findByIdWithShop(productId, shopId);
+
+    if (!product || !product.shop) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const safeFileName = this.sanitizeImageFileName(file.originalname);
+    const key = this.buildProductImageKey(productId, safeFileName);
+    const publicUrl = this.buildPublicProductImageUrl(product.shop.slug, productId, safeFileName);
+    const etag = await this.storageService.putObject(key, file.buffer, file.size, {
+      'Content-Type': file.mimetype,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    });
+
+    product.images = this.appendImageUrl(product.images, publicUrl);
+    await this.productRepository.save(product);
+    await this.invalidateProductCache(shopId, productId);
+
+    return {
+      key,
+      publicUrl,
+      contentType: file.mimetype,
+      size: file.size,
+      etag,
+    };
+  }
+
   async createImageUploadUrl(
     productId: string,
     fileName: string,
@@ -56,6 +88,37 @@ export class ProductService {
 
   async findPublicByShopSlugAndId(shopSlug: string, productId: string): Promise<Product | null> {
     return this.productRepository.findByIdAndShopSlug(productId, shopSlug);
+  }
+
+  async getPrivateImageStream(
+    productId: string,
+    imageName: string,
+    shopId: string,
+  ): Promise<{
+    stream: NodeJS.ReadableStream;
+    contentType: string;
+    etag: string;
+    lastModified: Date;
+  }> {
+    const product = await this.productRepository.findById(productId, shopId);
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const safeFileName = this.sanitizeImageFileName(imageName);
+    const key = this.buildProductImageKey(productId, safeFileName);
+    const [stat, stream] = await Promise.all([
+      this.storageService.statObject(key),
+      this.storageService.getObjectStream(key),
+    ]);
+
+    return {
+      stream,
+      contentType: stat.contentType,
+      etag: stat.etag,
+      lastModified: stat.lastModified,
+    };
   }
 
   buildProductImageObjectKey(productId: string, imageName: string): string {
@@ -446,6 +509,11 @@ export class ProductService {
     }
 
     return trimmed;
+  }
+
+  private appendImageUrl(images: string[] | null | undefined, publicUrl: string): string[] {
+    const nextImages = images ?? [];
+    return nextImages.includes(publicUrl) ? nextImages : [...nextImages, publicUrl];
   }
 
   private buildProductImageKey(productId: string, imageName: string): string {

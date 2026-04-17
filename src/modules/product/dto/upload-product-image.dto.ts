@@ -23,3 +23,20 @@ export class ProductImagePresignedUploadResponseDto {
   @ApiProperty({ description: 'Object key in private bucket' })
   key: string;
 }
+
+export class ProductImageUploadResponseDto {
+  @ApiProperty({ description: 'Object key in private bucket' })
+  key: string;
+
+  @ApiProperty({ description: 'Public proxy URL for reading uploaded image' })
+  publicUrl: string;
+
+  @ApiProperty({ description: 'Stored content type' })
+  contentType: string;
+
+  @ApiProperty({ description: 'Stored object size in bytes' })
+  size: number;
+
+  @ApiProperty({ description: 'Object ETag returned by storage' })
+  etag: string;
+}

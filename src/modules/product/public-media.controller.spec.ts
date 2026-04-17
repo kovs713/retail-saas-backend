@@ -43,11 +43,18 @@ describe('PublicMediaController', () => {
     storageService.getObjectStream.mockResolvedValue(stream);
     productService.findPublicByShopSlugAndId.mockResolvedValue(product);
     productService.buildProductImageObjectKey.mockReturnValue('products/p1/images/a.jpg');
+    storageService.statObject.mockResolvedValue({
+      size: 11,
+      contentType: 'image/jpeg',
+      lastModified: new Date('2025-01-01T00:00:00.000Z'),
+      etag: 'etag-1',
+    });
 
     await controller.getProductImage('shop-1', 'p1', 'a.jpg', req, res);
 
     expect(storageService.getObjectStream).toHaveBeenCalledWith('products/p1/images/a.jpg');
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'public, max-age=3600');
+    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'public, max-age=31536000, immutable');
+    expect(res.setHeader).toHaveBeenCalledWith('ETag', 'etag-1');
     expect(stream.pipe).toHaveBeenCalledWith(res);
   });
 

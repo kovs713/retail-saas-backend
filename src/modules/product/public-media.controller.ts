@@ -53,19 +53,25 @@ export class PublicMediaController {
     const key = this.productService.buildProductImageObjectKey(productId, safeName);
 
     let stream: NodeJS.ReadableStream;
+    let stat: { size: number; contentType: string; lastModified: Date; etag: string };
     try {
-      stream = await this.storageService.getObjectStream(key);
+      [stat, stream] = await Promise.all([
+        this.storageService.statObject(key),
+        this.storageService.getObjectStream(key),
+      ]);
     } catch (error: unknown) {
       const stack = error instanceof Error ? error.stack : String(error);
       this.logger.error(`Failed to get image stream: ${key}`, stack);
       throw new NotFoundException('Image not found');
     }
 
-    const contentType = lookup(safeName) || 'application/octet-stream';
+    const contentType = stat.contentType || lookup(safeName) || 'application/octet-stream';
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('ETag', stat.etag);
+    res.setHeader('Last-Modified', stat.lastModified.toUTCString());
 
     stream.on('error', (err: Error) => {
       this.logger.error(`Stream error mid-transfer: ${key}`, err.stack);

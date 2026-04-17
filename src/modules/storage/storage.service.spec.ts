@@ -87,6 +87,35 @@ describe('StorageService', () => {
     });
   });
 
+  describe('putObject', () => {
+    it('should upload object with metadata', async () => {
+      mockMinioClient.putObject.mockResolvedValue('test-etag');
+
+      const result = await service.putObject(mockKey, mockFileBuffer, mockFileBuffer.length, {
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      });
+
+      expect(result).toBe('test-etag');
+      expect(mockMinioClient.putObject).toHaveBeenCalledWith(
+        mockBucket,
+        mockKey,
+        mockFileBuffer,
+        mockFileBuffer.length,
+        {
+          'Content-Type': 'text/plain',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      );
+    });
+
+    it('should throw when upload fails', async () => {
+      mockMinioClient.putObject.mockRejectedValue(new Error('upload failed'));
+
+      await expect(service.putObject(mockKey, mockFileBuffer, mockFileBuffer.length)).rejects.toThrow('upload failed');
+    });
+  });
+
   describe('statObject', () => {
     it('should return stat info', async () => {
       const result = await service.statObject(mockKey);
