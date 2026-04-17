@@ -69,10 +69,8 @@ export class AnalyticsController {
   @Header('Content-Type', 'text/csv')
   @Header('Content-Disposition', 'attachment; filename="stock-report.csv"')
   async getStockReport(@Res() res: Response, @Tenant() tenantContext: TenantContext): Promise<void> {
-    // Get all products for the shop (including categories)
     const [products] = await this.productRepository.findAll(tenantContext.shopId, { page: 1, limit: 10000 });
 
-    // Build CSV content
     const csvHeader = 'SKU,Name,Category,Price,Quantity\n';
     const csvRows = products
       .map((product) => {
@@ -94,7 +92,6 @@ export class AnalyticsController {
 
   private escapeCsvField(field: string): string {
     if (!field) return '""';
-    // If field contains comma, quote, or newline, wrap in quotes and escape internal quotes
     if (field.includes(',') || field.includes('"') || field.includes('\n')) {
       return `"${field.replace(/"/g, '""')}"`;
     }

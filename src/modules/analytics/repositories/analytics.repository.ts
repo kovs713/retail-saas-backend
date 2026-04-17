@@ -13,15 +13,18 @@ export class AnalyticsRepository {
     private readonly storefrontViewRepository: Repository<StorefrontView>,
   ) {}
 
-  // Chat Events
   async createChatEvent(chatEvent: Partial<ChatEvent>): Promise<ChatEvent> {
     return this.chatEventRepository.save(this.chatEventRepository.create(chatEvent));
   }
 
   async getChatEventsByShopId(shopId: string): Promise<ChatEvent[]> {
     return this.chatEventRepository.find({
-      where: { shopId },
-      order: { createdAt: 'DESC' },
+      where: {
+        shopId,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
     });
   }
 
@@ -45,15 +48,18 @@ export class AnalyticsRepository {
       .getRawMany();
   }
 
-  // Storefront Views
   async createStorefrontView(storefrontView: Partial<StorefrontView>): Promise<StorefrontView> {
     return this.storefrontViewRepository.save(this.storefrontViewRepository.create(storefrontView));
   }
 
   async getStorefrontViewsByShopId(shopId: string): Promise<StorefrontView[]> {
     return this.storefrontViewRepository.find({
-      where: { shopId },
-      order: { createdAt: 'DESC' },
+      where: {
+        shopId,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
     });
   }
 

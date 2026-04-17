@@ -6,14 +6,21 @@ import { Repository } from 'typeorm';
 
 @Injectable()
 export class CategoryRepository extends Repository<Category> {
-  constructor(@InjectRepository(Category) private readonly repository: Repository<Category>) {
+  constructor(
+    @InjectRepository(Category)
+    private readonly repository: Repository<Category>,
+  ) {
     super(Category, repository.manager);
   }
 
   async findAllByShop(shopId: string): Promise<Category[]> {
     return this.repository.find({
-      where: { shopId },
-      order: { name: 'ASC' },
+      where: {
+        shopId,
+      },
+      order: {
+        name: 'ASC',
+      },
     });
   }
 
@@ -28,7 +35,10 @@ export class CategoryRepository extends Repository<Category> {
 
   async findByIdAndShop(id: string, shopId: string): Promise<Category | null> {
     return this.repository.findOne({
-      where: { id, shopId },
+      where: {
+        id,
+        shopId,
+      },
     });
   }
 

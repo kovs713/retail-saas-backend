@@ -6,25 +6,34 @@ import { Not, Repository } from 'typeorm';
 
 @Injectable()
 export class UserRepository extends Repository<User> {
-  constructor(@InjectRepository(User) private readonly repository: Repository<User>) {
+  constructor(
+    @InjectRepository(User)
+    private readonly repository: Repository<User>,
+  ) {
     super(User, repository.manager);
   }
 
   async findByEmail(email: string): Promise<User | null> {
     return this.repository.findOne({
-      where: { email },
+      where: {
+        email,
+      },
     });
   }
 
   async findById(id: string): Promise<User | null> {
     return this.repository.findOne({
-      where: { id },
+      where: {
+        id,
+      },
     });
   }
 
   async findByShopId(shopId: string): Promise<User[]> {
     return this.repository.find({
-      where: { shopId },
+      where: {
+        shopId,
+      },
       relations: ['shop'],
     });
   }
