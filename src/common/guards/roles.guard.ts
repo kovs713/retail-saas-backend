@@ -1,8 +1,7 @@
 import { Role } from '../enums';
-import { Request } from '../types';
+import { JwtOptions, JwtConfig, Request } from '../types';
 
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { CanActivate, ExecutionContext, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 
@@ -11,7 +10,7 @@ export class RolesGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    @Inject(JwtConfig) private readonly jwtConfig: JwtOptions,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -35,8 +34,8 @@ export class RolesGuard implements CanActivate {
 
   private async verifyToken(token: string): Promise<any> {
     try {
-      return this.jwtService.verifyAsync(token, {
-        secret: this.configService.getOrThrow<string>('JWT_SECRET'),
+      return await this.jwtService.verifyAsync(token, {
+        secret: this.jwtConfig.secret,
       });
     } catch {
       throw new ForbiddenException('Invalid token');

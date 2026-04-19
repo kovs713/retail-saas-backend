@@ -1,4 +1,5 @@
 import { Role } from '@/common/enums';
+import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
@@ -16,6 +17,9 @@ interface ShopSeedData {
   name: string;
   slug: string;
   description: string;
+  address: string;
+  phone: string;
+  workingHours: Record<string, string>;
   categories: { name: string; slug: string }[];
   products: { name: string; price: number; cost: number }[];
 }
@@ -25,6 +29,17 @@ const SHOP_SEEDS: ShopSeedData[] = [
     name: 'Electronics Hub',
     slug: 'electronics-hub',
     description: 'Premium electronics and gadgets',
+    address: '123 Tech Street, Silicon Valley, CA 94025',
+    phone: '+1-555-0101',
+    workingHours: {
+      monday: '9:00-21:00',
+      tuesday: '9:00-21:00',
+      wednesday: '9:00-21:00',
+      thursday: '9:00-21:00',
+      friday: '9:00-22:00',
+      saturday: '10:00-22:00',
+      sunday: '10:00-18:00',
+    },
     categories: [
       { name: 'Smartphones', slug: 'smartphones' },
       { name: 'Laptops', slug: 'laptops' },
@@ -48,6 +63,17 @@ const SHOP_SEEDS: ShopSeedData[] = [
     name: 'Fashion Store',
     slug: 'fashion-store',
     description: 'Trendy clothing and accessories',
+    address: '456 Fashion Ave, New York, NY 10018',
+    phone: '+1-555-0202',
+    workingHours: {
+      monday: '10:00-20:00',
+      tuesday: '10:00-20:00',
+      wednesday: '10:00-20:00',
+      thursday: '10:00-20:00',
+      friday: '10:00-21:00',
+      saturday: '10:00-21:00',
+      sunday: '12:00-18:00',
+    },
     categories: [
       { name: 'Men', slug: 'men' },
       { name: 'Women', slug: 'women' },
@@ -86,6 +112,9 @@ async function seedShops(dataSource: DataSource): Promise<Shop[]> {
           name: data.name,
           slug: data.slug,
           description: data.description,
+          address: data.address,
+          phone: data.phone,
+          workingHours: data.workingHours,
         }),
       ),
     ),
@@ -197,6 +226,56 @@ async function seedProducts(dataSource: DataSource, shops: Shop[], categories: C
   );
 }
 
+async function seedStorefrontViews(dataSource: DataSource, shops: Shop[]): Promise<void> {
+  const viewRepo = dataSource.getRepository(StorefrontView);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const views = shops.flatMap((shop) => {
+    const count = faker.number.int({ min: 50, max: 200 });
+    return Array.from({ length: count }, () =>
+      viewRepo.create({
+        shopId: shop.id,
+        createdAt: faker.date.between({ from: thirtyDaysAgo, to: now }),
+      }),
+    );
+  });
+
+  await viewRepo.save(views);
+}
+
+async function seedChatEvents(dataSource: DataSource, shops: Shop[]): Promise<void> {
+  const eventRepo = dataSource.getRepository(ChatEvent);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const queries = [
+    'What are your shipping options?',
+    'Do you offer returns?',
+    'Is this product in stock?',
+    'What payment methods do you accept?',
+    'Can I get a discount?',
+    'How do I track my order?',
+    'What is your warranty policy?',
+    'Do you ship internationally?',
+  ];
+
+  const events = shops.flatMap((shop) => {
+    const count = faker.number.int({ min: 20, max: 100 });
+    return Array.from({ length: count }, () =>
+      eventRepo.create({
+        shopId: shop.id,
+        userQuery: faker.helpers.arrayElement(queries),
+        answerLength: faker.number.int({ min: 50, max: 500 }),
+        sourcesCount: faker.number.int({ min: 1, max: 5 }),
+        createdAt: faker.date.between({ from: thirtyDaysAgo, to: now }),
+      }),
+    );
+  });
+
+  await eventRepo.save(events);
+}
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   await app.init();
@@ -216,6 +295,8 @@ async function bootstrap() {
 
   const categories = await seedCategories(dataSource, shops);
   await seedProducts(dataSource, shops, categories);
+  await seedStorefrontViews(dataSource, shops);
+  await seedChatEvents(dataSource, shops);
 
   await app.close();
 }

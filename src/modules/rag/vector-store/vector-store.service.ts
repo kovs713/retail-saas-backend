@@ -1,14 +1,17 @@
-import { ChromaDBClient, TenantContext } from '@/common/types';
+import { ChromaDBClient } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { Document } from '@langchain/core/documents';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class VectorStoreService {
   private readonly logger: LoggerService = new LoggerService(VectorStoreService.name);
+
+  private static readonly allowedMetadataTypes = new Set(['string', 'number', 'boolean']);
 
   constructor(
     @Inject(ChromaDBClient)
@@ -16,13 +19,7 @@ export class VectorStoreService {
     private readonly embeddingsService: EmbeddingsService,
   ) {}
 
-  private getTenantFilter(tenantContext: TenantContext): Record<string, any> {
-    return { shopId: tenantContext.shopId };
-  }
-
-  async getDocuments(tenantContext: TenantContext): Promise<Document[]> {
-    const tenantFilter = this.getTenantFilter(tenantContext);
-
+  async getDocuments(shopId: string): Promise<Document[]> {
     const collection = this.chromaDBClient.collection;
 
     if (!collection) {
@@ -30,7 +27,7 @@ export class VectorStoreService {
     }
 
     const documents = await collection.get({
-      where: tenantFilter,
+      where: { shopId },
     });
 
     if (!documents.ids?.length) {
@@ -47,26 +44,91 @@ export class VectorStoreService {
       };
     });
 
-    this.logger.log(`Retrieved ${result.length} documents from vector store for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Retrieved ${result.length} documents from vector store for organization: ${shopId}`);
 
     return result;
   }
 
-  async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
-    const docsWithTenant = documents.map((doc) => ({
-      ...doc,
-      metadata: {
-        ...doc.metadata,
-        shopId: tenantContext.shopId,
-      },
-    }));
+  async getDocumentsByGroup(documentGroupId: string, shopId: string): Promise<Document[]> {
+    const collection = this.chromaDBClient.collection;
 
-    const ids = await this.chromaDBClient.addDocuments(docsWithTenant);
-    this.logger.log(`Added ${documents.length} documents to vector store for organization: ${tenantContext.shopId}`);
+    if (!collection) {
+      return [];
+    }
+
+    const documents = await collection.get({
+      where: { shopId, documentGroupId },
+    });
+
+    if (!documents.ids?.length) {
+      return [];
+    }
+
+    const result = documents.ids
+      .map((id, index) => {
+        const meta = documents.metadatas?.[index];
+        return {
+          pageContent: documents.documents[index] ?? '',
+          metadata: {
+            ...meta,
+            _id: id,
+            chunkIndex: meta?.chunkIndex as number | undefined,
+            totalChunks: meta?.totalChunks as number | undefined,
+            documentGroupId: meta?.documentGroupId as string | undefined,
+          },
+        };
+      })
+      .sort((a, b) => {
+        const aIndex = (a.metadata?.chunkIndex as number) ?? 0;
+        const bIndex = (b.metadata?.chunkIndex as number) ?? 0;
+        return aIndex - bIndex;
+      });
+
+    this.logger.log(`Retrieved ${result.length} documents for documentGroupId: ${documentGroupId}`);
+
+    return result;
+  }
+
+  async addDocuments(documents: Document[], shopId: string): Promise<string[]> {
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
+
+    const splitDocs: Document[] = [];
+    for (const doc of documents) {
+      const documentGroupId = crypto.randomUUID();
+      const docWithTenant = {
+        ...doc,
+        metadata: this.sanitizeMetadata({
+          ...doc.metadata,
+          shopId,
+          documentGroupId,
+        }),
+      };
+
+      const chunks = await splitter.splitDocuments([docWithTenant]);
+      for (let i = 0; i < chunks.length; i++) {
+        splitDocs.push({
+          ...chunks[i],
+          metadata: {
+            ...chunks[i].metadata,
+            documentGroupId,
+            chunkIndex: i,
+            totalChunks: chunks.length,
+          },
+        });
+      }
+    }
+
+    this.logger.log(`Split ${documents.length} documents into ${splitDocs.length} chunks`);
+
+    const ids = await this.chromaDBClient.addDocuments(splitDocs);
+    this.logger.log(`Added ${splitDocs.length} document chunks to vector store for organization: ${shopId}`);
     return ids;
   }
 
-  async addTexts(texts: string[], tenantContext: TenantContext, metadatas?: Record<string, any>[]): Promise<string[]> {
+  async addTexts(texts: string[], shopId: string, metadatas?: Record<string, any>[]): Promise<string[]> {
     const docs = texts.map((text, index) => {
       const metadata = metadatas?.length === 1 ? metadatas[0] : metadatas?.[index] || {};
       if (Object.keys(metadata).length === 0) {
@@ -74,56 +136,107 @@ export class VectorStoreService {
       }
       return {
         pageContent: text,
-        metadata: {
+        metadata: this.sanitizeMetadata({
           ...metadata,
-          shopId: tenantContext.shopId,
-        },
+          shopId,
+        }),
       };
     });
 
     const resultIds = await this.chromaDBClient.addVectors(await this.embeddingsService.embedDocuments(texts), docs);
-    this.logger.log(`Added ${texts.length} texts to vector store for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Added ${texts.length} texts to vector store for organization: ${shopId}`);
     return resultIds;
   }
 
   async similaritySearch(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     k: number = 5,
     filter?: Record<string, any>,
   ): Promise<Document[]> {
-    const tenantFilter = this.getTenantFilter(tenantContext);
-    const combinedFilter = filter ? { ...tenantFilter, ...filter } : tenantFilter;
+    const combinedFilter = filter ? { shopId, ...filter } : { shopId };
 
     const results = await this.chromaDBClient.similaritySearch(query, k, combinedFilter);
-    this.logger.log(`Similarity search completed for query: "${query}" for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Similarity search completed for query: "${query}" for organization: ${shopId}`);
     return results;
   }
 
   async similaritySearchWithScore(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     k: number = 5,
     filter?: Record<string, any>,
   ): Promise<[Document, number][]> {
-    const tenantFilter = this.getTenantFilter(tenantContext);
-    const combinedFilter = filter ? { ...tenantFilter, ...filter } : tenantFilter;
+    const combinedFilter = filter ? { shopId, ...filter } : { shopId };
 
     const results = await this.chromaDBClient.similaritySearchWithScore(query, k, combinedFilter);
-    this.logger.log(
-      `Similarity search with scores completed for query: "${query}" for organization: ${tenantContext.shopId}`,
-    );
+    this.logger.log(`Similarity search with scores completed for query: "${query}" for organization: ${shopId}`);
     return results;
   }
 
-  async deleteDocuments(ids: string[]): Promise<void> {
-    await this.chromaDBClient.delete({ ids });
-    this.logger.log(`Deleted ${ids.length} documents from vector store`);
+  async deleteDocuments(shopId: string): Promise<void> {
+    const collection = this.chromaDBClient.collection;
+
+    if (!collection) {
+      return;
+    }
+    const documents = await collection.get({
+      where: { shopId },
+    });
+
+    await this.chromaDBClient.delete({ ids: documents.ids });
+
+    this.logger.log(`Deleted ${documents.ids.length} documents from vector store`);
   }
 
-  asRetriever(tenantContext: TenantContext, searchKwargs?: { k?: number; filter?: Record<string, any> }) {
-    const tenantFilter = this.getTenantFilter(tenantContext);
-    const combinedFilter = searchKwargs?.filter ? { ...tenantFilter, ...searchKwargs.filter } : tenantFilter;
+  async deleteDocumentGroup(documentGroupId: string, shopId: string): Promise<number> {
+    const collection = this.chromaDBClient.collection;
+
+    if (!collection) {
+      return 0;
+    }
+
+    const documents = await collection.get({
+      where: { shopId, documentGroupId },
+    });
+
+    if (!documents.ids?.length) {
+      this.logger.log(`No documents found for documentGroupId: ${documentGroupId}`);
+      return 0;
+    }
+
+    await this.chromaDBClient.delete({ ids: documents.ids });
+
+    this.logger.log(`Deleted ${documents.ids.length} chunks for documentGroupId: ${documentGroupId}`);
+    return documents.ids.length;
+  }
+
+  asRetriever(shopId: string, searchKwargs?: { k?: number; filter?: Record<string, any> }) {
+    const combinedFilter = searchKwargs?.filter ? { shopId, ...searchKwargs.filter } : { shopId };
     return this.chromaDBClient.asRetriever({ ...searchKwargs, filter: combinedFilter });
+  }
+
+  private sanitizeMetadata(metadata?: Record<string, unknown>): Record<string, string | number | boolean | null> {
+    const safeMetadata: Record<string, string | number | boolean | null> = {};
+
+    for (const [key, value] of Object.entries(metadata ?? {})) {
+      if (value === null) {
+        safeMetadata[key] = null;
+        continue;
+      }
+
+      if (value === undefined) {
+        continue;
+      }
+
+      if (VectorStoreService.allowedMetadataTypes.has(typeof value)) {
+        safeMetadata[key] = value as string | number | boolean;
+        continue;
+      }
+
+      safeMetadata[key] = JSON.stringify(value);
+    }
+
+    return safeMetadata;
   }
 }

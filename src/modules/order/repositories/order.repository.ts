@@ -1,8 +1,9 @@
+import { OrderStatus } from '@/common/enums';
 import { Order } from '../entities';
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { Between, FindOptionsWhere, Not, Repository } from 'typeorm';
 
 @Injectable()
 export class OrderRepository extends Repository<Order> {
@@ -42,5 +43,24 @@ export class OrderRepository extends Repository<Order> {
     return this.repository.findOne({
       where: { id },
     });
+  }
+
+  async getTotalRevenue(shopId: string, from: Date, to: Date): Promise<number> {
+    const total = await this.repository.sum('totalAmount', {
+      shopId,
+      createdAt: Between(from, to),
+      status: Not(OrderStatus.CANCELLED),
+    });
+
+    return total ?? 0;
+  }
+
+  async getTotalOrders(shopId: string, from: Date, to: Date): Promise<number> {
+    return this.repository
+      .createQueryBuilder('order')
+      .where('order.shopId = :shopId', { shopId })
+      .andWhere('order.createdAt BETWEEN :from AND :to', { from, to })
+      .andWhere('order.status != :status', { status: 'CANCELLED' })
+      .getCount();
   }
 }

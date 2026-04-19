@@ -34,9 +34,7 @@ export class CacheModule {
               },
             });
 
-            await client.connect().catch(() => {
-              // Ignore connection errors in test environments
-            });
+            await client.connect();
 
             return client;
           },

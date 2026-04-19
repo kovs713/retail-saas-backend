@@ -1,5 +1,5 @@
-import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
-import { RagChatConfig } from '@/common/types';
+import { WsAuthGuard } from '@/common/guards';
+import { JwtConfig, RagChatConfig } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { RagService } from '../rag.service';
@@ -7,7 +7,6 @@ import { ChatSessionService } from './chat-session.service';
 import { ChatGateway } from './chat.gateway';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Server, Socket } from 'socket.io';
@@ -35,7 +34,14 @@ describe('ChatGateway', () => {
   const mockSession = {
     id: 'session-1',
     shopId: 'shop-1',
+    userId: 'user-1',
+    title: 'New chat',
+    status: 'active',
+    warmStatus: 'pending',
+    warmProductSnapshotAt: null,
+    warmProductSummary: null,
     messages: [],
+    lastMessageAt: '2024-01-01T00:00:00.000Z',
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
   };
@@ -65,10 +71,10 @@ describe('ChatGateway', () => {
           useValue: createMock<CacheService>(),
         },
         {
-          provide: ConfigService,
+          provide: JwtConfig,
           useValue: {
-            get: jest.fn((key: string, defaultValue: unknown) => defaultValue),
-            getOrThrow: jest.fn((key: string, defaultValue: unknown) => defaultValue),
+            secret: 'test-secret',
+            expiresIn: '1d',
           },
         },
         {
@@ -164,7 +170,7 @@ describe('ChatGateway', () => {
     it('should process message and emit chunks and complete', async () => {
       cacheService.incrementWithTtl.mockResolvedValue(1);
       sessionService.getOrCreateSession.mockResolvedValue(mockSession);
-      sessionService.addMessage.mockResolvedValue(mockSession);
+      sessionService.appendMessage.mockResolvedValue(mockSession);
 
       const mockStream = (async function* () {
         await Promise.resolve();
@@ -197,7 +203,7 @@ describe('ChatGateway', () => {
         timestamp: expect.any(String),
       });
 
-      expect(sessionService.addMessage).toHaveBeenCalledTimes(2);
+      expect(sessionService.appendMessage).toHaveBeenCalledTimes(2);
     });
 
     it('should emit error when queryStream throws', async () => {
@@ -220,7 +226,7 @@ describe('ChatGateway', () => {
     it('should create new session when sessionId not provided', async () => {
       cacheService.incrementWithTtl.mockResolvedValue(1);
       sessionService.getOrCreateSession.mockResolvedValue(mockSession);
-      sessionService.addMessage.mockResolvedValue(mockSession);
+      sessionService.appendMessage.mockResolvedValue(mockSession);
       ragService.queryStream.mockImplementation(async function* () {
         await Promise.resolve();
         yield { type: 'complete' as const, sources: [] };
@@ -228,13 +234,13 @@ describe('ChatGateway', () => {
 
       await gateway.handleMessage({ message: 'Hello' }, mockSocket);
 
-      expect(sessionService.getOrCreateSession).toHaveBeenCalledWith(undefined, 'shop-1');
+      expect(sessionService.getOrCreateSession).toHaveBeenCalledWith(undefined, 'shop-1', 'user-1');
     });
 
     it('should use existing session when sessionId provided', async () => {
       cacheService.incrementWithTtl.mockResolvedValue(1);
       sessionService.getOrCreateSession.mockResolvedValue(mockSession);
-      sessionService.addMessage.mockResolvedValue(mockSession);
+      sessionService.appendMessage.mockResolvedValue(mockSession);
       ragService.queryStream.mockImplementation(async function* () {
         await Promise.resolve();
         yield { type: 'complete' as const, sources: [] };
@@ -242,7 +248,33 @@ describe('ChatGateway', () => {
 
       await gateway.handleMessage({ sessionId: 'existing-session', message: 'Hello' }, mockSocket);
 
-      expect(sessionService.getOrCreateSession).toHaveBeenCalledWith('existing-session', 'shop-1');
+      expect(sessionService.getOrCreateSession).toHaveBeenCalledWith('existing-session', 'shop-1', 'user-1');
+    });
+
+    it('should include recent user history in retrieval for follow-up message', async () => {
+      cacheService.incrementWithTtl.mockResolvedValue(1);
+      sessionService.getOrCreateSession.mockResolvedValue({
+        ...mockSession,
+        messages: [
+          { id: 'm1', role: 'user', content: 'is there any phones', timestamp: '2024-01-01T00:00:00.000Z' },
+          { id: 'm2', role: 'assistant', content: 'No phones found', timestamp: '2024-01-01T00:00:01.000Z' },
+        ],
+      });
+      sessionService.appendMessage.mockResolvedValue(mockSession);
+      ragService.queryStream.mockImplementation(async function* () {
+        await Promise.resolve();
+        yield { type: 'complete' as const, sources: [] };
+      });
+
+      await gateway.handleMessage({ sessionId: 'session-1', message: 'i mean smartphones' }, mockSocket);
+
+      expect(ragService.queryStream).toHaveBeenCalledWith(
+        'i mean smartphones',
+        'shop-1',
+        undefined,
+        undefined,
+        'is there any phones\ni mean smartphones',
+      );
     });
   });
 });

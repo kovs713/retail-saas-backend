@@ -1,17 +1,9 @@
-import { MinioConfig, MinioClient } from '@/common/types';
+import { MinioClient, MinioConfig, MinioOptions } from '@/common/types';
 import { StorageService } from './storage.service';
 
 import { DynamicModule, Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'minio';
-
-interface MinioOptions {
-  host: string;
-  port: number;
-  accessKey: string;
-  secretKey: string;
-  userSSL: boolean;
-}
 
 @Global()
 @Module({})

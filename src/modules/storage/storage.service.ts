@@ -29,6 +29,22 @@ export class StorageService {
     }
   }
 
+  async putObject(
+    key: string,
+    payload: Buffer | Readable,
+    size: number,
+    metaData?: Record<string, string>,
+  ): Promise<string> {
+    try {
+      const uploadResult = await this.minioClient.putObject(this.bucket, key, payload, size, metaData);
+      this.logger.log(`Uploaded object successfully: ${key}`);
+      return typeof uploadResult === 'string' ? uploadResult : uploadResult.etag;
+    } catch (error) {
+      this.logger.error(`Failed to upload object: ${key}`, this.stringifyError(error));
+      throw error;
+    }
+  }
+
   async getObjectStream(key: string): Promise<Readable> {
     try {
       return await this.minioClient.getObject(this.bucket, key);

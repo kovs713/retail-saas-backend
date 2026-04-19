@@ -6,9 +6,16 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from './modules/rag/dto';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
+
+  app.useBodyParser('json', { limit: '10mb' });
+  app.useBodyParser('urlencoded', { limit: '10mb', extended: true });
+
   const configService = app.get(ConfigService);
 
   const corsOrigins = configService.getOrThrow<string>('CORS_ORIGINS', 'http://localhost:5173');
@@ -44,6 +51,7 @@ async function bootstrap() {
     .addTag('Admin orders', 'Admin order management')
     .addTag('Analytics', 'Analytics and reporting')
     .addTag('RAG', 'AI-powered document analysis and chat')
+    .addTag('Document preprocessing', 'Document cleanup and format conversion')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
     .addCookieAuth('refreshToken')
     .addServer('http://localhost:3000', 'Development')

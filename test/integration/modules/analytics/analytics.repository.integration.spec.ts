@@ -2,7 +2,7 @@ import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { AnalyticsRepository } from '@/modules/analytics/repositories';
 import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
-import { Shop } from '@/modules/shop/entities';
+import { Location, Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
 
@@ -32,7 +32,7 @@ describe('AnalyticsRepository Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, User, Product, Category, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([Shop, Location, User, Product, Category, ChatEvent, StorefrontView, Order]),
       ],
       providers: [AnalyticsRepository],
     }).compile();
@@ -55,7 +55,9 @@ describe('AnalyticsRepository Integration', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   }, 30000);
 
   const createShop = async (name: string, slug: string): Promise<Shop> => {

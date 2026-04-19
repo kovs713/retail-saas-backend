@@ -1,10 +1,9 @@
 import { Role } from '../enums';
-import { Request } from '../types';
+import { JwtOptions, Request } from '../types';
 import { RolesGuard } from './roles.guard';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 
@@ -12,17 +11,19 @@ describe('RolesGuard', () => {
   let guard: RolesGuard;
   let reflector: Reflector;
   let jwtService: DeepMocked<JwtService>;
-  let configService: DeepMocked<ConfigService>;
   let mockContext: ExecutionContext;
   let mockRequest: Request & { user?: unknown };
+
+  const mockJwtConfig: JwtOptions = {
+    secret: 'test-secret',
+    expiresIn: '1d',
+  };
 
   beforeEach(() => {
     reflector = new Reflector();
     jwtService = createMock<JwtService>();
-    configService = createMock<ConfigService>();
-    configService.getOrThrow.mockReturnValue('test-secret');
 
-    guard = new RolesGuard(reflector, jwtService, configService);
+    guard = new RolesGuard(reflector, jwtService, mockJwtConfig);
 
     mockRequest = {
       headers: {},

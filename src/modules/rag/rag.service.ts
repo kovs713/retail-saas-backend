@@ -1,8 +1,8 @@
 import { PaginationResponse } from '@/common/dto';
-import { TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
+import { Product } from '@/modules/product/entities/product.entity';
 import { ProductService } from '@/modules/product/product.service';
-import { DocumentResponseDto } from './dto';
+import { DocumentGroupDto, DocumentResponseDto } from './dto';
 import { LLMService } from './llm/llm.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
 
@@ -12,6 +12,73 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class RagService {
   private readonly logger: LoggerService = new LoggerService(RagService.name);
+  private static readonly availabilityMarkers = [
+    'in stock',
+    'available',
+    'avaliable',
+    'inventory',
+    'catalog',
+    'catalogue',
+    'is there any',
+    'do you have',
+    'what do you have',
+    'what products',
+    'what items',
+    'what is available',
+    'available in shop',
+    'phone-related',
+    'что есть',
+    'какие товары',
+    'в наличии',
+    'ассортимент',
+    'каталог',
+    'налич',
+  ];
+  private static readonly ignoredQueryTerms = new Set([
+    'is',
+    'there',
+    'any',
+    'are',
+    'in',
+    'the',
+    'shop',
+    'right',
+    'now',
+    'what',
+    'do',
+    'you',
+    'have',
+    'items',
+    'item',
+    'thing',
+    'things',
+    'related',
+    'products',
+    'product',
+    'available',
+    'avaliable',
+    'stock',
+    'inventory',
+    'catalog',
+    'catalogue',
+    'есть',
+    'что',
+    'какие',
+    'товары',
+    'товар',
+    'магазине',
+    'магазин',
+    'наличии',
+    'наличие',
+    'наличии',
+    'в',
+  ]);
+  private static readonly relatedTermExpansions: Record<string, string[]> = {
+    phone: ['smartphone', 'iphone', 'mobile', 'cellphone', 'handset'],
+    smartphone: ['phone', 'iphone', 'mobile', 'cellphone', 'handset'],
+    accessory: ['accessories', 'charger', 'case', 'cable', 'headphone'],
+    accessories: ['accessory', 'charger', 'case', 'cable', 'headphone'],
+  };
 
   constructor(
     private readonly llmService: LLMService,
@@ -20,11 +87,11 @@ export class RagService {
   ) {}
 
   async getDocuments(
-    tenantContext: TenantContext,
+    shopId: string,
     page: number = 1,
     limit: number = 10,
   ): Promise<PaginationResponse<DocumentResponseDto>> {
-    const documents = await this.vectorStoreService.getDocuments(tenantContext);
+    const documents = await this.vectorStoreService.getDocuments(shopId);
 
     const total = documents.length;
     const totalPages = Math.ceil(total / limit);
@@ -47,43 +114,261 @@ export class RagService {
     };
   }
 
-  async addDocuments(documents: Document[], tenantContext: TenantContext): Promise<string[]> {
-    const ids = await this.vectorStoreService.addDocuments(documents, tenantContext);
+  async getDocumentGroups(
+    shopId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginationResponse<DocumentGroupDto>> {
+    const documents = await this.vectorStoreService.getDocuments(shopId);
+
+    const groupsMap = new Map<string, DocumentGroupDto>();
+    for (const doc of documents) {
+      const groupId = doc.metadata?.documentGroupId as string;
+      if (!groupId) {
+        continue;
+      }
+
+      if (!groupsMap.has(groupId)) {
+        const source = (doc.metadata?.source as string) || (doc.metadata?.filename as string) || 'unknown';
+        groupsMap.set(groupId, {
+          documentGroupId: groupId,
+          source,
+          metadata: doc.metadata,
+          totalChunks: 0,
+          chunks: [],
+        });
+      }
+
+      const group = groupsMap.get(groupId)!;
+      group.chunks.push({
+        pageContent: doc.pageContent,
+        chunkIndex: doc.metadata?.chunkIndex as number,
+        totalChunks: doc.metadata?.totalChunks as number,
+      });
+      group.totalChunks = group.chunks.length;
+    }
+
+    const groups = Array.from(groupsMap.values()).sort((a, b) => {
+      const aTime = (a.metadata?.uploadedAt as string) || '';
+      const bTime = (b.metadata?.uploadedAt as string) || '';
+      return bTime.localeCompare(aTime);
+    });
+
+    const total = groups.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedGroups = groups.slice(startIndex, endIndex);
+
+    return {
+      success: true,
+      data: paginatedGroups,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    };
+  }
+
+  async addDocuments(documents: Document[], shopId: string): Promise<string[]> {
+    const ids = await this.vectorStoreService.addDocuments(documents, shopId);
     return ids;
   }
 
-  clearDocuments(): void {
+  async clearDocuments(shopId: string): Promise<void> {
+    await this.vectorStoreService.deleteDocuments(shopId);
     this.logger.warn('clearDocuments not fully implemented for LangChain Chroma wrapper');
+  }
+
+  async deleteDocumentGroup(documentGroupId: string, shopId: string): Promise<number> {
+    const deletedCount = await this.vectorStoreService.deleteDocumentGroup(documentGroupId, shopId);
+    this.logger.log(`Deleted ${deletedCount} chunks for documentGroupId: ${documentGroupId}`);
+    return deletedCount;
+  }
+
+  private isAvailabilityQuery(query: string): boolean {
+    const normalizedQuery = query.toLowerCase();
+
+    return RagService.availabilityMarkers.some((marker) => normalizedQuery.includes(marker));
+  }
+
+  private extractQueryTerms(query: string): string[] {
+    return query
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .map((term) => this.normalizeTerm(term))
+      .filter((term) => term.length > 2)
+      .filter((term) => !RagService.ignoredQueryTerms.has(term));
+  }
+
+  private expandQueryTerms(query: string, terms: string[]): string[] {
+    const expandedTerms = new Set(terms);
+    const normalizedQuery = query.toLowerCase();
+
+    for (const term of terms) {
+      for (const relatedTerm of RagService.relatedTermExpansions[term] ?? []) {
+        expandedTerms.add(this.normalizeTerm(relatedTerm));
+      }
+    }
+
+    if (normalizedQuery.includes('phone-related') || normalizedQuery.includes('related to phone')) {
+      expandedTerms.add('accessory');
+      expandedTerms.add('charger');
+      expandedTerms.add('case');
+    }
+
+    return [...expandedTerms];
+  }
+
+  private normalizeTerm(term: string): string {
+    if (term.endsWith('ies') && term.length > 4) {
+      return `${term.slice(0, -3)}y`;
+    }
+
+    if (term.endsWith('s') && term.length > 3) {
+      return term.slice(0, -1);
+    }
+
+    return term;
+  }
+
+  private tokenize(value?: string | null): string[] {
+    if (!value) {
+      return [];
+    }
+
+    return value
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .map((term) => this.normalizeTerm(term))
+      .filter((term) => term.length > 1);
+  }
+
+  private filterProductsByQuery(products: Product[], query: string): Product[] {
+    const terms = this.expandQueryTerms(query, this.extractQueryTerms(query));
+    if (terms.length === 0) {
+      return products;
+    }
+
+    const categoryMatches = products.filter((product) => {
+      const categoryTerms = this.tokenize(product.category?.name);
+      return terms.some((term) => categoryTerms.includes(term));
+    });
+    if (categoryMatches.length > 0) {
+      return categoryMatches;
+    }
+
+    const identityMatches = products.filter((product) => {
+      const identityTerms = new Set([...this.tokenize(product.name), ...this.tokenize(product.sku)]);
+      return terms.some((term) => identityTerms.has(term));
+    });
+    if (identityMatches.length > 0) {
+      return identityMatches;
+    }
+
+    const matchedProducts = products.filter((product) => {
+      const haystackTerms = new Set([
+        ...this.tokenize(product.name),
+        ...this.tokenize(product.description),
+        ...this.tokenize(product.sku),
+        ...this.tokenize(product.category?.name),
+      ]);
+
+      return terms.some((term) => haystackTerms.has(term));
+    });
+
+    return matchedProducts.length > 0 ? matchedProducts : products;
+  }
+
+  private buildCatalogSummary(products: Product[]): string {
+    if (products.length === 0) {
+      return '## Catalog summary:\n\nIn-stock products: 0';
+    }
+
+    const categories = new Map<string, number>();
+    let minPrice = products[0].price;
+    let maxPrice = products[0].price;
+
+    for (const product of products) {
+      const categoryName = product.category?.name;
+      if (categoryName) {
+        categories.set(categoryName, (categories.get(categoryName) ?? 0) + 1);
+      }
+
+      minPrice = Math.min(minPrice, product.price);
+      maxPrice = Math.max(maxPrice, product.price);
+    }
+
+    const parts = [`In-stock products: ${products.length}`, `Price range: ${minPrice}-${maxPrice}`];
+    if (categories.size > 0) {
+      parts.push(
+        `Categories: ${Array.from(categories.entries())
+          .map(([name, count]) => `${name} (${count})`)
+          .join(', ')}`,
+      );
+    }
+
+    return `## Catalog summary:\n\n${parts.join('\n')}`;
+  }
+
+  private buildProductContext(product: Product): string {
+    const categoryName = product.category?.name;
+
+    return [
+      `Product: ${product.name}`,
+      `SKU: ${product.sku}`,
+      `Price: ${product.price}`,
+      `Quantity: ${product.quantity}`,
+      ...(categoryName ? [`Category: ${categoryName}`] : []),
+      `Stock status: ${product.quantity > 0 ? 'in stock' : 'out of stock'}`,
+      ...(product.description ? [`Description: ${product.description}`] : []),
+      ...(product.barcode ? [`Barcode: ${product.barcode}`] : []),
+    ].join('\n');
+  }
+
+  async getAvailableProducts(shopId: string, limit: number = 100): Promise<Product[]> {
+    const result = await this.productService.findAll({ page: 1, limit }, shopId);
+
+    return (result.data || [])
+      .filter((product) => product.quantity > 0)
+      .sort((left, right) => right.quantity - left.quantity);
   }
 
   private async buildCombinedContext(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     maxResults: number,
   ): Promise<{ context: string; sources: Array<{ pageContent: string; metadata: Record<string, any> }> }> {
-    const [vectorDocs, productsResult] = await Promise.all([
-      this.vectorStoreService.similaritySearch(query, tenantContext, maxResults),
-      this.productService.findAll({ page: 1, limit: 50, search: query }, tenantContext).catch(() => ({
+    const [vectorDocs, productsSearchResult] = await Promise.all([
+      this.vectorStoreService.similaritySearch(query, shopId, maxResults),
+      this.productService.findAll({ page: 1, limit: 50, search: query }, shopId).catch(() => ({
         data: [],
         pagination: { total: 0 },
       })),
     ]);
 
-    this.logger.log(`Found ${vectorDocs.length} vector docs, ${productsResult.data?.length || 0} products`);
+    const isAvailabilityQuery = this.isAvailabilityQuery(query);
+    let products = productsSearchResult.data || [];
+
+    if (isAvailabilityQuery) {
+      products = this.filterProductsByQuery(products, query);
+      const fallbackProducts = await this.getAvailableProducts(shopId, 50).catch(() => []);
+      const filteredFallbackProducts = this.filterProductsByQuery(fallbackProducts, query);
+      if (filteredFallbackProducts.length > 0) {
+        products = filteredFallbackProducts;
+      }
+    }
+
+    this.logger.log(`Found ${vectorDocs.length} vector docs, ${products.length} products`);
 
     const sources: Array<{ pageContent: string; metadata: Record<string, any> }> = [];
     const productContextParts: string[] = [];
     const vectorContextParts: string[] = [];
 
-    for (const product of productsResult.data || []) {
-      const productInfo = [
-        `Product: ${product.name}`,
-        `SKU: ${product.sku}`,
-        `Price: ${product.price}`,
-        `Quantity: ${product.quantity}`,
-        ...(product.description ? [`Description: ${product.description}`] : []),
-        ...(product.barcode ? [`Barcode: ${product.barcode}`] : []),
-      ].join('\n');
+    for (const product of products) {
+      const productInfo = this.buildProductContext(product);
       productContextParts.push(productInfo);
       sources.push({
         pageContent: productInfo,
@@ -102,6 +387,7 @@ export class RagService {
 
     const parts: string[] = [];
     if (productContextParts.length > 0) {
+      parts.push(this.buildCatalogSummary(products));
       parts.push('## Products from catalog:\n\n' + productContextParts.join('\n\n'));
     }
     if (vectorContextParts.length > 0) {
@@ -113,7 +399,7 @@ export class RagService {
 
   async query(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     maxResults: number = 5,
     systemPrompt?: string,
   ): Promise<{
@@ -123,9 +409,9 @@ export class RagService {
       metadata: Record<string, any>;
     }>;
   }> {
-    this.logger.log(`Processing RAG query: "${query}" for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Processing RAG query: "${query}" for organization: ${shopId}`);
 
-    const { context, sources } = await this.buildCombinedContext(query, tenantContext, maxResults);
+    const { context, sources } = await this.buildCombinedContext(query, shopId, maxResults);
 
     const baseInstructions =
       'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
@@ -158,7 +444,7 @@ Question: ${query}`;
 
   async queryWithScores(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     maxResults: number = 5,
     systemPrompt?: string,
   ): Promise<{
@@ -171,11 +457,11 @@ Question: ${query}`;
       score: number;
     }>;
   }> {
-    this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${shopId}`);
 
     const [vectorDocsWithScores, { context, sources }] = await Promise.all([
-      this.vectorStoreService.similaritySearchWithScore(query, tenantContext, maxResults),
-      this.buildCombinedContext(query, tenantContext, maxResults),
+      this.vectorStoreService.similaritySearchWithScore(query, shopId, maxResults),
+      this.buildCombinedContext(query, shopId, maxResults),
     ]);
 
     this.logger.log(`Found ${vectorDocsWithScores.length} vector documents with scores`);
@@ -215,23 +501,24 @@ Question: ${query}`;
     };
   }
 
-  async addTexts(texts: string[], tenantContext: TenantContext, metadata?: Record<string, any>[]): Promise<string[]> {
-    const documentIds = await this.vectorStoreService.addTexts(texts, tenantContext, metadata);
+  async addTexts(texts: string[], shopId: string, metadata?: Record<string, any>[]): Promise<string[]> {
+    const documentIds = await this.vectorStoreService.addTexts(texts, shopId, metadata);
     return documentIds;
   }
 
   async *queryStream(
     query: string,
-    tenantContext: TenantContext,
+    shopId: string,
     maxResults: number = 5,
     systemPrompt?: string,
+    retrievalQuery?: string,
   ): AsyncGenerator<
     | { type: 'chunk'; content: string }
     | { type: 'complete'; sources: Array<{ pageContent: string; metadata: Record<string, any> }> }
   > {
-    this.logger.log(`Processing streaming RAG query: "${query}" for organization: ${tenantContext.shopId}`);
+    this.logger.log(`Processing streaming RAG query: "${query}" for organization: ${shopId}`);
 
-    const { context, sources } = await this.buildCombinedContext(query, tenantContext, maxResults);
+    const { context, sources } = await this.buildCombinedContext(retrievalQuery ?? query, shopId, maxResults);
 
     const baseInstructions =
       'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';

@@ -7,6 +7,9 @@ import { ProductService } from './product.service';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { createMock as createExpressMock } from '@golevelup/ts-jest';
+import type { Request, Response } from 'express';
+import { Readable } from 'stream';
 
 describe('ProductController', () => {
   let controller: ProductController;
@@ -180,6 +183,53 @@ describe('ProductController', () => {
 
       expect(result.success).toBe(true);
       expect(result.data?.uploadUrl).toBe('https://upload-url');
+    });
+  });
+
+  describe('uploadImage', () => {
+    it('should upload image and return persisted payload', async () => {
+      const file = {
+        originalname: 'photo.jpg',
+        mimetype: 'image/jpeg',
+        size: 1024,
+        buffer: Buffer.from('image-data'),
+      } as Express.Multer.File;
+
+      service.uploadProductImage.mockResolvedValue({
+        key: 'products/prod_1/images/photo.jpg',
+        publicUrl: '/public/media/shop-1/products/prod_1/photo.jpg',
+        contentType: 'image/jpeg',
+        size: 1024,
+        etag: 'etag-1',
+      });
+
+      const result = await controller.uploadImage('prod_1', file, tenantContext);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.publicUrl).toBe('/public/media/shop-1/products/prod_1/photo.jpg');
+      expect(service.uploadProductImage).toHaveBeenCalledWith('prod_1', file, tenantContext.shopId);
+    });
+  });
+
+  describe('getPrivateImage', () => {
+    it('should stream image for authenticated owner/admin', async () => {
+      const req = createExpressMock<Request>();
+      const res = createExpressMock<Response>();
+      const stream = new Readable({ read() {} });
+      jest.spyOn(stream, 'pipe').mockReturnValue(res as any);
+
+      service.getPrivateImageStream.mockResolvedValue({
+        stream,
+        contentType: 'image/jpeg',
+        etag: 'etag-1',
+        lastModified: new Date('2025-01-01T00:00:00.000Z'),
+      });
+
+      await controller.getPrivateImage('prod_1', 'photo.jpg', tenantContext, req, res);
+
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
+      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, max-age=0, must-revalidate');
+      expect(stream.pipe).toHaveBeenCalledWith(res);
     });
   });
 

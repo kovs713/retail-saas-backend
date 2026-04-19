@@ -71,7 +71,7 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const result = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext.shopId);
 
       expect(result).toEqual([
         {
@@ -99,7 +99,7 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const result = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext.shopId);
 
       expect(result).toHaveLength(5);
       expect(result[2]).toEqual({
@@ -120,7 +120,7 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const result = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext.shopId);
 
       expect(result[0]?.metadata?._id).toBe('chroma-abc-123');
     });
@@ -133,7 +133,7 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const result = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext.shopId);
 
       expect(result[0]?.metadata).toMatchObject({
         shopId: 'shop-x',
@@ -147,7 +147,7 @@ describe('VectorStoreService', () => {
       const collection = makeCollectionWithDocs({ ids: [], documents: [], metadatas: [] });
       bindCollection(collection);
 
-      await service.getDocuments(mockTenantContext);
+      await service.getDocuments(mockTenantContext.shopId);
 
       expect(collection.get).toHaveBeenCalledWith({
         where: { shopId: mockTenantContext.shopId },
@@ -161,8 +161,8 @@ describe('VectorStoreService', () => {
       const collection = makeCollectionWithDocs({ ids: [], documents: [], metadatas: [] });
       bindCollection(collection);
 
-      await service.getDocuments(tenantA);
-      await service.getDocuments(tenantB);
+      await service.getDocuments(tenantA.shopId);
+      await service.getDocuments(tenantB.shopId);
 
       expect(collection.get).toHaveBeenNthCalledWith(1, { where: { shopId: tenantA.shopId } });
       expect(collection.get).toHaveBeenNthCalledWith(2, { where: { shopId: tenantB.shopId } });
@@ -172,7 +172,7 @@ describe('VectorStoreService', () => {
       const collection = makeCollectionWithDocs({ ids: [], documents: [], metadatas: [] });
       bindCollection(collection);
 
-      const result = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext.shopId);
 
       expect(result).toEqual([]);
     });
@@ -180,7 +180,7 @@ describe('VectorStoreService', () => {
     it('returns empty result when collection is null', async () => {
       bindCollection(null);
 
-      const result = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext.shopId);
 
       expect(result).toEqual([]);
     });
@@ -193,7 +193,7 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const result = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext.shopId);
 
       expect(result[0]?.pageContent).toBe('');
     });
@@ -206,7 +206,7 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const result = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext.shopId);
 
       expect(result[0]?.metadata).toEqual({ _id: 'id-1' });
     });
@@ -219,10 +219,57 @@ describe('VectorStoreService', () => {
       });
       bindCollection(collection);
 
-      const result = await service.getDocuments(mockTenantContext);
+      const result = await service.getDocuments(mockTenantContext.shopId);
 
       expect(result[0]).toEqual({ pageContent: '', metadata: { _id: 'id-1' } });
       expect(result[1]).toEqual({ pageContent: 'real content', metadata: { source: 'test', _id: 'id-2' } });
+    });
+  });
+
+  describe('addDocuments', () => {
+    it('should split large documents into chunks and add them', async () => {
+      const docs = [
+        {
+          pageContent: 'This is a test document with some content.',
+          metadata: { source: 'test' },
+        },
+      ];
+
+      const result = await service.addDocuments(docs, mockTenantContext.shopId);
+
+      expect(chromaDBClient.addDocuments).toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it('should inject shopId into metadata for each chunk', async () => {
+      const docs = [
+        {
+          pageContent: 'Test content here.',
+          metadata: { source: 'api' },
+        },
+      ];
+
+      await service.addDocuments(docs, mockTenantContext.shopId);
+
+      const calledDocs = chromaDBClient.addDocuments.mock.calls[0][0];
+      for (const doc of calledDocs) {
+        expect(doc.metadata.shopId).toBe(mockTenantContext.shopId);
+      }
+    });
+
+    it('should handle multiple documents and split them into chunks', async () => {
+      const longContent = 'Word '.repeat(2000);
+      const docs = [
+        { pageContent: 'Short doc.', metadata: { source: 'test1' } },
+        { pageContent: longContent, metadata: { source: 'test2' } },
+      ];
+
+      chromaDBClient.addDocuments.mockResolvedValue(['id-1', 'id-2', 'id-3']);
+
+      const result = await service.addDocuments(docs, mockTenantContext.shopId);
+
+      expect(result).toBeDefined();
+      expect(chromaDBClient.addDocuments).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -233,7 +280,7 @@ describe('VectorStoreService', () => {
 
       chromaDBClient.addVectors.mockResolvedValue(['vec-1']);
 
-      const result = await service.addTexts(texts, mockTenantContext, metadatas);
+      const result = await service.addTexts(texts, mockTenantContext.shopId, metadatas);
 
       expect(result).toBeDefined();
     });
@@ -244,7 +291,7 @@ describe('VectorStoreService', () => {
 
       chromaDBClient.addVectors.mockResolvedValue(['vec-1', 'vec-2']);
 
-      const result = await service.addTexts(texts, mockTenantContext, metadatas);
+      const result = await service.addTexts(texts, mockTenantContext.shopId, metadatas);
 
       expect(result).toBeDefined();
     });
@@ -254,7 +301,7 @@ describe('VectorStoreService', () => {
 
       chromaDBClient.addVectors.mockResolvedValue(['vec-1']);
 
-      const result = await service.addTexts(texts, mockTenantContext);
+      const result = await service.addTexts(texts, mockTenantContext.shopId);
 
       expect(result).toBeDefined();
     });
@@ -265,7 +312,7 @@ describe('VectorStoreService', () => {
       const mockDocs = [{ pageContent: 'result', metadata: { shopId: 'shop-1' } }];
       chromaDBClient.similaritySearch.mockResolvedValue(mockDocs);
 
-      const result = await service.similaritySearch('test query', mockTenantContext, 5);
+      const result = await service.similaritySearch('test query', mockTenantContext.shopId, 5);
 
       expect(result).toEqual(mockDocs);
     });
@@ -274,7 +321,7 @@ describe('VectorStoreService', () => {
       const mockDocs = [{ pageContent: 'result', metadata: { shopId: 'shop-1' } }];
       chromaDBClient.similaritySearch.mockResolvedValue(mockDocs);
 
-      const result = await service.similaritySearch('test query', mockTenantContext, 5, { source: 'test' });
+      const result = await service.similaritySearch('test query', mockTenantContext.shopId, 5, { source: 'test' });
 
       expect(result).toEqual(mockDocs);
     });
@@ -290,31 +337,21 @@ describe('VectorStoreService', () => {
 
       chromaDBClient.similaritySearchWithScore.mockResolvedValue(mockResults);
 
-      const result = await service.similaritySearchWithScore('test query', mockTenantContext);
+      const result = await service.similaritySearchWithScore('test query', mockTenantContext.shopId);
 
       expect(result).toEqual(mockResults);
     });
   });
 
-  describe('deleteDocuments', () => {
-    it('should log warning (not implemented)', async () => {
-      await service.deleteDocuments(['doc-1']);
-
-      // const result = service.
-
-      expect(true).toBe(true);
-    });
-  });
-
   describe('asRetriever', () => {
     it('should create retriever instance', () => {
-      const result = service.asRetriever(mockTenantContext, { k: 5 });
+      const result = service.asRetriever(mockTenantContext.shopId, { k: 5 });
 
       expect(result).toBeDefined();
     });
 
     it('should create retriever with custom filter', () => {
-      const result = service.asRetriever(mockTenantContext, { k: 5, filter: { source: 'test' } });
+      const result = service.asRetriever(mockTenantContext.shopId, { k: 5, filter: { source: 'test' } });
 
       expect(result).toBeDefined();
     });

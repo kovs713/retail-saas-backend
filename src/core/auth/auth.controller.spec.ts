@@ -1,4 +1,4 @@
-import { AuthConfig } from '@/common/types';
+import { AuthConfig, JwtConfig } from '@/common/types';
 import { AuthController } from './auth.controller';
 import { AuthService, AuthTokensResult } from './auth.service';
 import { RegisterDto, SignInDto, UserInfoDto } from './dto';
@@ -52,6 +52,7 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         { provide: AuthConfig, useValue: mockAuthConfig },
+        { provide: JwtConfig, useValue: { secret: 'test-secret', expiresIn: '1h' } },
         { provide: AuthService, useValue: createMock<AuthService>() },
         { provide: JwtService, useValue: createMock<JwtService>() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },

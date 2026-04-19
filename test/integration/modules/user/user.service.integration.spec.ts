@@ -2,8 +2,8 @@ import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
-import { Shop } from '@/modules/shop/entities';
-import { ShopRepository } from '@/modules/shop/repositories';
+import { Location, Shop } from '@/modules/shop/entities';
+import { LocationRepository, ShopRepository } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
 import { UserRepository } from '@/modules/user/repositories';
@@ -37,13 +37,14 @@ describe('UserService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, User, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([Shop, Location, User, ChatEvent, StorefrontView, Order]),
       ],
       providers: [
         UserService,
         UserRepository,
         ShopService,
         ShopRepository,
+        LocationRepository,
         {
           provide: CacheService,
           useValue: mockCacheService(),
@@ -74,7 +75,9 @@ describe('UserService Integration', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   }, 30000);
 
   describe('create', () => {

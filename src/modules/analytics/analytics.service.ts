@@ -1,4 +1,5 @@
 import { ChatEvent, StorefrontView } from './entities';
+import { OrderRepository } from '@/modules/order/repositories';
 import { AnalyticsRepository } from './repositories';
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -7,9 +8,11 @@ import { Injectable, Logger } from '@nestjs/common';
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
 
-  constructor(private readonly analyticsRepository: AnalyticsRepository) {}
+  constructor(
+    private readonly analyticsRepository: AnalyticsRepository,
+    private readonly orderRepository: OrderRepository,
+  ) {}
 
-  // Chat Events
   async logChatEvent(
     shopId: string,
     userQuery: string,
@@ -33,7 +36,6 @@ export class AnalyticsService {
     return this.analyticsRepository.getTopQuestions(shopId, limit);
   }
 
-  // Storefront Views
   async logStorefrontView(shopId: string): Promise<StorefrontView> {
     this.logger.log(`Logging storefront view for shop ${shopId}`);
     return this.analyticsRepository.createStorefrontView({
@@ -43,5 +45,47 @@ export class AnalyticsService {
 
   async getStorefrontViewCount(shopId: string, from: Date, to: Date) {
     return this.analyticsRepository.getStorefrontViewCount(shopId, from, to);
+  }
+
+  async getRevenueWithPercent(shopId: string): Promise<{ current: number; percentFromLastMonth: number }> {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    const [current, lastMonth] = await Promise.all([
+      this.orderRepository.getTotalRevenue(shopId, firstDayOfMonth, now),
+      this.orderRepository.getTotalRevenue(shopId, firstDayOfLastMonth, lastDayOfLastMonth),
+    ]);
+
+    let percentFromLastMonth = 0;
+    if (lastMonth > 0) {
+      percentFromLastMonth = Number((((current - lastMonth) / lastMonth) * 100).toFixed(1));
+    } else if (current > 0) {
+      percentFromLastMonth = 100;
+    }
+
+    return { current, percentFromLastMonth };
+  }
+
+  async getOrdersWithPercent(shopId: string): Promise<{ current: number; percentFromLastMonth: number }> {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    const [current, lastMonth] = await Promise.all([
+      this.orderRepository.getTotalOrders(shopId, firstDayOfMonth, now),
+      this.orderRepository.getTotalOrders(shopId, firstDayOfLastMonth, lastDayOfLastMonth),
+    ]);
+
+    let percentFromLastMonth = 0;
+    if (lastMonth > 0) {
+      percentFromLastMonth = Number((((current - lastMonth) / lastMonth) * 100).toFixed(1));
+    } else if (current > 0) {
+      percentFromLastMonth = 100;
+    }
+
+    return { current, percentFromLastMonth };
   }
 }

@@ -16,7 +16,10 @@ import {
 
 @Injectable()
 export class ProductRepository extends Repository<Product> {
-  constructor(@InjectRepository(Product) private readonly repository: Repository<Product>) {
+  constructor(
+    @InjectRepository(Product)
+    private readonly repository: Repository<Product>,
+  ) {
     super(Product, repository.manager);
   }
 
@@ -47,7 +50,7 @@ export class ProductRepository extends Repository<Product> {
       searchWhere = {
         ...where,
         name: ILike(`%${escapedSearch}%`),
-      } as FindOptionsWhere<Product>;
+      };
     }
 
     const searchValue = query.search ?? '';
@@ -59,7 +62,7 @@ export class ProductRepository extends Repository<Product> {
             {
               ...where,
               sku: ILike(`%${escapedSkuSearch}%`),
-            } as FindOptionsWhere<Product>,
+            },
           ]
         : where,
       relations: ['category'],
@@ -77,7 +80,7 @@ export class ProductRepository extends Repository<Product> {
         id,
         shopId,
         deletedAt: IsNull(),
-      } as FindOptionsWhere<Product>,
+      },
     });
   }
 
@@ -108,7 +111,7 @@ export class ProductRepository extends Repository<Product> {
         sku,
         shopId,
         deletedAt: IsNull(),
-      } as FindOptionsWhere<Product>,
+      },
     });
   }
 
@@ -117,8 +120,8 @@ export class ProductRepository extends Repository<Product> {
       where: {
         barcode,
         shopId,
-        deletedAt: IsNull() as unknown as Date,
-      } as FindOptionsWhere<Product>,
+        deletedAt: IsNull(),
+      },
     });
   }
 
@@ -126,24 +129,36 @@ export class ProductRepository extends Repository<Product> {
     return this.repository.find({
       where: {
         shopId,
-        quantity: LessThan(threshold) as unknown as number,
-        deletedAt: IsNull() as unknown as Date,
-      } as FindOptionsWhere<Product>,
+        quantity: LessThan(threshold),
+        deletedAt: IsNull(),
+      },
     });
   }
 
   async countByShop(shopId: string, where?: FindOptionsWhere<Product>): Promise<number> {
     const countWhere: FindOptionsWhere<Product> = where
-      ? ({
+      ? {
           ...where,
           shopId,
-          deletedAt: IsNull() as unknown as Date,
-        } as FindOptionsWhere<Product>)
-      : ({
+          deletedAt: IsNull(),
+        }
+      : {
           shopId,
-          deletedAt: IsNull() as unknown as Date,
-        } as FindOptionsWhere<Product>);
-    return this.repository.count({ where: countWhere });
+          deletedAt: IsNull(),
+        };
+    return this.repository.count({
+      where: countWhere,
+    });
+  }
+
+  async findByCategory(shopId: string, categoryId: string): Promise<Product[]> {
+    return this.repository.find({
+      where: {
+        categoryId,
+        shopId,
+        deletedAt: IsNull(),
+      },
+    });
   }
 
   async countByCategory(shopId: string, categoryId: string): Promise<number> {
@@ -151,20 +166,30 @@ export class ProductRepository extends Repository<Product> {
       where: {
         categoryId,
         shopId,
-        deletedAt: IsNull() as unknown as Date,
-      } as FindOptionsWhere<Product>,
+        deletedAt: IsNull(),
+      },
     });
   }
 
   async findOneWithDeleted(id: string, shopId: string): Promise<Product | null> {
     return this.repository.findOne({
-      where: { id, shopId } as FindOptionsWhere<Product>,
+      where: {
+        id,
+        shopId,
+      },
       withDeleted: true,
     });
   }
 
   async incrementQuantity(id: string, shopId: string, adjustment: number): Promise<void> {
-    await this.repository.increment({ id, shopId }, 'quantity', adjustment);
+    await this.repository.increment(
+      {
+        id,
+        shopId,
+      },
+      'quantity',
+      adjustment,
+    );
   }
 
   async existsBySkuAndShop(sku: string, shopId: string): Promise<boolean> {
@@ -183,7 +208,15 @@ export class ProductRepository extends Repository<Product> {
   }
 
   async updateQuantity(id: string, shopId: string, quantity: number): Promise<void> {
-    await this.repository.update({ id, shopId }, { quantity });
+    await this.repository.update(
+      {
+        id,
+        shopId,
+      },
+      {
+        quantity,
+      },
+    );
   }
 
   private getOrderOptions(sortBy?: string, sortOrder?: 'ASC' | 'DESC'): Record<string, 'ASC' | 'DESC'> {

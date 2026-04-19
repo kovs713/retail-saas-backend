@@ -1,8 +1,7 @@
 import { User } from '@/common/decorators';
 import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { AuthGuard } from '@/common/guards';
-import { AuthConfig, Request, TokenPayload } from '@/common/types';
-import { AuthOptions } from './auth.module';
+import { AuthConfig, AuthOptions, Request, TokenPayload } from '@/common/types';
 import { AuthService } from './auth.service';
 import { AuthResponseDto, RegisterDto, SignInDto, UserInfoDto } from './dto';
 

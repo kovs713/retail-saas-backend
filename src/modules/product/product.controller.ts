@@ -10,6 +10,7 @@ import {
   CreateCategoryDto,
   CreateProductDto,
   ProductDto,
+  ProductImageUploadResponseDto,
   ProductImagePresignedUploadDto,
   ProductImagePresignedUploadResponseDto,
   UpdateCategoryDto,
@@ -19,6 +20,7 @@ import {
 import { ProductService } from './product.service';
 
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -29,9 +31,24 @@ import {
   Patch,
   Post,
   Query,
+  Req,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request, Response } from 'express';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')
@@ -39,6 +56,9 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags }
 @UseGuards(AuthGuard, RolesGuard)
 export class ProductController {
   private readonly logger = new LoggerService(ProductController.name);
+  private static readonly allowedImageExtensions = new Set(['jpg', 'jpeg', 'png', 'webp']);
+  private static readonly allowedImageMimeTypes = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+  private static readonly maxUploadSizeBytes = 10 * 1024 * 1024;
 
   constructor(private readonly productService: ProductService) {}
 
@@ -53,7 +73,7 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Creating product with SKU: ${createProductDto.sku} for organization: ${tenantContext.shopId}`);
-    const product = await this.productService.create(createProductDto, tenantContext);
+    const product = await this.productService.create(createProductDto, tenantContext.shopId);
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Product created successfully with ID: ${product.id}`);
     return { success: true, data: response, message: 'Product created successfully' };
@@ -70,7 +90,7 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<PaginationResponse<ProductDto>> {
     this.logger.log(`Finding products with query: page=${query.page}, limit=${query.limit}`);
-    const result = await this.productService.findAll(query, tenantContext);
+    const result = await this.productService.findAll(query, tenantContext.shopId);
     this.logger.log(`Found ${result.data?.length || 0} products (total: ${result.pagination?.total})`);
     return {
       success: true,
@@ -86,8 +106,8 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<{ totalProducts: number; lowStockCount: number }>> {
     this.logger.log('Getting product statistics');
-    const totalProducts = await this.productService.count(tenantContext);
-    const lowStockProducts = await this.productService.findLowStock(10, tenantContext);
+    const totalProducts = await this.productService.count(tenantContext.shopId);
+    const lowStockProducts = await this.productService.findLowStock(10, tenantContext.shopId);
     this.logger.log(`Statistics: ${totalProducts} total, ${lowStockProducts.length} low stock`);
     return { success: true, data: { totalProducts, lowStockCount: lowStockProducts.length } };
   }
@@ -101,7 +121,7 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto[]>> {
     this.logger.log(`Finding products with low stock (threshold: ${threshold})`);
-    const products = await this.productService.findLowStock(threshold, tenantContext);
+    const products = await this.productService.findLowStock(threshold, tenantContext.shopId);
     const response = products.map((product) => ProductDto.fromEntity(product));
     this.logger.log(`Found ${products.length} products with low stock`);
     return { success: true, data: response };
@@ -128,7 +148,7 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Finding product by barcode: ${barcode}`);
-    const product = await this.productService.findByBarcode(barcode, tenantContext);
+    const product = await this.productService.findByBarcode(barcode, tenantContext.shopId);
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Product found: ${product.name}`);
     return { success: true, data: response };
@@ -141,7 +161,7 @@ export class ProductController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   async findOne(@Param('id') id: string, @Tenant() tenantContext: TenantContext): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Finding product by ID: ${id}`);
-    const product = await this.productService.findOne(id, tenantContext);
+    const product = await this.productService.findOne(id, tenantContext.shopId);
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Product found: ${product.name}`);
     return { success: true, data: response };
@@ -157,7 +177,7 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Finding product by SKU: ${sku}`);
-    const product = await this.productService.findOneBySku(sku, tenantContext);
+    const product = await this.productService.findOneBySku(sku, tenantContext.shopId);
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Product found: ${product.name}`);
     return { success: true, data: response };
@@ -176,7 +196,7 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Updating product ID: ${id}`);
-    const product = await this.productService.update(id, updateProductDto, tenantContext);
+    const product = await this.productService.update(id, updateProductDto, tenantContext.shopId);
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Product updated successfully: ${product.name}`);
     return { success: true, data: response, message: 'Product updated successfully' };
@@ -189,7 +209,7 @@ export class ProductController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   async remove(@Param('id') id: string, @Tenant() tenantContext: TenantContext): Promise<AppApiResponse<void>> {
     this.logger.log(`Soft deleting product ID: ${id}`);
-    await this.productService.remove(id, tenantContext);
+    await this.productService.remove(id, tenantContext.shopId);
     this.logger.log(`Product ${id} deleted successfully`);
     return { success: true, message: 'Product deleted successfully' };
   }
@@ -204,7 +224,7 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<{ message: string }>> {
     this.logger.log(`Restoring product ID: ${id}`);
-    const result = await this.productService.restore(id, tenantContext);
+    const result = await this.productService.restore(id, tenantContext.shopId);
     this.logger.log(`Product ${id} restored successfully`);
     return { success: true, message: result.message };
   }
@@ -220,7 +240,7 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Updating stock for product ID: ${id}, quantity: ${updateStockDto.quantity}`);
-    const product = await this.productService.updateStock(id, updateStockDto.quantity, tenantContext);
+    const product = await this.productService.updateStock(id, updateStockDto.quantity, tenantContext.shopId);
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Stock updated for product ${id}: ${product.quantity}`);
     return { success: true, data: response, message: 'Stock updated successfully' };
@@ -237,14 +257,14 @@ export class ProductController {
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Adjusting stock for product ID: ${id}, adjustment: ${adjustStockDto.adjustment}`);
-    const product = await this.productService.adjustStock(id, adjustStockDto.adjustment, tenantContext);
+    const product = await this.productService.adjustStock(id, adjustStockDto.adjustment, tenantContext.shopId);
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Stock adjusted for product ${id}: ${product.quantity}`);
     return { success: true, data: response, message: 'Stock adjusted successfully' };
   }
 
   @Post(':id/images/presigned-upload')
-  @ApiOperation({ summary: 'Generate presigned upload URL for product image' })
+  @ApiOperation({ summary: 'Generate presigned upload URL for product image', deprecated: true })
   @ApiParam({ name: 'id', type: String, description: 'Product ID' })
   @ApiResponse({
     status: 201,
@@ -257,8 +277,60 @@ export class ProductController {
     @Body() body: ProductImagePresignedUploadDto,
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductImagePresignedUploadResponseDto>> {
-    const result = await this.productService.createImageUploadUrl(id, body.fileName, tenantContext);
+    const result = await this.productService.createImageUploadUrl(id, body.fileName, tenantContext.shopId);
     return { success: true, data: result };
+  }
+
+  @Post(':id/images')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload product image and persist public URL' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Product image uploaded successfully', type: ProductImageUploadResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid file or request payload' })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<ProductImageUploadResponseDto>> {
+    this.validateUploadedImage(file);
+    const result = await this.productService.uploadProductImage(id, file, tenantContext.shopId);
+    return { success: true, data: result, message: 'Product image uploaded successfully' };
+  }
+
+  @Get(':id/images/:imageName')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiOperation({ summary: 'Stream private product image for owner/admin' })
+  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
+  @ApiParam({ name: 'imageName', type: String, description: 'Image filename' })
+  @ApiResponse({ status: 200, description: 'Private product image streamed successfully' })
+  @ApiResponse({ status: 404, description: 'Product or image not found' })
+  async getPrivateImage(
+    @Param('id') id: string,
+    @Param('imageName') imageName: string,
+    @Tenant() tenantContext: TenantContext,
+    @Req() _req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.productService.getPrivateImageStream(id, imageName, tenantContext.shopId);
+
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate');
+    res.setHeader('ETag', result.etag);
+    res.setHeader('Last-Modified', result.lastModified.toUTCString());
+
+    result.stream.pipe(res);
   }
 
   @Delete(':id/images/:imageName')
@@ -273,7 +345,7 @@ export class ProductController {
     @Param('imageName') imageName: string,
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<void>> {
-    await this.productService.deleteImage(id, imageName, tenantContext);
+    await this.productService.deleteImage(id, imageName, tenantContext.shopId);
     return { success: true, message: 'Product image deleted successfully' };
   }
 
@@ -326,5 +398,24 @@ export class ProductController {
     await this.productService.deleteCategory(id, tenantContext.shopId);
     this.logger.log(`Category ${id} deleted successfully`);
     return { success: true, message: 'Category deleted successfully' };
+  }
+
+  private validateUploadedImage(file?: Express.Multer.File): void {
+    if (!file) {
+      throw new BadRequestException('file is required');
+    }
+
+    if (file.size > ProductController.maxUploadSizeBytes) {
+      throw new BadRequestException('File too large. Max size is 10MB');
+    }
+
+    const extension = file.originalname.split('.').pop()?.toLowerCase();
+    if (
+      !extension ||
+      !ProductController.allowedImageExtensions.has(extension) ||
+      !ProductController.allowedImageMimeTypes.has(file.mimetype)
+    ) {
+      throw new BadRequestException('Unsupported file type');
+    }
   }
 }

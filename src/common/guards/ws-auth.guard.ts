@@ -1,7 +1,6 @@
-import { TenantContext, TokenPayload } from '@/common/types';
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { JwtOptions, JwtConfig, TenantContext, TokenPayload } from '@/common/types';
+import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common';
 
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
@@ -10,7 +9,7 @@ import { Socket } from 'socket.io';
 export class WsAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    @Inject(JwtConfig) private readonly jwtConfig: JwtOptions,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -23,7 +22,7 @@ export class WsAuthGuard implements CanActivate {
 
     try {
       const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
-        secret: this.configService.getOrThrow<string>('JWT_SECRET'),
+        secret: this.jwtConfig.secret,
       });
 
       if (!payload.shopId) {

@@ -102,7 +102,6 @@ export class OrderService {
 
     const order = await this.findByIdAndShopId(id, shopId);
 
-    // Validate status transition
     this.validateStatusTransition(order.status, updateStatusDto.status);
 
     order.status = updateStatusDto.status;

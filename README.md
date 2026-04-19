@@ -55,6 +55,7 @@ cp .env.example .env
 
 ```bash
 # Start infrastructure services
+# Includes: postgres, redis, chromadb, minio, ollama, doc-preprocessor
 docker-compose up -d
 
 # Verify services are running

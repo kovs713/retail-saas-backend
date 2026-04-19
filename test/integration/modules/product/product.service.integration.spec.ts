@@ -5,8 +5,8 @@ import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
 import { CategoryRepository, ProductRepository } from '@/modules/product/repositories';
-import { Shop } from '@/modules/shop/entities';
-import { ShopRepository } from '@/modules/shop/repositories';
+import { Location, Shop } from '@/modules/shop/entities';
+import { LocationRepository, ShopRepository } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { StorageService } from '@/modules/storage/storage.service';
 import { User } from '@/modules/user/entities';
@@ -41,7 +41,7 @@ describe('ProductService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, User, Product, Category, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([Shop, Location, User, Product, Category, ChatEvent, StorefrontView, Order]),
       ],
       providers: [
         ProductService,
@@ -49,6 +49,7 @@ describe('ProductService Integration', () => {
         CategoryRepository,
         ShopService,
         ShopRepository,
+        LocationRepository,
         { provide: CacheService, useValue: mockCacheService() },
         {
           provide: StorageService,
@@ -84,14 +85,16 @@ describe('ProductService Integration', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   }, 30000);
 
   describe('create', () => {
     it('should create a product successfully', async () => {
       const result = await productService.create(
         { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
-        { shopId },
+        shopId,
       );
 
       expect(result.id).toBeDefined();
@@ -105,9 +108,9 @@ describe('ProductService Integration', () => {
     it('should throw ConflictException for duplicate SKU', async () => {
       const dto = { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 };
 
-      await productService.create(dto, { shopId });
+      await productService.create(dto, shopId);
 
-      await expect(productService.create(dto, { shopId })).rejects.toThrow('Product with this SKU already exists');
+      await expect(productService.create(dto, shopId)).rejects.toThrow('Product with this SKU already exists');
     });
   });
 
@@ -122,7 +125,7 @@ describe('ProductService Integration', () => {
     });
 
     it('should search products by name', async () => {
-      const result = await productService.findAll({ page: 1, limit: 10, search: 'Test' }, { shopId });
+      const result = await productService.findAll({ page: 1, limit: 10, search: 'Test' }, shopId);
 
       expect(result.data).toHaveLength(2);
       expect(result.data?.every((p) => p.name.includes('Test'))).toBe(true);
@@ -134,7 +137,7 @@ describe('ProductService Integration', () => {
         repo.create({ sku: 'PROD-SPECIAL', name: 'Product %_special chars', price: 50, quantity: 5, shopId }),
       );
 
-      const result = await productService.findAll({ page: 1, limit: 10, search: '%_' }, { shopId });
+      const result = await productService.findAll({ page: 1, limit: 10, search: '%_' }, shopId);
 
       expect(result.data?.some((p) => p.id === special.id)).toBe(true);
     });
@@ -155,13 +158,13 @@ describe('ProductService Integration', () => {
         }),
       );
 
-      const result = await productService.findAll({ page: 1, limit: 10, category: category.id }, { shopId });
+      const result = await productService.findAll({ page: 1, limit: 10, category: category.id }, shopId);
 
       expect(result.data?.every((p) => p.categoryId === category.id)).toBe(true);
     });
 
     it('should return paginated results', async () => {
-      const result = await productService.findAll({ page: 1, limit: 2 }, { shopId });
+      const result = await productService.findAll({ page: 1, limit: 2 }, shopId);
 
       expect(result.data).toHaveLength(2);
       expect(result.pagination?.total).toBe(3);
@@ -174,27 +177,27 @@ describe('ProductService Integration', () => {
     it('should soft delete a product', async () => {
       const product = await productService.create(
         { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
-        { shopId },
+        shopId,
       );
 
-      await productService.remove(product.id, { shopId });
+      await productService.remove(product.id, shopId);
 
-      await expect(productService.findOne(product.id, { shopId })).rejects.toThrow('Product not found');
+      await expect(productService.findOne(product.id, shopId)).rejects.toThrow('Product not found');
     });
 
     it('should restore a soft deleted product', async () => {
       const product = await productService.create(
         { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
-        { shopId },
+        shopId,
       );
 
-      await productService.remove(product.id, { shopId });
+      await productService.remove(product.id, shopId);
 
-      const result = await productService.restore(product.id, { shopId });
+      const result = await productService.restore(product.id, shopId);
 
       expect(result.message).toBe('Product restored successfully');
 
-      const restored = await productService.findOne(product.id, { shopId });
+      const restored = await productService.findOne(product.id, shopId);
       expect(restored.id).toBe(product.id);
     });
   });
@@ -203,10 +206,10 @@ describe('ProductService Integration', () => {
     it('should update stock quantity', async () => {
       const product = await productService.create(
         { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
-        { shopId },
+        shopId,
       );
 
-      const updated = await productService.updateStock(product.id, 150, { shopId });
+      const updated = await productService.updateStock(product.id, 150, shopId);
       expect(updated.quantity).toBe(150);
     });
 
@@ -220,10 +223,10 @@ describe('ProductService Integration', () => {
 
       const product = await productService.create(
         { sku: 'PROD-OTHER-1', name: 'Other Product', price: 100, quantity: 100 },
-        { shopId: otherShop.id },
+        otherShop.id,
       );
 
-      await expect(productService.updateStock(product.id, 150, { shopId })).rejects.toThrow('Product not found');
+      await expect(productService.updateStock(product.id, 150, shopId)).rejects.toThrow('Product not found');
 
       const persisted = await dataSource.getRepository(Product).findOneByOrFail({ id: product.id });
       expect(persisted.quantity).toBe(100);
@@ -232,10 +235,10 @@ describe('ProductService Integration', () => {
     it('should adjust stock (increment)', async () => {
       const product = await productService.create(
         { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
-        { shopId },
+        shopId,
       );
 
-      const updated = await productService.adjustStock(product.id, 50, { shopId });
+      const updated = await productService.adjustStock(product.id, 50, shopId);
       expect(updated.quantity).toBe(150);
     });
 
@@ -249,10 +252,10 @@ describe('ProductService Integration', () => {
 
       const product = await productService.create(
         { sku: 'PROD-OTHER-2', name: 'Other Product', price: 100, quantity: 100 },
-        { shopId: otherShop.id },
+        otherShop.id,
       );
 
-      await expect(productService.adjustStock(product.id, 50, { shopId })).rejects.toThrow('Product not found');
+      await expect(productService.adjustStock(product.id, 50, shopId)).rejects.toThrow('Product not found');
 
       const persisted = await dataSource.getRepository(Product).findOneByOrFail({ id: product.id });
       expect(persisted.quantity).toBe(100);
@@ -261,10 +264,10 @@ describe('ProductService Integration', () => {
     it('should adjust stock (decrement)', async () => {
       const product = await productService.create(
         { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 },
-        { shopId },
+        shopId,
       );
 
-      const updated = await productService.adjustStock(product.id, -30, { shopId });
+      const updated = await productService.adjustStock(product.id, -30, shopId);
       expect(updated.quantity).toBe(70);
     });
   });
@@ -273,17 +276,17 @@ describe('ProductService Integration', () => {
     it('should find product by SKU', async () => {
       const created = await productService.create(
         { sku: 'UNIQUE-SKU-123', name: 'Test Product', price: 100, quantity: 100 },
-        { shopId },
+        shopId,
       );
 
-      const found = await productService.findOneBySku('UNIQUE-SKU-123', { shopId });
+      const found = await productService.findOneBySku('UNIQUE-SKU-123', shopId);
 
       expect(found.id).toBe(created.id);
       expect(found.sku).toBe('UNIQUE-SKU-123');
     });
 
     it('should throw NotFoundException for non-existent SKU', async () => {
-      await expect(productService.findOneBySku('NON-EXISTENT', { shopId })).rejects.toThrow('Product not found');
+      await expect(productService.findOneBySku('NON-EXISTENT', shopId)).rejects.toThrow('Product not found');
     });
   });
 
@@ -301,7 +304,7 @@ describe('ProductService Integration', () => {
         }),
       );
 
-      const found = await productService.findByBarcode('5901234123457', { shopId });
+      const found = await productService.findByBarcode('5901234123457', shopId);
 
       expect(found.id).toBe(product.id);
       expect(found.barcode).toBe('5901234123457');
@@ -317,7 +320,7 @@ describe('ProductService Integration', () => {
         repo.create({ sku: 'PROD-HIGH', name: 'High Stock', price: 30, quantity: 100, shopId }),
       ]);
 
-      const result = await productService.findLowStock(10, { shopId });
+      const result = await productService.findLowStock(10, shopId);
 
       expect(result).toHaveLength(2);
       expect(result.every((p) => p.quantity < 10)).toBe(true);
@@ -341,12 +344,12 @@ describe('ProductService Integration', () => {
     });
 
     it('should count all products in shop', async () => {
-      const count = await productService.count({ shopId });
+      const count = await productService.count(shopId);
       expect(count).toBe(3);
     });
 
     it('should count products by category', async () => {
-      const count = await productService.countByCategory(categoryId, { shopId });
+      const count = await productService.countByCategory(categoryId, shopId);
       expect(count).toBe(2);
     });
   });

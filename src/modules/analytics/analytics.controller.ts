@@ -27,7 +27,8 @@ export class AnalyticsController {
   @ApiQuery({ name: 'to', type: String, required: true, description: 'ISO date string' })
   @ApiResponse({ status: 200, description: 'Returns chat events', type: [ChatEvent] })
   async getChatStats(@Query('from') from: string, @Query('to') to: string, @Tenant() tenantContext: TenantContext) {
-    return this.analyticsService.getChatStats(tenantContext.shopId, new Date(from), new Date(to));
+    const data = await this.analyticsService.getChatStats(tenantContext.shopId, new Date(from), new Date(to));
+    return { success: true, data };
   }
 
   @Get('top-questions')
@@ -38,7 +39,8 @@ export class AnalyticsController {
   @ApiQuery({ name: 'limit', type: Number, required: false, default: 10 })
   @ApiResponse({ status: 200, description: 'Returns top questions and their counts' })
   async getTopQuestions(@Query('limit') limit: number = 10, @Tenant() tenantContext: TenantContext) {
-    return this.analyticsService.getTopQuestions(tenantContext.shopId, limit);
+    const data = await this.analyticsService.getTopQuestions(tenantContext.shopId, limit);
+    return { success: true, data };
   }
 
   @Get('storefront-views')
@@ -54,7 +56,30 @@ export class AnalyticsController {
     @Query('to') to: string,
     @Tenant() tenantContext: TenantContext,
   ) {
-    return this.analyticsService.getStorefrontViewCount(tenantContext.shopId, new Date(from), new Date(to));
+    const data = await this.analyticsService.getStorefrontViewCount(tenantContext.shopId, new Date(from), new Date(to));
+    return { success: true, data };
+  }
+
+  @Get('total-revenue')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Get total revenue for current month with % change from last month' })
+  @ApiResponse({ status: 200, description: 'Returns total revenue and percentage change' })
+  async getTotalRevenue(@Tenant() tenantContext: TenantContext) {
+    const data = await this.analyticsService.getRevenueWithPercent(tenantContext.shopId);
+    return { success: true, data };
+  }
+
+  @Get('total-orders')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Get total orders for current month with % change from last month' })
+  @ApiResponse({ status: 200, description: 'Returns total orders and percentage change' })
+  async getTotalOrders(@Tenant() tenantContext: TenantContext) {
+    const data = await this.analyticsService.getOrdersWithPercent(tenantContext.shopId);
+    return { success: true, data };
   }
 
   @Get('stock-report')
@@ -66,10 +91,8 @@ export class AnalyticsController {
   @Header('Content-Type', 'text/csv')
   @Header('Content-Disposition', 'attachment; filename="stock-report.csv"')
   async getStockReport(@Res() res: Response, @Tenant() tenantContext: TenantContext): Promise<void> {
-    // Get all products for the shop (including categories)
     const [products] = await this.productRepository.findAll(tenantContext.shopId, { page: 1, limit: 10000 });
 
-    // Build CSV content
     const csvHeader = 'SKU,Name,Category,Price,Quantity\n';
     const csvRows = products
       .map((product) => {
@@ -86,12 +109,11 @@ export class AnalyticsController {
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="stock-report-${tenantContext.shopId}.csv"`);
-    res.send('\uFEFF' + csvContent); // Add BOM for Excel compatibility with UTF-8
+    res.send('\uFEFF' + csvContent);
   }
 
   private escapeCsvField(field: string): string {
     if (!field) return '""';
-    // If field contains comma, quote, or newline, wrap in quotes and escape internal quotes
     if (field.includes(',') || field.includes('"') || field.includes('\n')) {
       return `"${field.replace(/"/g, '""')}"`;
     }

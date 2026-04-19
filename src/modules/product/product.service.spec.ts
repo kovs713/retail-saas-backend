@@ -287,7 +287,7 @@ describe('ProductService', () => {
   describe('countByCategory', () => {
     it('should return count for specific category', async () => {
       productRepository.countByCategory.mockResolvedValue(25);
-      const result = await service.countByCategory('Electronics', mockTenantContext);
+      const result = await service.countByCategory('Electronics', mockTenantContext.shopId);
       expect(result).toBe(25);
     });
   });
@@ -378,6 +378,80 @@ describe('ProductService', () => {
 
       await expect(service.createImageUploadUrl('prod_1', '../evil.jpg', mockTenantContext)).rejects.toThrow(
         BadRequestException,
+      );
+    });
+  });
+
+  describe('uploadProductImage', () => {
+    it('should upload image and persist public url on product', async () => {
+      const productWithShop = {
+        ...mockProduct,
+        id: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        images: ['/public/media/my-shop/products/prod_1/old.jpg'],
+        shop: { slug: 'my-shop' } as any,
+      } as Product;
+      const uploadedProduct = {
+        ...productWithShop,
+        images: [...(productWithShop.images ?? []), '/public/media/my-shop/products/prod_1/photo.jpg'],
+      } as Product;
+
+      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
+      storageService.putObject.mockResolvedValue('etag-1');
+      productRepository.save.mockResolvedValue(uploadedProduct);
+
+      const file = {
+        originalname: 'photo.jpg',
+        mimetype: 'image/jpeg',
+        size: 1024,
+        buffer: Buffer.from('image-data'),
+      } as Express.Multer.File;
+
+      const result = await service.uploadProductImage('prod_1', file, mockTenantContext.shopId);
+
+      expect(storageService.putObject).toHaveBeenCalledWith(
+        'products/prod_1/images/photo.jpg',
+        file.buffer,
+        file.size,
+        expect.objectContaining({
+          'Content-Type': 'image/jpeg',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        }),
+      );
+      expect(productRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          images: ['/public/media/my-shop/products/prod_1/old.jpg', '/public/media/my-shop/products/prod_1/photo.jpg'],
+        }),
+      );
+      expect(result.publicUrl).toBe('/public/media/my-shop/products/prod_1/photo.jpg');
+      expect(result.etag).toBe('etag-1');
+      expect(result.size).toBe(1024);
+    });
+
+    it('should dedupe existing image url', async () => {
+      const productWithShop = {
+        ...mockProduct,
+        id: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        images: ['/public/media/my-shop/products/prod_1/photo.jpg'],
+        shop: { slug: 'my-shop' } as any,
+      } as Product;
+
+      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
+      storageService.putObject.mockResolvedValue('etag-1');
+      productRepository.save.mockResolvedValue(productWithShop);
+
+      const file = {
+        originalname: 'photo.jpg',
+        mimetype: 'image/jpeg',
+        size: 1024,
+        buffer: Buffer.from('image-data'),
+      } as Express.Multer.File;
+
+      await service.uploadProductImage('prod_1', file, mockTenantContext.shopId);
+
+      expect(productRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ images: ['/public/media/my-shop/products/prod_1/photo.jpg'] }),
       );
     });
   });

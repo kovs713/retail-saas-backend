@@ -1,15 +1,13 @@
-import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
-import { WsValidationPipe } from '@/common/pipes/ws-validation.pipe';
-import { RagChatConfig, TenantContext, TokenPayload } from '@/common/types';
+import { WsAuthGuard } from '@/common/guards';
+import { WsValidationPipe } from '@/common/pipes';
+import { JwtConfig, JwtOptions, RagChatConfig, RagChatOptions, TenantContext, TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from '../dto';
 import { RagService } from '../rag.service';
-import { RagChatOptions } from '../rag.types';
 import { ChatSessionService } from './chat-session.service';
 
 import { Inject, Injectable, UseGuards } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
@@ -39,7 +37,7 @@ export class ChatGateway {
     private readonly ragService: RagService,
     private readonly cacheService: CacheService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    @Inject(JwtConfig) private readonly jwtConfig: JwtOptions,
   ) {}
 
   async handleConnection(client: SocketWithData) {
@@ -52,7 +50,7 @@ export class ChatGateway {
       }
 
       const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
-        secret: this.configService.getOrThrow<string>('JWT_SECRET'),
+        secret: this.jwtConfig.secret,
       });
 
       if (!payload.shopId) {
@@ -85,6 +83,23 @@ export class ChatGateway {
     return null;
   }
 
+  private buildRetrievalQuery(
+    session: { messages: Array<{ role: 'user' | 'assistant'; content: string }> },
+    message: string,
+  ): string {
+    const recentUserMessages = session.messages
+      .filter((entry) => entry.role === 'user')
+      .slice(-2)
+      .map((entry) => entry.content.trim())
+      .filter(Boolean);
+
+    if (recentUserMessages.length === 0) {
+      return message;
+    }
+
+    return [...recentUserMessages, message].join('\n');
+  }
+
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
   }
@@ -115,17 +130,24 @@ export class ChatGateway {
     }
 
     try {
-      const session = await this.sessionService.getOrCreateSession(payload.sessionId, tenant.shopId);
-      await this.sessionService.addMessage(session.id, 'user', payload.message);
+      const userId = client.data.user?.sub;
+      if (!userId) {
+        client.emit('chat:error', { message: 'Missing user context', code: 'MISSING_USER' } as ChatErrorEventDto);
+        return;
+      }
+
+      const session = await this.sessionService.getOrCreateSession(payload.sessionId, tenant.shopId, userId);
+      await this.sessionService.appendMessage(session.id, tenant.shopId, userId, 'user', payload.message);
 
       let fullAnswer = '';
       const sources: Array<{ content: string; metadata?: Record<string, unknown> }> = [];
 
       for await (const event of this.ragService.queryStream(
         payload.message,
-        tenant,
+        tenant.shopId,
         payload.maxResults,
         payload.systemPrompt,
+        this.buildRetrievalQuery(session, payload.message),
       )) {
         if (event.type === 'chunk') {
           fullAnswer += event.content;
@@ -135,7 +157,7 @@ export class ChatGateway {
         }
       }
 
-      await this.sessionService.addMessage(session.id, 'assistant', fullAnswer);
+      await this.sessionService.appendMessage(session.id, tenant.shopId, userId, 'assistant', fullAnswer);
 
       client.emit('chat:complete', {
         sessionId: session.id,

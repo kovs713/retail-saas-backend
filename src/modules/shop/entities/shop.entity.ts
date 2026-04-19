@@ -1,6 +1,7 @@
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
 import { User } from '@/modules/user/entities';
+import { Location } from './location.entity';
 
 import {
   Column,
@@ -36,6 +37,9 @@ export class Shop {
 
   @OneToMany(() => Order, (order) => order.shop)
   orders: Order[];
+
+  @OneToMany(() => Location, (location) => location.shop)
+  locations: Location[];
 
   @Column()
   name: string;

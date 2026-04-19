@@ -1,5 +1,4 @@
 import { Pagination, PaginationResponse } from '@/common/dto';
-import { TenantContext } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { StorageService } from '@/modules/storage/storage.service';
@@ -23,12 +22,44 @@ export class ProductService {
     private readonly configService: ConfigService,
   ) {}
 
+  async uploadProductImage(
+    productId: string,
+    file: Express.Multer.File,
+    shopId: string,
+  ): Promise<{ key: string; publicUrl: string; contentType: string; size: number; etag: string }> {
+    const product = await this.productRepository.findByIdWithShop(productId, shopId);
+
+    if (!product || !product.shop) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const safeFileName = this.sanitizeImageFileName(file.originalname);
+    const key = this.buildProductImageKey(productId, safeFileName);
+    const publicUrl = this.buildPublicProductImageUrl(product.shop.slug, productId, safeFileName);
+    const etag = await this.storageService.putObject(key, file.buffer, file.size, {
+      'Content-Type': file.mimetype,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    });
+
+    product.images = this.appendImageUrl(product.images, publicUrl);
+    await this.productRepository.save(product);
+    await this.invalidateProductCache(shopId, productId);
+
+    return {
+      key,
+      publicUrl,
+      contentType: file.mimetype,
+      size: file.size,
+      etag,
+    };
+  }
+
   async createImageUploadUrl(
     productId: string,
     fileName: string,
-    tenantContext: TenantContext,
+    shopId: string,
   ): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
-    const product = await this.productRepository.findByIdWithShop(productId, tenantContext.shopId);
+    const product = await this.productRepository.findByIdWithShop(productId, shopId);
 
     if (!product || !product.shop) {
       throw new NotFoundException('Product not found');
@@ -43,8 +74,8 @@ export class ProductService {
     return { uploadUrl, publicUrl, key };
   }
 
-  async deleteImage(productId: string, imageName: string, tenantContext: TenantContext): Promise<void> {
-    const product = await this.productRepository.findById(productId, tenantContext.shopId);
+  async deleteImage(productId: string, imageName: string, shopId: string): Promise<void> {
+    const product = await this.productRepository.findById(productId, shopId);
     if (!product) {
       throw new NotFoundException('Product not found');
     }
@@ -59,39 +90,68 @@ export class ProductService {
     return this.productRepository.findByIdAndShopSlug(productId, shopSlug);
   }
 
+  async getPrivateImageStream(
+    productId: string,
+    imageName: string,
+    shopId: string,
+  ): Promise<{
+    stream: NodeJS.ReadableStream;
+    contentType: string;
+    etag: string;
+    lastModified: Date;
+  }> {
+    const product = await this.productRepository.findById(productId, shopId);
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const safeFileName = this.sanitizeImageFileName(imageName);
+    const key = this.buildProductImageKey(productId, safeFileName);
+    const [stat, stream] = await Promise.all([
+      this.storageService.statObject(key),
+      this.storageService.getObjectStream(key),
+    ]);
+
+    return {
+      stream,
+      contentType: stat.contentType,
+      etag: stat.etag,
+      lastModified: stat.lastModified,
+    };
+  }
+
   buildProductImageObjectKey(productId: string, imageName: string): string {
     return this.buildProductImageKey(productId, imageName);
   }
 
-  async create(createProductDto: CreateProductDto, tenantContext: TenantContext): Promise<Product> {
-    this.logger.log(`Creating product with SKU: ${createProductDto.sku} for shop: ${tenantContext.shopId}`);
+  async create(createProductDto: CreateProductDto, shopId: string): Promise<Product> {
+    this.logger.log(`Creating product with SKU: ${createProductDto.sku} for shop: ${shopId}`);
 
-    const existingProduct = await this.productRepository.existsBySkuAndShop(createProductDto.sku, tenantContext.shopId);
+    const existingProduct = await this.productRepository.existsBySkuAndShop(createProductDto.sku, shopId);
 
     if (existingProduct) {
-      this.logger.warn(
-        `Product with SKU ${createProductDto.sku} already exists in organization ${tenantContext.shopId}`,
-      );
+      this.logger.warn(`Product with SKU ${createProductDto.sku} already exists in organization ${shopId}`);
       throw new ConflictException('Product with this SKU already exists');
     }
 
     const product = this.productRepository.create({
       ...createProductDto,
-      shopId: tenantContext.shopId,
+      shopId: shopId,
     });
     const savedProduct = await this.productRepository.save(product);
 
-    await this.invalidateProductCache(tenantContext.shopId);
+    await this.invalidateProductCache(shopId);
 
     this.logger.log(`Product created successfully with ID: ${savedProduct.id}`);
     return savedProduct;
   }
 
-  async findAll(query: Pagination, tenantContext: TenantContext): Promise<PaginationResponse<Product>> {
+  async findAll(query: Pagination, shopId: string): Promise<PaginationResponse<Product>> {
     const cacheKey = this.cacheService.generateKey(
       'products',
       'list',
-      tenantContext.shopId,
+      shopId,
       query.page ?? 1,
       query.limit ?? 10,
       query.category || 'all',
@@ -104,13 +164,13 @@ export class ProductService {
     }
 
     this.logger.log(
-      `Finding products with query: page=${query.page}, limit=${query.limit}, search=${query.search || 'none'} for shop: ${tenantContext.shopId}`,
+      `Finding products with query: page=${query.page}, limit=${query.limit}, search=${query.search || 'none'} for shop: ${shopId}`,
     );
 
     const page = query.page ?? 1;
     const limit = Math.min(query.limit ?? 10, 100);
 
-    const [data, total] = await this.productRepository.findAll(tenantContext.shopId, query);
+    const [data, total] = await this.productRepository.findAll(shopId, query);
 
     this.logger.log(`Found ${data.length} products (total: ${total}, page: ${page})`);
 
@@ -130,19 +190,19 @@ export class ProductService {
     return result;
   }
 
-  async findOne(id: string, tenantContext: TenantContext): Promise<Product> {
+  async findOne(id: string, shopId: string): Promise<Product> {
     const cacheKey = this.cacheService.generateKey('product', 'id', id);
     const cached = await this.cacheService.get<Product>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    this.logger.log(`Finding product by ID: ${id} for shop: ${tenantContext.shopId}`);
+    this.logger.log(`Finding product by ID: ${id} for shop: ${shopId}`);
 
-    const product = await this.productRepository.findById(id, tenantContext.shopId);
+    const product = await this.productRepository.findById(id, shopId);
 
     if (!product) {
-      this.logger.warn(`Product with ID ${id} not found in organization ${tenantContext.shopId}`);
+      this.logger.warn(`Product with ID ${id} not found in organization ${shopId}`);
       throw new NotFoundException('Product not found');
     }
 
@@ -152,19 +212,19 @@ export class ProductService {
     return product;
   }
 
-  async findOneBySku(sku: string, tenantContext: TenantContext): Promise<Product> {
-    const cacheKey = this.cacheService.generateKey('product', 'sku', tenantContext.shopId, sku);
+  async findOneBySku(sku: string, shopId: string): Promise<Product> {
+    const cacheKey = this.cacheService.generateKey('product', 'sku', shopId, sku);
     const cached = await this.cacheService.get<Product>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    this.logger.log(`Finding product by SKU: ${sku} for shop: ${tenantContext.shopId}`);
+    this.logger.log(`Finding product by SKU: ${sku} for shop: ${shopId}`);
 
-    const product = await this.productRepository.findBySku(sku, tenantContext.shopId);
+    const product = await this.productRepository.findBySku(sku, shopId);
 
     if (!product) {
-      this.logger.warn(`Product with SKU ${sku} not found in organization ${tenantContext.shopId}`);
+      this.logger.warn(`Product with SKU ${sku} not found in organization ${shopId}`);
       throw new NotFoundException('Product not found');
     }
 
@@ -174,50 +234,45 @@ export class ProductService {
     return product;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto, tenantContext: TenantContext): Promise<Product> {
-    this.logger.log(`Updating product ID: ${id} for shop: ${tenantContext.shopId}`);
+  async update(id: string, updateProductDto: UpdateProductDto, shopId: string): Promise<Product> {
+    this.logger.log(`Updating product ID: ${id} for shop: ${shopId}`);
 
-    const product = await this.findOne(id, tenantContext);
+    const product = await this.findOne(id, shopId);
 
     if (updateProductDto.sku && updateProductDto.sku !== product.sku) {
-      const existingProduct = await this.productRepository.existsBySkuAndShop(
-        updateProductDto.sku,
-        tenantContext.shopId,
-      );
+      const existingProduct = await this.productRepository.existsBySkuAndShop(updateProductDto.sku, shopId);
 
       if (existingProduct) {
-        this.logger.warn(
-          `Product with SKU ${updateProductDto.sku} already exists in organization ${tenantContext.shopId}`,
-        );
+        this.logger.warn(`Product with SKU ${updateProductDto.sku} already exists in organization ${shopId}`);
         throw new ConflictException('Product with this SKU already exists');
       }
     }
 
     await this.productRepository.update(id, updateProductDto as QueryDeepPartialEntity<Product>);
-    await this.invalidateProductCache(tenantContext.shopId, id);
-    const updatedProduct = await this.findOne(id, tenantContext);
+    await this.invalidateProductCache(shopId, id);
+    const updatedProduct = await this.findOne(id, shopId);
 
     this.logger.log(`Product updated successfully: ${updatedProduct.name}`);
     return updatedProduct;
   }
 
-  async remove(id: string, tenantContext: TenantContext): Promise<void> {
-    this.logger.log(`Soft deleting product ID: ${id} for shop: ${tenantContext.shopId}`);
+  async remove(id: string, shopId: string): Promise<void> {
+    this.logger.log(`Soft deleting product ID: ${id} for shop: ${shopId}`);
 
-    await this.findOne(id, tenantContext);
+    await this.findOne(id, shopId);
     await this.productRepository.softDeleteById(id);
-    await this.invalidateProductCache(tenantContext.shopId, id);
+    await this.invalidateProductCache(shopId, id);
 
     this.logger.log(`Product ${id} soft deleted successfully`);
   }
 
-  async restore(id: string, tenantContext: TenantContext): Promise<{ message: string }> {
-    this.logger.log(`Restoring product ID: ${id} for shop: ${tenantContext.shopId}`);
+  async restore(id: string, shopId: string): Promise<{ message: string }> {
+    this.logger.log(`Restoring product ID: ${id} for shop: ${shopId}`);
 
-    const product = await this.productRepository.findOneWithDeleted(id, tenantContext.shopId);
+    const product = await this.productRepository.findOneWithDeleted(id, shopId);
 
     if (!product) {
-      this.logger.warn(`Product ${id} not found in organization ${tenantContext.shopId}`);
+      this.logger.warn(`Product ${id} not found in organization ${shopId}`);
       throw new NotFoundException('Product not found');
     }
 
@@ -228,63 +283,61 @@ export class ProductService {
       throw new NotFoundException('Product not found or already active');
     }
 
-    await this.invalidateProductCache(tenantContext.shopId, id);
+    await this.invalidateProductCache(shopId, id);
 
     this.logger.log(`Product ${id} restored successfully`);
     return { message: 'Product restored successfully' };
   }
 
-  async updateStock(id: string, quantity: number, tenantContext: TenantContext): Promise<Product> {
-    this.logger.log(`Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${tenantContext.shopId}`);
+  async updateStock(id: string, quantity: number, shopId: string): Promise<Product> {
+    this.logger.log(`Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${shopId}`);
 
-    await this.findOne(id, tenantContext);
-    await this.productRepository.updateQuantity(id, tenantContext.shopId, quantity);
-    await this.invalidateProductCache(tenantContext.shopId, id);
-    const updatedProduct = await this.findOne(id, tenantContext);
+    await this.findOne(id, shopId);
+    await this.productRepository.updateQuantity(id, shopId, quantity);
+    await this.invalidateProductCache(shopId, id);
+    const updatedProduct = await this.findOne(id, shopId);
 
     this.logger.log(`Stock updated for product ${id}: ${updatedProduct.quantity}`);
     return updatedProduct;
   }
 
-  async adjustStock(id: string, adjustment: number, tenantContext: TenantContext): Promise<Product> {
-    this.logger.log(
-      `Adjusting stock for product ID: ${id}, adjustment: ${adjustment} for shop: ${tenantContext.shopId}`,
-    );
+  async adjustStock(id: string, adjustment: number, shopId: string): Promise<Product> {
+    this.logger.log(`Adjusting stock for product ID: ${id}, adjustment: ${adjustment} for shop: ${shopId}`);
 
-    await this.findOne(id, tenantContext);
-    await this.productRepository.incrementQuantity(id, tenantContext.shopId, adjustment);
-    await this.invalidateProductCache(tenantContext.shopId, id);
-    const updatedProduct = await this.findOne(id, tenantContext);
+    await this.findOne(id, shopId);
+    await this.productRepository.incrementQuantity(id, shopId, adjustment);
+    await this.invalidateProductCache(shopId, id);
+    const updatedProduct = await this.findOne(id, shopId);
 
     this.logger.log(`Stock adjusted for product ${id}: ${updatedProduct.quantity}`);
     return updatedProduct;
   }
 
-  async count(tenantContext: TenantContext, where?: FindOptionsWhere<Product>): Promise<number> {
-    const count = await this.productRepository.countByShop(tenantContext.shopId, where);
-    this.logger.log(`Product count for organization ${tenantContext.shopId}: ${count}`);
+  async count(shopId: string, where?: FindOptionsWhere<Product>): Promise<number> {
+    const count = await this.productRepository.countByShop(shopId, where);
+    this.logger.log(`Product count for organization ${shopId}: ${count}`);
     return count;
   }
 
-  async countByCategory(categoryId: string, tenantContext: TenantContext): Promise<number> {
-    const count = await this.productRepository.countByCategory(tenantContext.shopId, categoryId);
-    this.logger.log(`Product count for category ${categoryId} in organization ${tenantContext.shopId}: ${count}`);
+  async countByCategory(categoryId: string, shopId: string): Promise<number> {
+    const count = await this.productRepository.countByCategory(shopId, categoryId);
+    this.logger.log(`Product count for category ${categoryId} in organization ${shopId}: ${count}`);
     return count;
   }
 
-  async findByBarcode(barcode: string, tenantContext: TenantContext): Promise<Product> {
-    const cacheKey = this.cacheService.generateKey('product', 'barcode', tenantContext.shopId, barcode);
+  async findByBarcode(barcode: string, shopId: string): Promise<Product> {
+    const cacheKey = this.cacheService.generateKey('product', 'barcode', shopId, barcode);
     const cached = await this.cacheService.get<Product>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    this.logger.log(`Finding product by barcode: ${barcode} for shop: ${tenantContext.shopId}`);
+    this.logger.log(`Finding product by barcode: ${barcode} for shop: ${shopId}`);
 
-    const product = await this.productRepository.findByBarcode(barcode, tenantContext.shopId);
+    const product = await this.productRepository.findByBarcode(barcode, shopId);
 
     if (!product) {
-      this.logger.warn(`Product with barcode ${barcode} not found in organization ${tenantContext.shopId}`);
+      this.logger.warn(`Product with barcode ${barcode} not found in organization ${shopId}`);
       throw new NotFoundException('Product not found');
     }
 
@@ -294,16 +347,16 @@ export class ProductService {
     return product;
   }
 
-  async findLowStock(threshold: number = 10, tenantContext: TenantContext): Promise<Product[]> {
-    const cacheKey = this.cacheService.generateKey('products', 'low-stock', tenantContext.shopId, threshold);
+  async findLowStock(threshold: number = 10, shopId: string): Promise<Product[]> {
+    const cacheKey = this.cacheService.generateKey('products', 'low-stock', shopId, threshold);
     const cached = await this.cacheService.get<Product[]>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    this.logger.log(`Finding products with low stock (threshold: ${threshold}) for shop: ${tenantContext.shopId}`);
+    this.logger.log(`Finding products with low stock (threshold: ${threshold}) for shop: ${shopId}`);
 
-    const products = await this.productRepository.findLowStock(tenantContext.shopId, threshold);
+    const products = await this.productRepository.findLowStock(shopId, threshold);
 
     this.logger.log(`Found ${products.length} products with low stock`);
 
@@ -456,6 +509,11 @@ export class ProductService {
     }
 
     return trimmed;
+  }
+
+  private appendImageUrl(images: string[] | null | undefined, publicUrl: string): string[] {
+    const nextImages = images ?? [];
+    return nextImages.includes(publicUrl) ? nextImages : [...nextImages, publicUrl];
   }
 
   private buildProductImageKey(productId: string, imageName: string): string {

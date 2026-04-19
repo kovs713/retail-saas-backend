@@ -1,4 +1,4 @@
-import { AuthConfig, TokenPayload } from '@/common/types';
+import { AuthConfig, AuthOptions, TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { Shop } from '@/modules/shop/entities';
 import { ShopService } from '@/modules/shop/shop.service';
@@ -11,7 +11,6 @@ import { JwtService } from '@nestjs/jwt';
 import { hash } from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
 import { DataSource } from 'typeorm';
-import { AuthOptions } from './auth.module';
 
 export type AuthTokensResult = AuthResponseDto & { refreshToken: string };
 
