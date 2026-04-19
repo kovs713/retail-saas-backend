@@ -2,7 +2,7 @@ import { PaginationResponse } from '@/common/dto';
 import { LoggerService } from '@/core/logger/logger.service';
 import { Product } from '@/modules/product/entities/product.entity';
 import { ProductService } from '@/modules/product/product.service';
-import { DocumentResponseDto } from './dto';
+import { DocumentGroupDto, DocumentResponseDto } from './dto';
 import { LLMService } from './llm/llm.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
 
@@ -105,6 +105,64 @@ export class RagService {
         pageContent: doc.pageContent,
         metadata: doc.metadata,
       })),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    };
+  }
+
+  async getDocumentGroups(
+    shopId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginationResponse<DocumentGroupDto>> {
+    const documents = await this.vectorStoreService.getDocuments(shopId);
+
+    const groupsMap = new Map<string, DocumentGroupDto>();
+    for (const doc of documents) {
+      const groupId = doc.metadata?.documentGroupId as string;
+      if (!groupId) {
+        continue;
+      }
+
+      if (!groupsMap.has(groupId)) {
+        const source = (doc.metadata?.source as string) || (doc.metadata?.filename as string) || 'unknown';
+        groupsMap.set(groupId, {
+          documentGroupId: groupId,
+          source,
+          metadata: doc.metadata,
+          totalChunks: 0,
+          chunks: [],
+        });
+      }
+
+      const group = groupsMap.get(groupId)!;
+      group.chunks.push({
+        pageContent: doc.pageContent,
+        chunkIndex: doc.metadata?.chunkIndex as number,
+        totalChunks: doc.metadata?.totalChunks as number,
+      });
+      group.totalChunks = group.chunks.length;
+    }
+
+    const groups = Array.from(groupsMap.values()).sort((a, b) => {
+      const aTime = (a.metadata?.uploadedAt as string) || '';
+      const bTime = (b.metadata?.uploadedAt as string) || '';
+      return bTime.localeCompare(aTime);
+    });
+
+    const total = groups.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedGroups = groups.slice(startIndex, endIndex);
+
+    return {
+      success: true,
+      data: paginatedGroups,
       pagination: {
         total,
         page,

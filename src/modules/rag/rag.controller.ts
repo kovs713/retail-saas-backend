@@ -12,6 +12,7 @@ import {
   AddTextsDto,
   AddTextsResponseDto,
   DocumentDto,
+  DocumentGroupDto,
   DocumentResponseDto,
   UploadRagDocumentDto,
 } from './dto';
@@ -76,6 +77,27 @@ export class RagController {
     this.logger.log(`Getting documents from shop with id ${tenantContext.shopId}`);
     const result = await this.ragService.getDocuments(tenantContext.shopId, page, limit);
     this.logger.log(`Received documents from shop with id ${tenantContext.shopId} successfully`);
+
+    return result;
+  }
+
+  @Get('documents/grouped')
+  @ApiOperation({ summary: 'Get documents grouped by original document' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successful response',
+    type: DocumentGroupDto,
+    isArray: true,
+  })
+  async getDocumentGroups(
+    @Query() query: Pagination,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<PaginationResponse<DocumentGroupDto>> {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    this.logger.log(`Getting grouped documents from shop with id ${tenantContext.shopId}`);
+    const result = await this.ragService.getDocumentGroups(tenantContext.shopId, page, limit);
+    this.logger.log(`Received grouped documents from shop with id ${tenantContext.shopId} successfully`);
 
     return result;
   }

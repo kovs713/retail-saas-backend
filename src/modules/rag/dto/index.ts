@@ -8,6 +8,7 @@ export * from './chat-response.dto';
 export * from './chat-session.dto';
 export * from './chat-with-scores-response.dto';
 export * from './chat.dto';
+export * from './document-group.dto';
 export * from './document-response.dto';
 export * from './document-with-score.dto';
 export * from './document.dto';
