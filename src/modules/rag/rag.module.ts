@@ -1,5 +1,5 @@
 import { WsAuthGuard } from '@/common/guards';
-import { RagChatConfig } from '@/common/types';
+import { RagChatConfig, RagChatOptions } from '@/common/types';
 import { CacheModule } from '@/core/cache/cache.module';
 import { DocPreprocessorModule } from '@/modules/doc-preprocessor/doc-preprocessor.module';
 import { ProductModule } from '@/modules/product/product.module';
@@ -10,7 +10,6 @@ import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { LLMModule } from './llm/llm.module';
 import { RagController } from './rag.controller';
 import { RagService } from './rag.service';
-import { RagChatOptions } from './rag.types';
 import { VectorStoreModule } from './vector-store/vector-store.module';
 
 import { DynamicModule, Module } from '@nestjs/common';

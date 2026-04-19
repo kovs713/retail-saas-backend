@@ -1,16 +1,11 @@
+import { AuthConfig, AuthOptions } from '@/common/types';
 import { ShopModule } from '@/modules/shop/shop.module';
 import { UserModule } from '@/modules/user/user.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
-import { AuthConfig } from '@/common/types';
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
-export interface AuthOptions {
-  refreshTokenCookie: string;
-  refreshTokenMaxAge: number;
-}
 
 @Module({})
 export class AuthModule {

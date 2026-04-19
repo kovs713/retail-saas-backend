@@ -1,7 +1,6 @@
-import { DocPreprocessorConfig } from '@/common/types';
+import { DocPreprocessorConfig, DocPreprocessorOptions } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import { TargetDocumentType } from './doc-preprocessor.enum';
-import { DocPreprocessorOptions } from './doc-preprocessor.type';
 import { PreprocessDocumentDto } from './dto';
 
 import { BadGatewayException, Inject, Injectable } from '@nestjs/common';

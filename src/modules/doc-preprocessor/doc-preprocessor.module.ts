@@ -1,8 +1,7 @@
+import { DocPreprocessorConfig, DocPreprocessorOptions } from '@/common/types';
 import { DocPreprocessorController } from './doc-preprocessor.controller';
 import { DocPreprocessorService } from './doc-preprocessor.service';
-import { DocPreprocessorOptions } from './doc-preprocessor.type';
 
-import { DocPreprocessorConfig } from '@/common/types';
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 

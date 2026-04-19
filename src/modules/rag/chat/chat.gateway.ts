@@ -1,11 +1,10 @@
 import { WsAuthGuard } from '@/common/guards';
 import { WsValidationPipe } from '@/common/pipes';
-import { JwtConfig, JwtOptions, RagChatConfig, TenantContext, TokenPayload } from '@/common/types';
+import { JwtConfig, JwtOptions, RagChatConfig, RagChatOptions, TenantContext, TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from '../dto';
 import { RagService } from '../rag.service';
-import { RagChatOptions } from '../rag.types';
 import { ChatSessionService } from './chat-session.service';
 
 import { Inject, Injectable, UseGuards } from '@nestjs/common';
