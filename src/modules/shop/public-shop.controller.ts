@@ -1,5 +1,4 @@
 import { Pagination } from '@/common/dto';
-import { AnalyticsService } from '@/modules/analytics/analytics.service';
 import { CategoryRepository, ProductRepository } from '@/modules/product/repositories';
 import { StorefrontCategoryDto, StorefrontProductDto, StorefrontResponseDto, StorefrontShopDto } from './dto';
 import { ShopService } from './shop.service';
@@ -16,7 +15,6 @@ export class PublicShopController {
     private readonly shopService: ShopService,
     private readonly productRepository: ProductRepository,
     private readonly categoryRepository: CategoryRepository,
-    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Get(':slug')
@@ -31,10 +29,6 @@ export class PublicShopController {
     if (!shop.isActive) {
       throw new BadRequestException('Shop is not active');
     }
-
-    this.analyticsService.logStorefrontView(shop.id).catch((err) => {
-      this.logger.error(`Failed to log storefront view for shop ${shop.id}`, err);
-    });
 
     const paginationQuery: Pagination = { page: 1, limit: 100 };
     const [products, totalProducts] = await this.productRepository.findAll(shop.id, paginationQuery);

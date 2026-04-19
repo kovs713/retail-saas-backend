@@ -12,7 +12,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 @Module({
   imports: [TypeOrmModule.forFeature([Order]), ShopModule, ProductModule],
   providers: [OrderService, OrderRepository],
-  exports: [OrderService],
+  exports: [OrderService, OrderRepository],
   controllers: [PublicOrderController, AdminOrderController],
 })
 export class OrderModule {}

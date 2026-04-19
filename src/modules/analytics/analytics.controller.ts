@@ -60,6 +60,28 @@ export class AnalyticsController {
     return { success: true, data };
   }
 
+  @Get('total-revenue')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Get total revenue for current month with % change from last month' })
+  @ApiResponse({ status: 200, description: 'Returns total revenue and percentage change' })
+  async getTotalRevenue(@Tenant() tenantContext: TenantContext) {
+    const data = await this.analyticsService.getRevenueWithPercent(tenantContext.shopId);
+    return { success: true, data };
+  }
+
+  @Get('total-orders')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Get total orders for current month with % change from last month' })
+  @ApiResponse({ status: 200, description: 'Returns total orders and percentage change' })
+  async getTotalOrders(@Tenant() tenantContext: TenantContext) {
+    const data = await this.analyticsService.getOrdersWithPercent(tenantContext.shopId);
+    return { success: true, data };
+  }
+
   @Get('stock-report')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(Role.OWNER, Role.ADMIN)

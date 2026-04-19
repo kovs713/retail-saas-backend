@@ -1,6 +1,6 @@
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatSessionDto, ChatSessionMetadataDto } from '../dto';
-import { ChatMessage, ChatSession } from './entities';
+import { ChatSession } from './entities';
 import { ChatMessageRepository, ChatSessionRepository } from './repositories';
 
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -118,7 +118,7 @@ export class ChatSessionService {
     }
 
     session.lastMessageAt = savedMessage.createdAt ?? new Date();
-    session.messages = [...(session.messages ?? []), savedMessage as ChatMessage];
+    session.messages = [...(session.messages ?? []), savedMessage];
 
     const savedSession = await this.sessionRepository.save(session);
     return this.toDto({ ...savedSession, messages: session.messages });
