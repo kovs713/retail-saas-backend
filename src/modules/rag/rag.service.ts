@@ -124,6 +124,12 @@ export class RagService {
     this.logger.warn('clearDocuments not fully implemented for LangChain Chroma wrapper');
   }
 
+  async deleteDocumentGroup(documentGroupId: string, shopId: string): Promise<number> {
+    const deletedCount = await this.vectorStoreService.deleteDocumentGroup(documentGroupId, shopId);
+    this.logger.log(`Deleted ${deletedCount} chunks for documentGroupId: ${documentGroupId}`);
+    return deletedCount;
+  }
+
   private isAvailabilityQuery(query: string): boolean {
     const normalizedQuery = query.toLowerCase();
 

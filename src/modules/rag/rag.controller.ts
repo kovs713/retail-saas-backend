@@ -26,6 +26,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
   Post,
   Query,
   UnprocessableEntityException,
@@ -35,7 +37,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('RAG')
 @ApiBearerAuth('JWT')
@@ -271,6 +273,31 @@ export class RagController {
     this.logger.log('All documents cleared successfully');
 
     return { success: true, message: 'Documents cleared successfully' };
+  }
+
+  @Delete('documents/:documentGroupId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a specific document group from RAG system' })
+  @ApiParam({
+    name: 'documentGroupId',
+    description: 'UUID of the document group to delete',
+    type: String,
+  })
+  @ApiResponse({ status: 200, description: 'Document group deleted' })
+  async deleteDocument(
+    @Param('documentGroupId', ParseUUIDPipe) documentGroupId: string,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<{ deletedChunks: number }>> {
+    this.logger.log(`Deleting document group: ${documentGroupId}`);
+    const deletedChunks = await this.ragService.deleteDocumentGroup(documentGroupId, tenantContext.shopId);
+
+    if (deletedChunks === 0) {
+      throw new BadRequestException('Document not found');
+    }
+
+    this.logger.log(`Deleted ${deletedChunks} chunks for document group: ${documentGroupId}`);
+
+    return { success: true, data: { deletedChunks } };
   }
 
   private extractProcessedText(buffer: Buffer, contentType: string): string {

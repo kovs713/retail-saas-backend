@@ -49,24 +49,76 @@ export class VectorStoreService {
     return result;
   }
 
+  async getDocumentsByGroup(documentGroupId: string, shopId: string): Promise<Document[]> {
+    const collection = this.chromaDBClient.collection;
+
+    if (!collection) {
+      return [];
+    }
+
+    const documents = await collection.get({
+      where: { shopId, documentGroupId },
+    });
+
+    if (!documents.ids?.length) {
+      return [];
+    }
+
+    const result = documents.ids
+      .map((id, index) => {
+        const meta = documents.metadatas?.[index];
+        return {
+          pageContent: documents.documents[index] ?? '',
+          metadata: {
+            ...meta,
+            _id: id,
+            chunkIndex: meta?.chunkIndex as number | undefined,
+            totalChunks: meta?.totalChunks as number | undefined,
+            documentGroupId: meta?.documentGroupId as string | undefined,
+          },
+        };
+      })
+      .sort((a, b) => {
+        const aIndex = (a.metadata?.chunkIndex as number) ?? 0;
+        const bIndex = (b.metadata?.chunkIndex as number) ?? 0;
+        return aIndex - bIndex;
+      });
+
+    this.logger.log(`Retrieved ${result.length} documents for documentGroupId: ${documentGroupId}`);
+
+    return result;
+  }
+
   async addDocuments(documents: Document[], shopId: string): Promise<string[]> {
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
       chunkOverlap: 200,
     });
 
-    const docsWithTenant = documents.map((doc) => ({
-      ...doc,
-      metadata: this.sanitizeMetadata({
-        ...doc.metadata,
-        shopId,
-      }),
-    }));
-
     const splitDocs: Document[] = [];
-    for (const doc of docsWithTenant) {
-      const chunks = await splitter.splitDocuments([doc]);
-      splitDocs.push(...chunks);
+    for (const doc of documents) {
+      const documentGroupId = crypto.randomUUID();
+      const docWithTenant = {
+        ...doc,
+        metadata: this.sanitizeMetadata({
+          ...doc.metadata,
+          shopId,
+          documentGroupId,
+        }),
+      };
+
+      const chunks = await splitter.splitDocuments([docWithTenant]);
+      for (let i = 0; i < chunks.length; i++) {
+        splitDocs.push({
+          ...chunks[i],
+          metadata: {
+            ...chunks[i].metadata,
+            documentGroupId,
+            chunkIndex: i,
+            totalChunks: chunks.length,
+          },
+        });
+      }
     }
 
     this.logger.log(`Split ${documents.length} documents into ${splitDocs.length} chunks`);
@@ -135,6 +187,28 @@ export class VectorStoreService {
     await this.chromaDBClient.delete({ ids: documents.ids });
 
     this.logger.log(`Deleted ${documents.ids.length} documents from vector store`);
+  }
+
+  async deleteDocumentGroup(documentGroupId: string, shopId: string): Promise<number> {
+    const collection = this.chromaDBClient.collection;
+
+    if (!collection) {
+      return 0;
+    }
+
+    const documents = await collection.get({
+      where: { shopId, documentGroupId },
+    });
+
+    if (!documents.ids?.length) {
+      this.logger.log(`No documents found for documentGroupId: ${documentGroupId}`);
+      return 0;
+    }
+
+    await this.chromaDBClient.delete({ ids: documents.ids });
+
+    this.logger.log(`Deleted ${documents.ids.length} chunks for documentGroupId: ${documentGroupId}`);
+    return documents.ids.length;
   }
 
   asRetriever(shopId: string, searchKwargs?: { k?: number; filter?: Record<string, any> }) {
