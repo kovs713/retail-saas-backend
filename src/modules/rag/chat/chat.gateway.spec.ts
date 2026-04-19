@@ -1,4 +1,4 @@
-import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
+import { WsAuthGuard } from '@/common/guards';
 import { JwtConfig, RagChatConfig } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';

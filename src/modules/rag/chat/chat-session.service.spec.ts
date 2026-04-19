@@ -1,6 +1,6 @@
 import { LoggerService } from '@/core/logger/logger.service';
-import { ChatMessageRepository, ChatSessionRepository } from '../repositories';
 import { ChatSessionService } from './chat-session.service';
+import { ChatMessageRepository, ChatSessionRepository } from './repositories';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';

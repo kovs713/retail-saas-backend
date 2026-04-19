@@ -1,4 +1,4 @@
-import { ChatMessage } from '../entities/';
+import { ChatMessage } from '../entities';
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';

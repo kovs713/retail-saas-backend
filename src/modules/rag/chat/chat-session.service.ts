@@ -1,7 +1,7 @@
 import { LoggerService } from '@/core/logger/logger.service';
 import { ChatSessionDto, ChatSessionMetadataDto } from '../dto';
-import { ChatMessage, ChatSession } from '../entities';
-import { ChatMessageRepository, ChatSessionRepository } from '../repositories';
+import { ChatMessage, ChatSession } from './entities';
+import { ChatMessageRepository, ChatSessionRepository } from './repositories';
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 

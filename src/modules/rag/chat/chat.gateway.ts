@@ -1,5 +1,5 @@
-import { WsAuthGuard } from '@/common/guards/ws-auth.guard';
-import { WsValidationPipe } from '@/common/pipes/ws-validation.pipe';
+import { WsAuthGuard } from '@/common/guards';
+import { WsValidationPipe } from '@/common/pipes';
 import { JwtConfig, JwtOptions, RagChatConfig, TenantContext, TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
