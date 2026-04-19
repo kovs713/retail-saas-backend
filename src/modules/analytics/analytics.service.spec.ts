@@ -1,5 +1,6 @@
 import { createChatEvent, createStorefrontView } from '@/core/database/factories';
 import { AnalyticsRepository } from '@/modules/analytics/repositories';
+import { OrderRepository } from '@/modules/order/repositories';
 import { AnalyticsService } from './analytics.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
@@ -16,6 +17,10 @@ describe('AnalyticsService', () => {
         {
           provide: AnalyticsRepository,
           useValue: createMock<AnalyticsRepository>(),
+        },
+        {
+          provide: OrderRepository,
+          useValue: createMock<OrderRepository>(),
         },
       ],
     }).compile();
