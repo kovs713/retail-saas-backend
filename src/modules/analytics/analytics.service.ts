@@ -9,7 +9,6 @@ export class AnalyticsService {
 
   constructor(private readonly analyticsRepository: AnalyticsRepository) {}
 
-  // Chat Events
   async logChatEvent(
     shopId: string,
     userQuery: string,
@@ -33,7 +32,6 @@ export class AnalyticsService {
     return this.analyticsRepository.getTopQuestions(shopId, limit);
   }
 
-  // Storefront Views
   async logStorefrontView(shopId: string): Promise<StorefrontView> {
     this.logger.log(`Logging storefront view for shop ${shopId}`);
     return this.analyticsRepository.createStorefrontView({

@@ -32,19 +32,15 @@ export class PublicShopController {
       throw new BadRequestException('Shop is not active');
     }
 
-    // Log storefront view asynchronously (don't wait for it)
     this.analyticsService.logStorefrontView(shop.id).catch((err) => {
       this.logger.error(`Failed to log storefront view for shop ${shop.id}`, err);
     });
 
-    // Get products with categories eagerly loaded
     const paginationQuery: Pagination = { page: 1, limit: 100 };
     const [products, totalProducts] = await this.productRepository.findAll(shop.id, paginationQuery);
 
-    // Get categories
     const categories = await this.categoryRepository.findAllByShop(shop.id);
 
-    // Build shop data
     const shopData: StorefrontShopDto = {
       id: shop.id,
       name: shop.name,
@@ -57,7 +53,6 @@ export class PublicShopController {
       bannerUrl: shop.bannerUrl,
     };
 
-    // Build products with availability status
     const productsData: StorefrontProductDto[] = products.map((product) => {
       let availability: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
       if (product.quantity <= 0) {
@@ -81,7 +76,6 @@ export class PublicShopController {
       };
     });
 
-    // Build categories
     const categoriesData: StorefrontCategoryDto[] = categories.map((cat) => ({
       id: cat.id,
       name: cat.name,

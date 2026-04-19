@@ -87,7 +87,7 @@ export class AnalyticsController {
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="stock-report-${tenantContext.shopId}.csv"`);
-    res.send('\uFEFF' + csvContent); // Add BOM for Excel compatibility with UTF-8
+    res.send('\uFEFF' + csvContent);
   }
 
   private escapeCsvField(field: string): string {
