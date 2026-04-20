@@ -82,6 +82,17 @@ export class AnalyticsController {
     return { success: true, data };
   }
 
+  @Get('growth')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Get growth analytics: revenue, orders, AOV, customers, conversion' })
+  @ApiResponse({ status: 200, description: 'Returns growth metrics for current month vs last month' })
+  async getGrowth(@Tenant() tenantContext: TenantContext) {
+    const data = await this.analyticsService.getShopGrowth(tenantContext.shopId);
+    return { success: true, data };
+  }
+
   @Get('stock-report')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(Role.OWNER, Role.ADMIN)
