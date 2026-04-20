@@ -3,13 +3,14 @@ import { AppService } from './app.service';
 import { EvotorAuthGuard } from './common/guards';
 import { RateLimitInterceptor } from './common/interceptors';
 import { DeviceController } from './device.controller';
+import { ProductController } from './product.controller';
 import { StoreController } from './store.controller';
 
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
-  controllers: [AppController, StoreController, DeviceController],
+  controllers: [AppController, StoreController, DeviceController, ProductController],
   providers: [
     AppService,
     {

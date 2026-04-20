@@ -108,4 +108,79 @@ describe('EvotorMock protocol', () => {
 
     expect(storeDevicesResponse.body).toEqual(allDevicesResponse.body);
   });
+
+  it('seeds products and returns them from GET /stores/:storeId/products', async () => {
+    await request(app.getHttpServer())
+      .post('/mock/seed')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .send({
+        storeId: 'shop-3',
+        productCount: 2,
+        documentCount: 0,
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get('/stores/store-shop-3/products')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      items: [
+        expect.objectContaining({
+          id: 'product-store-shop-3-1',
+          store_id: 'store-shop-3',
+          user_id: 'user-shop-3',
+          name: 'Mock Product 1',
+          article_number: 'SKU-store-shop-3-1',
+          price: 100,
+          quantity: 10,
+          measure_name: 'шт',
+          tax: 'VAT_20',
+          allow_to_sell: true,
+          type: 'NORMAL',
+        }),
+        expect.objectContaining({
+          id: 'product-store-shop-3-2',
+          store_id: 'store-shop-3',
+          user_id: 'user-shop-3',
+          name: 'Mock Product 2',
+          article_number: 'SKU-store-shop-3-2',
+          price: 200,
+          quantity: 20,
+          measure_name: 'шт',
+          tax: 'VAT_20',
+          allow_to_sell: true,
+          type: 'NORMAL',
+        }),
+      ],
+      paging: {},
+    });
+  });
+
+  it('returns a single seeded product by id', async () => {
+    await request(app.getHttpServer())
+      .post('/mock/seed')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .send({
+        storeId: 'shop-4',
+        productCount: 1,
+        documentCount: 0,
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get('/stores/store-shop-4/products/product-store-shop-4-1')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        id: 'product-store-shop-4-1',
+        store_id: 'store-shop-4',
+        article_number: 'SKU-store-shop-4-1',
+        price: 100,
+      }),
+    );
+  });
 });
