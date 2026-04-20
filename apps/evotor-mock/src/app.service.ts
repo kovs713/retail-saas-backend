@@ -30,24 +30,67 @@ export interface MockProduct {
   updated_at: string;
 }
 
+export interface MockSellPosition {
+  uuid: string;
+  id: number;
+  product_id: string;
+  product_name: string;
+  product_type: 'NORMAL';
+  price: number;
+  result_price: number;
+  quantity: number;
+  sum: number;
+  result_sum: number;
+  measure_name: 'шт';
+  tax: 'VAT_20';
+  initial_quantity: number;
+}
+
+export interface MockPayment {
+  id: string;
+  type: 'ELECTRON';
+  sum: number;
+}
+
+export interface MockDocument {
+  id: string;
+  type: 'SELL';
+  number: number;
+  close_date: string;
+  time_zone_offset: number;
+  session_id: string;
+  session_number: number;
+  close_user_id: string;
+  device_id: string;
+  store_id: string;
+  user_id: string;
+  version: 'V2';
+  body: {
+    positions: MockSellPosition[];
+    payments: MockPayment[];
+    result_sum: number;
+  };
+}
+
 @Injectable()
 export class AppService {
   private readonly stores = new Map<string, MockStore>();
   private readonly devices = new Map<string, MockDevice>();
   private readonly products = new Map<string, MockProduct>();
+  private readonly documents = new Map<string, MockDocument>();
 
   getStatus() {
     return {
       status: 'ok',
       stores: this.stores.size,
       products: this.products.size,
-      documents: 0,
+      documents: this.documents.size,
       pendingWebhooks: 0,
       retailSaasUrl: process.env.RETAIL_SAAS_URL ?? 'http://backend:3000',
     };
   }
 
-  seedStore(shopId: string, productCount = 0) {
+  seedStore(shopId: string, productCount = 0, documentCount = 0) {
     const storeId = `store-${shopId}`;
     const now = new Date().toISOString();
     const store: MockStore = {
@@ -86,6 +129,59 @@ export class AppService {
       this.products.set(this.getProductKey(storeId, product.id), product);
     }
 
+    const seededProducts = this.getProductsByStoreId(storeId);
+
+    for (let index = 1; index <= documentCount; index += 1) {
+      const product = seededProducts[(index - 1) % seededProducts.length];
+
+      if (!product) {
+        break;
+      }
+
+      const position: MockSellPosition = {
+        uuid: `position-${storeId}-${index}`,
+        id: 1,
+        product_id: product.id,
+        product_name: product.name,
+        product_type: 'NORMAL',
+        price: product.price,
+        result_price: product.price,
+        quantity: 1,
+        sum: product.price,
+        result_sum: product.price,
+        measure_name: 'шт',
+        tax: 'VAT_20',
+        initial_quantity: product.quantity,
+      };
+      const document: MockDocument = {
+        id: `document-${storeId}-${index}`,
+        type: 'SELL',
+        number: index,
+        close_date: now,
+        time_zone_offset: 10800000,
+        session_id: `session-${storeId}`,
+        session_number: 1,
+        close_user_id: store.user_id,
+        device_id: device.id,
+        store_id: storeId,
+        user_id: store.user_id,
+        version: 'V2',
+        body: {
+          positions: [position],
+          payments: [
+            {
+              id: `payment-${storeId}-${index}`,
+              type: 'ELECTRON',
+              sum: product.price,
+            },
+          ],
+          result_sum: product.price,
+        },
+      };
+
+      this.documents.set(this.getDocumentKey(storeId, document.id), document);
+    }
+
     return {
       store,
       device,
@@ -112,7 +208,23 @@ export class AppService {
     return this.products.get(this.getProductKey(storeId, productId)) ?? null;
   }
 
+  getDocumentsByStoreId(storeId: string) {
+    return Array.from(this.documents.values()).filter((document) => document.store_id === storeId);
+  }
+
+  getDocumentById(storeId: string, documentId: string) {
+    return this.documents.get(this.getDocumentKey(storeId, documentId)) ?? null;
+  }
+
+  getDocumentsByDeviceId(storeId: string, deviceId: string) {
+    return this.getDocumentsByStoreId(storeId).filter((document) => document.device_id === deviceId);
+  }
+
   private getProductKey(storeId: string, productId: string) {
     return `${storeId}:${productId}`;
+  }
+
+  private getDocumentKey(storeId: string, documentId: string) {
+    return `${storeId}:${documentId}`;
   }
 }

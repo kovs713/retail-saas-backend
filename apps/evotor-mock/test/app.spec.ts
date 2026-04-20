@@ -183,4 +183,110 @@ describe('EvotorMock protocol', () => {
       }),
     );
   });
+
+  it('seeds documents and returns them from GET /stores/:storeId/documents', async () => {
+    await request(app.getHttpServer())
+      .post('/mock/seed')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .send({
+        storeId: 'shop-5',
+        productCount: 2,
+        documentCount: 2,
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get('/stores/store-shop-5/documents')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      items: [
+        expect.objectContaining({
+          id: 'document-store-shop-5-1',
+          type: 'SELL',
+          device_id: 'device-store-shop-5',
+          store_id: 'store-shop-5',
+          user_id: 'user-shop-5',
+          version: 'V2',
+          body: expect.objectContaining({
+            result_sum: 100,
+            positions: [
+              expect.objectContaining({
+                product_id: 'product-store-shop-5-1',
+                product_name: 'Mock Product 1',
+                price: 100,
+                quantity: 1,
+                result_sum: 100,
+              }),
+            ],
+          }),
+        }),
+        expect.objectContaining({
+          id: 'document-store-shop-5-2',
+          type: 'SELL',
+          body: expect.objectContaining({
+            result_sum: 200,
+          }),
+        }),
+      ],
+      paging: {},
+    });
+  });
+
+  it('returns a single seeded document by id', async () => {
+    await request(app.getHttpServer())
+      .post('/mock/seed')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .send({
+        storeId: 'shop-6',
+        productCount: 1,
+        documentCount: 1,
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get('/stores/store-shop-6/documents/document-store-shop-6-1')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        id: 'document-store-shop-6-1',
+        device_id: 'device-store-shop-6',
+        store_id: 'store-shop-6',
+        body: expect.objectContaining({
+          result_sum: 100,
+        }),
+      }),
+    );
+  });
+
+  it('returns store device documents from GET /stores/:storeId/devices/:deviceId/documents', async () => {
+    await request(app.getHttpServer())
+      .post('/mock/seed')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .send({
+        storeId: 'shop-7',
+        productCount: 1,
+        documentCount: 1,
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get('/stores/store-shop-7/devices/device-store-shop-7/documents')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      items: [
+        expect.objectContaining({
+          id: 'document-store-shop-7-1',
+          device_id: 'device-store-shop-7',
+          store_id: 'store-shop-7',
+        }),
+      ],
+      paging: {},
+    });
+  });
 });
