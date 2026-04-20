@@ -75,21 +75,21 @@ services:
 
     network_mode: bridge
 
-  evotor-mock:
-    build:
-      context: .
-      dockerfile: apps/evotor-mock/Dockerfile
-    container_name: evotor-mock
-
-    ports:
-      - '3001:3001'
-
-    environment:
-      - PORT=3001
-      - MOCK_EVOTOR_TOKEN=mock-evotor-token
-      - RETAIL_SAAS_URL=http://backend:3000
-
-    network_mode: bridge
+  # evotor-mock:
+  #   build:
+  #     context: .
+  #     dockerfile: apps/evotor-mock/Dockerfile
+  #   container_name: evotor-mock
+  #
+  #   ports:
+  #     - '3001:3001'
+  #
+  #   environment:
+  #     - PORT=3001
+  #     - MOCK_EVOTOR_TOKEN=mock-evotor-token
+  #     - RETAIL_SAAS_URL=http://backend:3000
+  #
+  #   network_mode: bridge
 
   redis:
     image: redis:7.4-alpine
