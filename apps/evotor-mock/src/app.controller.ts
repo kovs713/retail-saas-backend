@@ -1,6 +1,6 @@
 import { AppService } from './app.service';
 
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 
 @Controller('mock')
 export class AppController {
@@ -9,5 +9,17 @@ export class AppController {
   @Get('status')
   getStatus() {
     return this.appService.getStatus();
+  }
+
+  @Post('seed')
+  seed(
+    @Body()
+    body: {
+      storeId: string;
+      productCount?: number;
+      documentCount?: number;
+    },
+  ) {
+    return this.appService.seedStore(body.storeId);
   }
 }
