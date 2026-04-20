@@ -289,4 +289,90 @@ describe('EvotorMock protocol', () => {
       paging: {},
     });
   });
+
+  it('filters products by id query param', async () => {
+    await request(app.getHttpServer())
+      .post('/mock/seed')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .send({
+        storeId: 'shop-8',
+        productCount: 2,
+        documentCount: 0,
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get('/stores/store-shop-8/products?id=product-store-shop-8-2')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      items: [
+        expect.objectContaining({
+          id: 'product-store-shop-8-2',
+          article_number: 'SKU-store-shop-8-2',
+        }),
+      ],
+      paging: {},
+    });
+  });
+
+  it('filters products by since query param', async () => {
+    await request(app.getHttpServer())
+      .post('/mock/seed')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .send({
+        storeId: 'shop-9',
+        productCount: 2,
+        documentCount: 0,
+      })
+      .expect(201);
+
+    const allProductsResponse = await request(app.getHttpServer())
+      .get('/stores/store-shop-9/products')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+    const secondUpdatedAt = allProductsResponse.body.items[1].updated_at;
+    const since = String(new Date(secondUpdatedAt).getTime() - 1);
+
+    const filteredResponse = await request(app.getHttpServer())
+      .get(`/stores/store-shop-9/products?since=${since}`)
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+
+    expect(filteredResponse.body).toEqual({
+      items: [expect.objectContaining({ id: 'product-store-shop-9-2' })],
+      paging: {},
+    });
+  });
+
+  it('resets all mock state via DELETE /mock/reset', async () => {
+    await request(app.getHttpServer())
+      .post('/mock/seed')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .send({
+        storeId: 'shop-10',
+        productCount: 1,
+        documentCount: 1,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete('/mock/reset')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+
+    const statusResponse = await request(app.getHttpServer())
+      .get('/mock/status')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+
+    expect(statusResponse.body).toEqual(
+      expect.objectContaining({
+        stores: 0,
+        products: 0,
+        documents: 0,
+      }),
+    );
+  });
 });

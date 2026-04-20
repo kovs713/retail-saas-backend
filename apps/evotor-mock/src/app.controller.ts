@@ -1,6 +1,6 @@
 import { AppService } from './app.service';
 
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
 
 @Controller('mock')
 export class AppController {
@@ -21,5 +21,10 @@ export class AppController {
     },
   ) {
     return this.appService.seedStore(body.storeId, body.productCount ?? 0, body.documentCount ?? 0);
+  }
+
+  @Delete('reset')
+  reset() {
+    return this.appService.reset();
   }
 }

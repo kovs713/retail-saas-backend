@@ -1,15 +1,15 @@
 import { AppService } from './app.service';
 
-import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 
 @Controller('stores/:storeId/products')
 export class ProductController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  getProducts(@Param('storeId') storeId: string) {
+  getProducts(@Param('storeId') storeId: string, @Query('id') id?: string, @Query('since') since?: string) {
     return {
-      items: this.appService.getProductsByStoreId(storeId),
+      items: this.appService.getProductsByStoreId(storeId, id, since),
       paging: {},
     };
   }
