@@ -1,8 +1,7 @@
-import { MinioClient } from '@/common/types';
+import { MinioClient, MinioConfig, MinioOptions } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import type { Client } from 'minio';
 import { Readable } from 'stream';
 
@@ -12,10 +11,12 @@ export class StorageService {
   private readonly bucket: string;
 
   constructor(
-    @Inject(MinioClient) private readonly minioClient: Client,
-    private readonly configService: ConfigService,
+    @Inject(MinioClient)
+    private readonly minioClient: Client,
+    @Inject(MinioConfig)
+    private readonly minioConfig: MinioOptions,
   ) {
-    this.bucket = this.configService.getOrThrow<string>('S3_BUCKET');
+    this.bucket = this.minioConfig.bucket;
   }
 
   async getPresignedPutUrl(key: string, expirySeconds = 3600): Promise<string> {

@@ -1,5 +1,6 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { EvotorConfig, EvotorOptions } from '@/common/types';
+
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 
 export interface EvotorRemoteProduct {
   id: string;
@@ -19,7 +20,10 @@ export interface EvotorUpsertProduct {
 
 @Injectable()
 export class EvotorApiService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    @Inject(EvotorConfig)
+    private readonly evotorConfig: EvotorOptions,
+  ) {}
 
   async seedStore(
     shopId: string,
@@ -51,8 +55,8 @@ export class EvotorApiService {
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    const baseUrl = this.configService.get<string>('EVOTOR_BASE_URL') ?? 'http://localhost:3001';
-    const token = this.configService.get<string>('EVOTOR_TOKEN') ?? 'mock-evotor-token';
+    const baseUrl = this.evotorConfig.baseUrl;
+    const token = this.evotorConfig.token;
     const response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: {

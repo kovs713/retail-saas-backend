@@ -1,10 +1,9 @@
-import { MinioClient } from '@/common/types';
+import { MinioClient, MinioConfig } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import { StorageService } from './storage.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { BucketItemStat, Client } from 'minio';
 
@@ -21,22 +20,24 @@ describe('StorageService', () => {
     metaData: { 'content-type': 'text/plain' },
     etag: 'test-etag',
   };
+  const mockMinioConfig = {
+    host: 'localhost',
+    port: 9000,
+    accessKey: 'test-key',
+    secretKey: 'test-secret',
+    userSSL: false,
+    bucket: 'test-bucket',
+  };
 
   beforeEach(async () => {
     mockMinioClient = createMock<Client>();
     mockMinioClient.statObject.mockResolvedValue(mockStat);
 
-    const mockConfigService = createMock<ConfigService>();
-    mockConfigService.getOrThrow.mockImplementation((key: string) => {
-      const config: Record<string, string> = { S3_BUCKET: mockBucket };
-      return config[key];
-    });
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StorageService,
         { provide: MinioClient, useValue: mockMinioClient },
-        { provide: ConfigService, useValue: mockConfigService },
+        { provide: MinioConfig, useValue: mockMinioConfig },
         { provide: LoggerService, useValue: createMock<LoggerService>() },
       ],
     }).compile();

@@ -9,7 +9,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EvotorIntegration]), ProductModule, ShopModule, EvotorApiModule],
+  imports: [TypeOrmModule.forFeature([EvotorIntegration]), EvotorApiModule.forRoot(), ProductModule, ShopModule],
   controllers: [EvotorController],
   providers: [EvotorService],
   exports: [EvotorService],
