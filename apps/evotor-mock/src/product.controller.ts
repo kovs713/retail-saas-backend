@@ -1,6 +1,6 @@
 import { AppService } from './app.service';
 
-import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Put, Query } from '@nestjs/common';
 
 @Controller('stores/:storeId/products')
 export class ProductController {
@@ -10,6 +10,24 @@ export class ProductController {
   getProducts(@Param('storeId') storeId: string, @Query('id') id?: string, @Query('since') since?: string) {
     return {
       items: this.appService.getProductsByStoreId(storeId, id, since),
+      paging: {},
+    };
+  }
+
+  @Put()
+  upsertProducts(
+    @Param('storeId') storeId: string,
+    @Body()
+    body: {
+      id: string;
+      name: string;
+      price: number;
+      quantity: number;
+      article_number: string;
+    }[],
+  ) {
+    return {
+      items: this.appService.upsertProducts(storeId, body),
       paging: {},
     };
   }

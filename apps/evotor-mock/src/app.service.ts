@@ -30,6 +30,14 @@ export interface MockProduct {
   updated_at: string;
 }
 
+export interface UpsertMockProductInput {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  article_number: string;
+}
+
 export interface MockSellPosition {
   uuid: string;
   id: number;
@@ -221,6 +229,41 @@ export class AppService {
 
   getProductById(storeId: string, productId: string) {
     return this.products.get(this.getProductKey(storeId, productId)) ?? null;
+  }
+
+  upsertProducts(storeId: string, items: UpsertMockProductInput[]) {
+    const store = this.stores.get(storeId);
+
+    if (!store) {
+      return [];
+    }
+
+    const updatedProducts = items.map((item) => {
+      const key = this.getProductKey(storeId, item.id);
+      const existing = this.products.get(key);
+      const timestamp = new Date().toISOString();
+
+      const product: MockProduct = {
+        id: item.id,
+        store_id: storeId,
+        user_id: store.user_id,
+        name: item.name,
+        type: 'NORMAL',
+        price: item.price,
+        quantity: item.quantity,
+        measure_name: existing?.measure_name ?? 'шт',
+        tax: existing?.tax ?? 'VAT_20',
+        allow_to_sell: true,
+        article_number: item.article_number,
+        created_at: existing?.created_at ?? timestamp,
+        updated_at: timestamp,
+      };
+
+      this.products.set(key, product);
+      return product;
+    });
+
+    return updatedProducts;
   }
 
   getDocumentsByStoreId(storeId: string) {

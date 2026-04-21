@@ -181,6 +181,16 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
+  async findSyncedByShop(shopId: string, withDeleted = false): Promise<Product[]> {
+    return this.repository.find({
+      where: {
+        shopId,
+        externalSource: 'evotor',
+      },
+      withDeleted,
+    });
+  }
+
   async incrementQuantity(id: string, shopId: string, adjustment: number): Promise<void> {
     await this.repository.increment(
       {

@@ -1,3 +1,4 @@
+import { EvotorApiModule } from '@/modules/evotor/evotor-api.module';
 import { Category, Product } from './entities';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
@@ -8,7 +9,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, Category])],
+  imports: [TypeOrmModule.forFeature([Product, Category]), EvotorApiModule],
   providers: [ProductService, ProductRepository, CategoryRepository],
   exports: [ProductService, ProductRepository, CategoryRepository],
   controllers: [ProductController, PublicMediaController],

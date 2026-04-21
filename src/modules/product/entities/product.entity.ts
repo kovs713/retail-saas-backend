@@ -17,6 +17,8 @@ import {
 @Index(['shopId', 'sku'], { unique: true })
 @Index(['shopId', 'deletedAt'])
 @Index(['shopId', 'categoryId'])
+@Index(['shopId', 'externalSource'])
+@Index(['shopId', 'externalId'])
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -65,6 +67,15 @@ export class Product {
 
   @Column('jsonb', { nullable: true })
   metadata: Record<string, unknown> | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  externalSource: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  externalId: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  externalStoreId: string | null;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt: Date;

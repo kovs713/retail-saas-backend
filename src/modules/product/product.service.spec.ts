@@ -1,6 +1,7 @@
 import { createMockTenantContext, mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { createCategory, createProduct } from '@/core/database/factories';
+import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { StorageService } from '@/modules/storage/storage.service';
 import { Product } from './entities';
 import { ProductService } from './product.service';
@@ -19,6 +20,7 @@ describe('ProductService', () => {
   let cacheService: DeepMocked<CacheService>;
   let storageService: DeepMocked<StorageService>;
   let configService: DeepMocked<ConfigService>;
+  let evotorApiService: DeepMocked<EvotorApiService>;
 
   const mockProduct: Product = createProduct({ id: 'prod_1', index: 1 });
   const mockTenantContext = createMockTenantContext();
@@ -54,6 +56,10 @@ describe('ProductService', () => {
           provide: ConfigService,
           useValue: createMock<ConfigService>(),
         },
+        {
+          provide: EvotorApiService,
+          useValue: createMock<EvotorApiService>(),
+        },
       ],
     }).compile();
 
@@ -63,6 +69,7 @@ describe('ProductService', () => {
     cacheService = module.get(CacheService);
     storageService = module.get(StorageService);
     configService = module.get(ConfigService);
+    evotorApiService = module.get(EvotorApiService);
     configService.get.mockImplementation((key: string, defaultValue?: any) => {
       const config: Record<string, any> = {
         MEDIA_UPLOAD_PRESIGNED_TTL: 900,
@@ -145,6 +152,33 @@ describe('ProductService', () => {
       productRepository.existsBySkuAndShop.mockResolvedValue(true);
       await expect(service.update('prod_1', { sku: 'EXISTING' }, mockTenantContext)).rejects.toThrow(ConflictException);
     });
+
+    it('should push evotor-managed field edits to mock before saving locally', async () => {
+      const managedProduct = createProduct({
+        id: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        sku: 'SYNC-001',
+        name: 'Synced Product',
+        externalSource: 'evotor',
+        externalId: 'evotor-prod-1',
+        externalStoreId: 'store-test-shop-id',
+      });
+
+      productRepository.findById.mockResolvedValue(managedProduct);
+      productRepository.update.mockResolvedValue({ affected: 1, generatedMaps: [], raw: [] });
+      productRepository.findById.mockResolvedValue({ ...managedProduct, price: 4500 });
+
+      await service.update('prod_1', { price: 4500 }, mockTenantContext.shopId);
+
+      expect(evotorApiService.upsertProducts).toHaveBeenCalledWith('store-test-shop-id', [
+        expect.objectContaining({
+          id: 'evotor-prod-1',
+          article_number: 'SYNC-001',
+          name: 'Synced Product',
+          price: 4500,
+        }),
+      ]);
+    });
   });
 
   describe('remove', () => {
@@ -197,6 +231,34 @@ describe('ProductService', () => {
 
       expect(result.quantity).toBe(150);
     });
+
+    it('should push stock updates for evotor-managed products to mock', async () => {
+      const managedProduct = createProduct({
+        id: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        sku: 'SYNC-001',
+        name: 'Synced Product',
+        quantity: 100,
+        externalSource: 'evotor',
+        externalId: 'evotor-prod-1',
+        externalStoreId: 'store-test-shop-id',
+      });
+
+      productRepository.findById.mockResolvedValue(managedProduct);
+      productRepository.updateQuantity.mockResolvedValue();
+      productRepository.findById.mockResolvedValue({ ...managedProduct, quantity: 150 });
+
+      await service.updateStock('prod_1', 150, mockTenantContext.shopId);
+
+      expect(evotorApiService.upsertProducts).toHaveBeenCalledWith('store-test-shop-id', [
+        expect.objectContaining({
+          id: 'evotor-prod-1',
+          article_number: 'SYNC-001',
+          name: 'Synced Product',
+          quantity: 150,
+        }),
+      ]);
+    });
   });
 
   describe('adjustStock', () => {
@@ -218,6 +280,35 @@ describe('ProductService', () => {
       const result = await service.adjustStock('prod_1', 50, mockTenantContext);
 
       expect(result.quantity).toBe(150);
+    });
+
+    it('should push stock adjustments for evotor-managed products to mock', async () => {
+      const managedProduct = createProduct({
+        id: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        sku: 'SYNC-001',
+        name: 'Synced Product',
+        quantity: 100,
+        externalSource: 'evotor',
+        externalId: 'evotor-prod-1',
+        externalStoreId: 'store-test-shop-id',
+      });
+
+      productRepository.findById
+        .mockResolvedValueOnce(managedProduct)
+        .mockResolvedValueOnce({ ...managedProduct, quantity: 150 });
+      productRepository.incrementQuantity.mockResolvedValue();
+
+      await service.adjustStock('prod_1', 50, mockTenantContext.shopId);
+
+      expect(evotorApiService.upsertProducts).toHaveBeenCalledWith('store-test-shop-id', [
+        expect.objectContaining({
+          id: 'evotor-prod-1',
+          article_number: 'SYNC-001',
+          name: 'Synced Product',
+          quantity: 150,
+        }),
+      ]);
     });
   });
 

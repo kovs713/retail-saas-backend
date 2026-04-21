@@ -1,6 +1,7 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
+import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
@@ -55,6 +56,7 @@ describe('PublicMedia Integration', () => {
         { provide: CacheService, useValue: mockCacheService() },
         { provide: StorageService, useValue: createMock<StorageService>() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
+        { provide: EvotorApiService, useValue: createMock<EvotorApiService>() },
       ],
     })
       .overrideGuard(ThrottlerGuard)

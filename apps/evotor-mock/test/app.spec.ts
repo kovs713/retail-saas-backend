@@ -184,6 +184,46 @@ describe('EvotorMock protocol', () => {
     );
   });
 
+  it('upserts seeded products via PUT /stores/:storeId/products', async () => {
+    await request(app.getHttpServer())
+      .post('/mock/seed')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .send({
+        storeId: 'shop-upsert',
+        productCount: 1,
+        documentCount: 0,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .put('/stores/store-shop-upsert/products')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .send([
+        {
+          id: 'product-store-shop-upsert-1',
+          name: 'Updated Mock Product',
+          price: 777,
+          quantity: 55,
+          article_number: 'SKU-store-shop-upsert-1',
+        },
+      ])
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .get('/stores/store-shop-upsert/products/product-store-shop-upsert-1')
+      .set('X-Authorization', 'Bearer mock-evotor-token')
+      .expect(200);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        id: 'product-store-shop-upsert-1',
+        name: 'Updated Mock Product',
+        price: 777,
+        quantity: 55,
+      }),
+    );
+  });
+
   it('seeds documents and returns them from GET /stores/:storeId/documents', async () => {
     await request(app.getHttpServer())
       .post('/mock/seed')

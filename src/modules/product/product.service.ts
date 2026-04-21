@@ -1,6 +1,7 @@
 import { Pagination, PaginationResponse } from '@/common/dto';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
+import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { StorageService } from '@/modules/storage/storage.service';
 import { CreateCategoryDto, CreateProductDto, UpdateCategoryDto, UpdateProductDto } from './dto';
 import { Category, Product } from './entities';
@@ -20,6 +21,7 @@ export class ProductService {
     private readonly cacheService: CacheService,
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
+    private readonly evotorApiService: EvotorApiService,
   ) {}
 
   async uploadProductImage(
@@ -238,6 +240,7 @@ export class ProductService {
     this.logger.log(`Updating product ID: ${id} for shop: ${shopId}`);
 
     const product = await this.findOne(id, shopId);
+    const previousSku = product.sku;
 
     if (updateProductDto.sku && updateProductDto.sku !== product.sku) {
       const existingProduct = await this.productRepository.existsBySkuAndShop(updateProductDto.sku, shopId);
@@ -248,8 +251,14 @@ export class ProductService {
       }
     }
 
+    if (this.shouldSyncManagedProduct(product, updateProductDto)) {
+      await this.evotorApiService.upsertProducts(product.externalStoreId!, [
+        this.buildManagedProductPayload(product, updateProductDto),
+      ]);
+    }
+
     await this.productRepository.update(id, updateProductDto as QueryDeepPartialEntity<Product>);
-    await this.invalidateProductCache(shopId, id);
+    await this.invalidateProductCache(shopId, id, previousSku, updateProductDto.sku);
     const updatedProduct = await this.findOne(id, shopId);
 
     this.logger.log(`Product updated successfully: ${updatedProduct.name}`);
@@ -292,7 +301,14 @@ export class ProductService {
   async updateStock(id: string, quantity: number, shopId: string): Promise<Product> {
     this.logger.log(`Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${shopId}`);
 
-    await this.findOne(id, shopId);
+    const product = await this.findOne(id, shopId);
+
+    if (this.shouldSyncManagedProduct(product, { quantity })) {
+      await this.evotorApiService.upsertProducts(product.externalStoreId!, [
+        this.buildManagedProductPayload(product, { quantity }),
+      ]);
+    }
+
     await this.productRepository.updateQuantity(id, shopId, quantity);
     await this.invalidateProductCache(shopId, id);
     const updatedProduct = await this.findOne(id, shopId);
@@ -304,7 +320,15 @@ export class ProductService {
   async adjustStock(id: string, adjustment: number, shopId: string): Promise<Product> {
     this.logger.log(`Adjusting stock for product ID: ${id}, adjustment: ${adjustment} for shop: ${shopId}`);
 
-    await this.findOne(id, shopId);
+    const product = await this.findOne(id, shopId);
+    const nextQuantity = product.quantity + adjustment;
+
+    if (this.shouldSyncManagedProduct(product, { quantity: nextQuantity })) {
+      await this.evotorApiService.upsertProducts(product.externalStoreId!, [
+        this.buildManagedProductPayload(product, { quantity: nextQuantity }),
+      ]);
+    }
+
     await this.productRepository.incrementQuantity(id, shopId, adjustment);
     await this.invalidateProductCache(shopId, id);
     const updatedProduct = await this.findOne(id, shopId);
@@ -487,12 +511,40 @@ export class ProductService {
     return order;
   }
 
-  private async invalidateProductCache(shopId: string, productId?: string): Promise<void> {
+  private async invalidateProductCache(
+    shopId: string,
+    productId?: string,
+    previousSku?: string,
+    nextSku?: string,
+  ): Promise<void> {
     if (productId) {
       await this.cacheService.del(this.cacheService.generateKey('product', 'id', productId));
-      await this.cacheService.del(this.cacheService.generateKey('product', 'sku', shopId, productId));
+    }
+    if (previousSku) {
+      await this.cacheService.del(this.cacheService.generateKey('product', 'sku', shopId, previousSku));
+    }
+    if (nextSku && nextSku !== previousSku) {
+      await this.cacheService.del(this.cacheService.generateKey('product', 'sku', shopId, nextSku));
     }
     await this.cacheService.delPattern(`products:list:${shopId}:*`);
+  }
+
+  private shouldSyncManagedProduct(product: Product, updateProductDto: UpdateProductDto): boolean {
+    if (product.externalSource !== 'evotor' || !product.externalStoreId || !product.externalId) {
+      return false;
+    }
+
+    return ['sku', 'name', 'price', 'quantity'].some((field) => field in updateProductDto);
+  }
+
+  private buildManagedProductPayload(product: Product, updateProductDto: UpdateProductDto) {
+    return {
+      id: product.externalId!,
+      article_number: updateProductDto.sku ?? product.sku,
+      name: updateProductDto.name ?? product.name,
+      price: updateProductDto.price ?? product.price,
+      quantity: updateProductDto.quantity ?? product.quantity,
+    };
   }
 
   private sanitizeImageFileName(fileName: string): string {
