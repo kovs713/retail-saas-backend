@@ -1,3 +1,4 @@
+import { RegistrationApplicationModule } from '@/modules/registration-application/registration-application.module';
 import { AuthConfig, AuthOptions } from '@/common/types';
 import { ShopModule } from '@/modules/shop/shop.module';
 import { UserModule } from '@/modules/user/user.module';
@@ -12,7 +13,7 @@ export class AuthModule {
   static forRoot(): DynamicModule {
     return {
       module: AuthModule,
-      imports: [UserModule, ShopModule],
+      imports: [UserModule, ShopModule, RegistrationApplicationModule],
       providers: [
         {
           provide: AuthConfig,

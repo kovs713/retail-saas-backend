@@ -2,6 +2,8 @@ import { AuthConfig } from '@/common/types';
 import { mockCacheService } from '@/common/utils';
 import { AuthService } from '@/core/auth/auth.service';
 import { CacheService } from '@/core/cache/cache.service';
+import { RegistrationApplication } from '@/modules/registration-application/entities/registration-application.entity';
+import { RegistrationApplicationService } from '@/modules/registration-application/registration-application.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
@@ -48,10 +50,21 @@ describe('AuthService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, Location, User, Product, Category, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([
+          Shop,
+          Location,
+          User,
+          Product,
+          Category,
+          ChatEvent,
+          StorefrontView,
+          Order,
+          RegistrationApplication,
+        ]),
       ],
       providers: [
         AuthService,
+        RegistrationApplicationService,
         UserService,
         UserRepository,
         ShopService,
@@ -88,6 +101,7 @@ describe('AuthService Integration', () => {
     await dataSource.query('DELETE FROM orders');
     await dataSource.query('DELETE FROM products');
     await dataSource.query('DELETE FROM categories');
+    await dataSource.query('DELETE FROM registration_applications');
     await dataSource.query('UPDATE shops SET "ownerId" = NULL');
     await dataSource.query('DELETE FROM users');
     await dataSource.query('DELETE FROM shops');
@@ -99,7 +113,7 @@ describe('AuthService Integration', () => {
     }
   }, 30000);
 
-  it('should rollback shop creation when user email already exists', async () => {
+  it('should reject registration application when user email already exists', async () => {
     await dataSource.getRepository(User).save(
       dataSource.getRepository(User).create({
         email: 'taken@example.com',
@@ -120,9 +134,11 @@ describe('AuthService Integration', () => {
 
     const shops = await dataSource.getRepository(Shop).findBy({ slug: 'rollback-shop' });
     expect(shops).toHaveLength(0);
+    const applications = await dataSource.getRepository(RegistrationApplication).findBy({ email: 'taken@example.com' });
+    expect(applications).toHaveLength(0);
   });
 
-  it('should register user and create shop in a transaction', async () => {
+  it('should create pending registration application without creating user and shop', async () => {
     const result = await authService.register({
       email: 'new@example.com',
       password: 'password123',
@@ -130,14 +146,37 @@ describe('AuthService Integration', () => {
       shopSlug: 'new-shop',
     });
 
-    expect(result.user.email).toBe('new@example.com');
-    expect(result.accessToken).toBe('token');
+    expect(result.email).toBe('new@example.com');
+    expect(result.status).toBe('pending');
 
-    const user = await userService.findByEmail('new@example.com');
-    expect(user.email).toBe('new@example.com');
+    await expect(userService.findByEmail('new@example.com')).rejects.toThrow();
 
-    const shop = await shopService.findBySlug('new-shop');
-    expect(shop.name).toBe('New Shop');
+    await expect(shopService.findBySlug('new-shop')).rejects.toThrow();
+
+    const application = await dataSource.getRepository(RegistrationApplication).findOneByOrFail({ email: 'new@example.com' });
+    expect(application.shopName).toBe('New Shop');
+  });
+
+  it('should approve registration application and create user with shop', async () => {
+    const application = await dataSource.getRepository(RegistrationApplication).save(
+      dataSource.getRepository(RegistrationApplication).create({
+        email: 'approve@example.com',
+        passwordHash: 'hashed-password',
+        shopName: 'Approve Shop',
+        shopSlug: 'approve-shop',
+        status: 'pending',
+      }),
+    );
+
+    const registrationApplicationService = app.get(RegistrationApplicationService);
+    const approved = await registrationApplicationService.approve(application.id);
+
+    expect(approved.status).toBe('approved');
+
+    const user = await userService.findByEmail('approve@example.com');
+    expect(user.shopId).toBeDefined();
+
+    const shop = await shopService.findBySlug('approve-shop');
     expect(shop.ownerId).toBe(user.id);
   });
 

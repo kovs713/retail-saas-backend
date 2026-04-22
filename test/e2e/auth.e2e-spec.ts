@@ -68,8 +68,14 @@ describe('Auth E2E', () => {
   });
 
   describe('POST /auth/register', () => {
-    it('should register user and set refresh token cookie', async () => {
-      service.register.mockResolvedValue(mockAuthResponse);
+    it('should create registration application without auth cookie', async () => {
+      service.register.mockResolvedValue({
+        id: 'application_001',
+        email: 'new@example.com',
+        shopName: 'New Shop',
+        shopSlug: 'new-shop',
+        status: 'pending',
+      } as never);
 
       const response = await request(app.getHttpServer())
         .post('/auth/register')
@@ -82,15 +88,10 @@ describe('Auth E2E', () => {
         .expect(201);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data.accessToken).toBe(mockAuthResponse.accessToken);
-      expect(response.body.data.refreshToken).toBeUndefined();
-      expect(response.body.data.user.id).toBe('user_001');
-      expect(response.body.message).toBe('User registered successfully');
-
-      const setCookie = response.headers['set-cookie'];
-      expect(setCookie).toBeDefined();
-      expect(setCookie[0]).toContain('refreshToken=mock-refresh-token');
-      expect(setCookie[0]).toContain('HttpOnly');
+      expect(response.body.data.id).toBe('application_001');
+      expect(response.body.data.status).toBe('pending');
+      expect(response.body.message).toBe('Registration application created successfully');
+      expect(response.headers['set-cookie']).toBeUndefined();
     });
 
     it('should return 400 for invalid input', async () => {

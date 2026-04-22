@@ -9,6 +9,7 @@ import { EvotorModule } from './modules/evotor/evotor.module';
 import { OrderModule } from './modules/order/order.module';
 import { ProductModule } from './modules/product/product.module';
 import { RagModule } from './modules/rag/rag.module';
+import { RegistrationApplicationModule } from './modules/registration-application/registration-application.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { UserModule } from './modules/user/user.module';
@@ -54,6 +55,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     OrderModule,
     ProductModule,
     RagModule.forRoot(),
+    RegistrationApplicationModule,
     ShopModule,
     StorageModule.forRoot(),
     UserModule,

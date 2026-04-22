@@ -3,7 +3,7 @@ import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { AuthGuard } from '@/common/guards';
 import { AuthConfig, AuthOptions, Request, TokenPayload } from '@/common/types';
 import { AuthService } from './auth.service';
-import { AuthResponseDto, RegisterDto, SignInDto, UserInfoDto } from './dto';
+import { AuthResponseDto, RegisterApplicationResponseDto, RegisterDto, SignInDto, UserInfoDto } from './dto';
 
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -20,24 +20,17 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Register a new user and create a shop' })
-  @ApiResponse({ status: 201, description: 'User registered successfully', type: AuthResponseDto })
+  @ApiOperation({ summary: 'Create a registration application' })
+  @ApiResponse({ status: 201, description: 'Registration application created successfully', type: RegisterApplicationResponseDto })
   @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
   @ApiResponse({ status: 409, description: 'Conflict - Email or shop slug already exists' })
-  async register(
-    @Body() registerDto: RegisterDto,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<AppApiResponse<AuthResponseDto>> {
+  async register(@Body() registerDto: RegisterDto): Promise<AppApiResponse<RegisterApplicationResponseDto>> {
     const result = await this.authService.register(registerDto);
-    this.setRefreshTokenCookie(res, result.refreshToken);
 
     return {
       success: true,
-      data: {
-        accessToken: result.accessToken,
-        user: result.user,
-      },
-      message: 'User registered successfully',
+      data: result,
+      message: 'Registration application created successfully',
     };
   }
 
