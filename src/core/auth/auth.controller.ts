@@ -21,7 +21,11 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a registration application' })
-  @ApiResponse({ status: 201, description: 'Registration application created successfully', type: RegisterApplicationResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Registration application created successfully',
+    type: RegisterApplicationResponseDto,
+  })
   @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
   @ApiResponse({ status: 409, description: 'Conflict - Email or shop slug already exists' })
   async register(@Body() registerDto: RegisterDto): Promise<AppApiResponse<RegisterApplicationResponseDto>> {

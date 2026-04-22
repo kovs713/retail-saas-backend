@@ -2,10 +2,7 @@ import { Roles } from '@/common/decorators';
 import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
-import {
-  RegistrationApplicationDto,
-  RejectRegistrationApplicationDto,
-} from './dto';
+import { RegistrationApplicationDto, RejectRegistrationApplicationDto } from './dto';
 import { RegistrationApplicationService } from './registration-application.service';
 
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';

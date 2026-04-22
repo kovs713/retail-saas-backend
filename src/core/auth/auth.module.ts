@@ -1,5 +1,5 @@
-import { RegistrationApplicationModule } from '@/modules/registration-application/registration-application.module';
 import { AuthConfig, AuthOptions } from '@/common/types';
+import { RegistrationApplicationModule } from '@/modules/registration-application/registration-application.module';
 import { ShopModule } from '@/modules/shop/shop.module';
 import { UserModule } from '@/modules/user/user.module';
 import { AuthController } from './auth.controller';

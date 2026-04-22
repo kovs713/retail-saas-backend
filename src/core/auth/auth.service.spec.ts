@@ -1,6 +1,8 @@
+import { RegistrationStatus } from '@/common/enums';
+import { AuthConfig } from '@/common/types';
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { AuthConfig } from '@/common/types';
+import { RegistrationApplicationService } from '@/modules/registration-application/registration-application.service';
 import { Shop } from '@/modules/shop/entities';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
@@ -11,15 +13,14 @@ import { createMock } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { DataSource, EntityManager, Repository } from 'typeorm';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let dataSource: DataSource;
   let jwtService: JwtService;
   let userService: UserService;
   let shopService: ShopService;
   let cacheService: CacheService;
+  let registrationApplicationService: RegistrationApplicationService;
 
   const mockAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockToken';
 
@@ -66,8 +67,8 @@ describe('AuthService', () => {
           useValue: mockAuthConfig,
         },
         {
-          provide: DataSource,
-          useValue: createMock<DataSource>(),
+          provide: RegistrationApplicationService,
+          useValue: createMock<RegistrationApplicationService>(),
         },
         {
           provide: JwtService,
@@ -89,11 +90,11 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    dataSource = module.get<DataSource>(DataSource);
     jwtService = module.get<JwtService>(JwtService);
     userService = module.get<UserService>(UserService);
     shopService = module.get<ShopService>(ShopService);
     cacheService = module.get<CacheService>(CacheService);
+    registrationApplicationService = module.get<RegistrationApplicationService>(RegistrationApplicationService);
   });
 
   afterEach(() => {
@@ -159,44 +160,28 @@ describe('AuthService', () => {
       shopSlug: 'new-shop',
     };
 
-    it('should register user and create shop successfully', async () => {
-      const createdUser = { ...mockUser, email: mockRegisterDto.email, id: mockUser.id };
-      const createdShop = { ...mockShop, ownerId: createdUser.id };
-
-      const shopRepository = createMock<Repository<Shop>>({
-        create: jest.fn().mockImplementation((value: Shop) => value),
-        save: jest.fn().mockResolvedValueOnce(mockShop).mockResolvedValueOnce(createdShop),
-      });
-
-      const userRepository = createMock<Repository<User>>({
-        create: jest.fn().mockImplementation((value: Shop) => value),
-        save: jest.fn().mockResolvedValue(createdUser),
-      });
-
-      const mockEntityManager = createMock<EntityManager>({
-        getRepository: jest.fn().mockReturnValueOnce(shopRepository).mockReturnValueOnce(userRepository),
-      });
-
-      jest
-        .spyOn(dataSource, 'transaction')
-        .mockImplementation((handler: (em: EntityManager) => Promise<unknown>) => handler(mockEntityManager));
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockRefreshToken);
+    it('should create registration application successfully', async () => {
+      jest.spyOn(registrationApplicationService, 'create').mockResolvedValue({
+        id: 'application-123',
+        email: mockRegisterDto.email,
+        shopName: mockRegisterDto.shopName,
+        shopSlug: mockRegisterDto.shopSlug,
+        status: RegistrationStatus.PENDING,
+      } as any);
 
       const result = await service.register(mockRegisterDto);
 
-      expect(result.accessToken).toBe(mockAccessToken);
-      expect(result.refreshToken).toBe(mockRefreshToken);
-      expect(result.user).toBeDefined();
-      expect(result.user.id).toBe(mockUser.id);
+      expect(result.id).toBe('application-123');
+      expect(result.email).toBe(mockRegisterDto.email);
+      expect(result.shopName).toBe(mockRegisterDto.shopName);
+      expect(result.shopSlug).toBe(mockRegisterDto.shopSlug);
+      expect(result.status).toBe(RegistrationStatus.PENDING);
     });
 
-    it('should throw ConflictException when transaction hits unique constraint', async () => {
-      jest.spyOn(dataSource, 'transaction').mockRejectedValue(
-        Object.assign(new Error('duplicate key'), {
-          driverError: { code: '23505' },
-        }),
-      );
+    it('should throw ConflictException when registration application exists', async () => {
+      jest
+        .spyOn(registrationApplicationService, 'create')
+        .mockRejectedValue(new ConflictException('Email or shop slug already exists'));
 
       await expect(service.register(mockRegisterDto as any)).rejects.toThrow(ConflictException);
     });

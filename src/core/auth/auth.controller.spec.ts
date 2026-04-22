@@ -33,6 +33,14 @@ describe('AuthController', () => {
     user: mockUserInfo,
   };
 
+  const mockRegisterApplicationResponse = {
+    id: 'application-123',
+    email: 'test@example.com',
+    shopName: 'Test Shop',
+    shopSlug: 'test-shop',
+    status: 'PENDING',
+  };
+
   const expectedPublicAuthResponse = {
     accessToken: mockAuthResponse.accessToken,
     user: mockAuthResponse.user,
@@ -69,7 +77,7 @@ describe('AuthController', () => {
   });
 
   describe('register', () => {
-    it('should register a user and return success response', async () => {
+    it('should create a registration application and return success response', async () => {
       const registerDto: RegisterDto = {
         email: 'test@example.com',
         password: 'password123',
@@ -77,20 +85,14 @@ describe('AuthController', () => {
         shopSlug: 'test-shop',
       };
 
-      service.register.mockResolvedValue(mockAuthResponse);
-      const res = mockResponse();
+      service.register.mockResolvedValue(mockRegisterApplicationResponse as any);
 
-      const result = await controller.register(registerDto, res);
+      const result = await controller.register(registerDto);
 
-      expect(res.cookie).toHaveBeenCalledWith(
-        'refreshToken',
-        'refresh-token',
-        expect.objectContaining({ httpOnly: true }),
-      );
       expect(result).toEqual({
         success: true,
-        data: expectedPublicAuthResponse,
-        message: 'User registered successfully',
+        data: mockRegisterApplicationResponse,
+        message: 'Registration application created successfully',
       });
     });
   });

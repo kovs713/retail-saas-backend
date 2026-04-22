@@ -1,3 +1,4 @@
+import { RegistrationStatus } from '@/common/enums';
 import { RegisterDto } from '@/core/auth/dto';
 import { Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
@@ -44,7 +45,7 @@ export class RegistrationApplicationService {
       shopAddress: registerDto.shopAddress ?? null,
       shopPhone: registerDto.shopPhone ?? null,
       shopWorkingHours: registerDto.shopWorkingHours ?? null,
-      status: 'pending',
+      status: RegistrationStatus.PENDING,
       rejectionReason: null,
       reviewedAt: null,
       approvedShopId: null,
@@ -91,7 +92,7 @@ export class RegistrationApplicationService {
       shop.ownerId = user.id;
       await shopRepository.save(shop);
 
-      application.status = 'approved';
+      application.status = RegistrationStatus.APPROVED;
       application.reviewedAt = new Date();
       application.rejectionReason = null;
       application.approvedShopId = shop.id;
@@ -105,7 +106,7 @@ export class RegistrationApplicationService {
 
   async reject(id: string, reason?: string): Promise<RegistrationApplication> {
     const application = await this.findPending(id);
-    application.status = 'rejected';
+    application.status = RegistrationStatus.REJECTED;
     application.reviewedAt = new Date();
     application.rejectionReason = reason ?? null;
     return this.registrationApplicationRepository.save(application);
@@ -118,7 +119,7 @@ export class RegistrationApplicationService {
       throw new NotFoundException('Registration application not found');
     }
 
-    if (application.status !== 'pending') {
+    if (application.status !== RegistrationStatus.PENDING) {
       throw new ConflictException('Registration application already reviewed');
     }
 

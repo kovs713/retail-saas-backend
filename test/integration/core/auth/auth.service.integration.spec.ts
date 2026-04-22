@@ -1,12 +1,13 @@
 import { AuthConfig } from '@/common/types';
+import { RegistrationStatus } from '@/common/enums';
 import { mockCacheService } from '@/common/utils';
 import { AuthService } from '@/core/auth/auth.service';
 import { CacheService } from '@/core/cache/cache.service';
-import { RegistrationApplication } from '@/modules/registration-application/entities/registration-application.entity';
-import { RegistrationApplicationService } from '@/modules/registration-application/registration-application.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
+import { RegistrationApplication } from '@/modules/registration-application/entities/registration-application.entity';
+import { RegistrationApplicationService } from '@/modules/registration-application/registration-application.service';
 import { Location, Shop } from '@/modules/shop/entities';
 import { LocationRepository, ShopRepository } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
@@ -147,13 +148,15 @@ describe('AuthService Integration', () => {
     });
 
     expect(result.email).toBe('new@example.com');
-    expect(result.status).toBe('pending');
+    expect(result.status).toBe(RegistrationStatus.PENDING);
 
     await expect(userService.findByEmail('new@example.com')).rejects.toThrow();
 
     await expect(shopService.findBySlug('new-shop')).rejects.toThrow();
 
-    const application = await dataSource.getRepository(RegistrationApplication).findOneByOrFail({ email: 'new@example.com' });
+    const application = await dataSource
+      .getRepository(RegistrationApplication)
+      .findOneByOrFail({ email: 'new@example.com' });
     expect(application.shopName).toBe('New Shop');
   });
 
@@ -164,14 +167,14 @@ describe('AuthService Integration', () => {
         passwordHash: 'hashed-password',
         shopName: 'Approve Shop',
         shopSlug: 'approve-shop',
-        status: 'pending',
+        status: RegistrationStatus.PENDING,
       }),
     );
 
     const registrationApplicationService = app.get(RegistrationApplicationService);
     const approved = await registrationApplicationService.approve(application.id);
 
-    expect(approved.status).toBe('approved');
+    expect(approved.status).toBe(RegistrationStatus.APPROVED);
 
     const user = await userService.findByEmail('approve@example.com');
     expect(user.shopId).toBeDefined();

@@ -23,10 +23,12 @@ describe('Registration Application E2E', () => {
       .overrideGuard(ThrottlerGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(AuthGuard)
-      .useValue({ canActivate: (context: any) => {
-        context.switchToHttp().getRequest().user = createTokenPayload({ overrides: { role: 'admin', shopId: '' } });
-        return true;
-      } })
+      .useValue({
+        canActivate: (context: any) => {
+          context.switchToHttp().getRequest().user = createTokenPayload({ overrides: { role: 'admin', shopId: '' } });
+          return true;
+        },
+      })
       .overrideGuard(RolesGuard)
       .useValue({ canActivate: () => true })
       .compile();
@@ -77,7 +79,9 @@ describe('Registration Application E2E', () => {
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     } as any);
 
-    const response = await request(app.getHttpServer()).post('/admin/registration-applications/app_001/approve').expect(201);
+    const response = await request(app.getHttpServer())
+      .post('/admin/registration-applications/app_001/approve')
+      .expect(201);
 
     expect(response.body.success).toBe(true);
     expect(response.body.data.status).toBe('approved');
