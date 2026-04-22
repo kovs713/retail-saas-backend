@@ -29,7 +29,11 @@ export class EvotorApiService {
     shopId: string,
     productCount = 0,
     documentCount = 0,
-    catalogPreset: 'default' | 'electronics' | 'fashion' | 'grocery' = 'default',
+    catalogPreset:
+      | 'default'
+      | 'electronics'
+      | 'fashion'
+      | 'grocery' = 'default',
   ): Promise<void> {
     await this.request('/mock/seed', {
       method: 'POST',
@@ -43,11 +47,16 @@ export class EvotorApiService {
   }
 
   async getProducts(storeId: string): Promise<EvotorRemoteProduct[]> {
-    const response = await this.request<{ items: EvotorRemoteProduct[] }>(`/stores/${storeId}/products`);
+    const response = await this.request<{ items: EvotorRemoteProduct[] }>(
+      `/stores/${storeId}/products`,
+    );
     return response.items;
   }
 
-  async upsertProducts(storeId: string, products: EvotorUpsertProduct[]): Promise<void> {
+  async upsertProducts(
+    storeId: string,
+    products: EvotorUpsertProduct[],
+  ): Promise<void> {
     await this.request(`/stores/${storeId}/products`, {
       method: 'PUT',
       body: JSON.stringify(products),
@@ -72,7 +81,9 @@ export class EvotorApiService {
         throw new UnauthorizedException('Evotor mock request unauthorized');
       }
 
-      throw new Error(`Evotor mock request failed with status ${response.status}`);
+      throw new Error(
+        `Evotor mock request failed with status ${response.status}`,
+      );
     }
 
     if (response.status === 204) {

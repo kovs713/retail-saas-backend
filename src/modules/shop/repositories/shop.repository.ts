@@ -6,7 +6,9 @@ import { Not, Repository } from 'typeorm';
 
 @Injectable()
 export class ShopRepository extends Repository<Shop> {
-  constructor(@InjectRepository(Shop) private readonly repository: Repository<Shop>) {
+  constructor(
+    @InjectRepository(Shop) private readonly repository: Repository<Shop>,
+  ) {
     super(Shop, repository.manager);
   }
 

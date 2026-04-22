@@ -1,4 +1,4 @@
-import { AppService } from './app.service';
+import { AppService, MockDocument } from './app.service';
 
 import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 
@@ -7,7 +7,10 @@ export class DocumentController {
   constructor(private readonly appService: AppService) {}
 
   @Get('stores/:storeId/documents')
-  getDocuments(@Param('storeId') storeId: string) {
+  getDocuments(
+    @Param('storeId')
+    storeId: string,
+  ) {
     return {
       items: this.appService.getDocumentsByStoreId(storeId),
       paging: {},
@@ -15,7 +18,12 @@ export class DocumentController {
   }
 
   @Get('stores/:storeId/documents/:documentId')
-  getDocument(@Param('storeId') storeId: string, @Param('documentId') documentId: string) {
+  getDocument(
+    @Param('storeId')
+    storeId: string,
+    @Param('documentId')
+    documentId: string,
+  ): MockDocument {
     const document = this.appService.getDocumentById(storeId, documentId);
 
     if (!document) {
@@ -26,7 +34,12 @@ export class DocumentController {
   }
 
   @Get('stores/:storeId/devices/:deviceId/documents')
-  getDeviceDocuments(@Param('storeId') storeId: string, @Param('deviceId') deviceId: string) {
+  getDeviceDocuments(
+    @Param('storeId')
+    storeId: string,
+    @Param('deviceId')
+    deviceId: string,
+  ) {
     return {
       items: this.appService.getDocumentsByDeviceId(storeId, deviceId),
       paging: {},

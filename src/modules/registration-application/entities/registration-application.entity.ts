@@ -1,6 +1,13 @@
 import { RegistrationStatus } from '@/common/enums';
 
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity('registration_applications')
 @Index(['email'], { unique: true })
@@ -34,7 +41,11 @@ export class RegistrationApplication {
   @Column({ type: 'jsonb', nullable: true })
   shopWorkingHours: Record<string, string> | null;
 
-  @Column({ type: 'enum', enum: RegistrationStatus, default: RegistrationStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: RegistrationStatus,
+    default: RegistrationStatus.PENDING,
+  })
   status: RegistrationStatus;
 
   @Column({ type: 'text', nullable: true })

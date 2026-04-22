@@ -32,7 +32,16 @@ describe('OrderRepository Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, Location, User, Product, Category, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([
+          Shop,
+          Location,
+          User,
+          Product,
+          Category,
+          ChatEvent,
+          StorefrontView,
+          Order,
+        ]),
       ],
       providers: [OrderRepository],
     }).compile();
@@ -67,7 +76,11 @@ describe('OrderRepository Integration', () => {
     );
   };
 
-  const createOrder = async (shopId: string, status: Order['status'], customerName: string): Promise<Order> => {
+  const createOrder = async (
+    shopId: string,
+    status: Order['status'],
+    customerName: string,
+  ): Promise<Order> => {
     return dataSource.getRepository(Order).save(
       dataSource.getRepository(Order).create({
         shopId,
@@ -99,7 +112,10 @@ describe('OrderRepository Integration', () => {
     const secondOrder = await createOrder(shop.id, 'PENDING', 'Second');
     await createOrder(shop.id, 'PENDING', 'Third');
 
-    const [orders, total] = await repository.findByShopId(shop.id, { page: 2, limit: 1 });
+    const [orders, total] = await repository.findByShopId(shop.id, {
+      page: 2,
+      limit: 1,
+    });
 
     expect(total).toBe(3);
     expect(orders).toHaveLength(1);
@@ -113,7 +129,9 @@ describe('OrderRepository Integration', () => {
     await createOrder(shopA.id, 'COMPLETED', 'Completed');
     await createOrder(shopB.id, 'PENDING', 'Other shop');
 
-    const [orders, total] = await repository.findByShopId(shopA.id, { status: 'PENDING' });
+    const [orders, total] = await repository.findByShopId(shopA.id, {
+      status: 'PENDING',
+    });
 
     expect(total).toBe(1);
     expect(orders).toHaveLength(1);

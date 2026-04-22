@@ -60,7 +60,10 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         { provide: AuthConfig, useValue: mockAuthConfig },
-        { provide: JwtConfig, useValue: { secret: 'test-secret', expiresIn: '1h' } },
+        {
+          provide: JwtConfig,
+          useValue: { secret: 'test-secret', expiresIn: '1h' },
+        },
         { provide: AuthService, useValue: createMock<AuthService>() },
         { provide: JwtService, useValue: createMock<JwtService>() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
@@ -85,7 +88,9 @@ describe('AuthController', () => {
         shopSlug: 'test-shop',
       };
 
-      service.register.mockResolvedValue(mockRegisterApplicationResponse as any);
+      service.register.mockResolvedValue(
+        mockRegisterApplicationResponse as any,
+      );
 
       const result = await controller.register(registerDto);
 
@@ -153,13 +158,20 @@ describe('AuthController', () => {
       const req: any = { headers: {} };
       const res = mockResponse();
 
-      await expect(controller.refresh(req, res)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.refresh(req, res)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
   describe('me', () => {
     it('should return current user profile', async () => {
-      const payload = { sub: 'user-123', email: 'test@example.com', shopId: 'shop-456', role: 'owner' };
+      const payload = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        shopId: 'shop-456',
+        role: 'owner',
+      };
 
       service.getProfile.mockResolvedValue(mockUserInfo);
 

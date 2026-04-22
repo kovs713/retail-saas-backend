@@ -5,9 +5,15 @@ import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
-import { CategoryRepository, ProductRepository } from '@/modules/product/repositories';
+import {
+  CategoryRepository,
+  ProductRepository,
+} from '@/modules/product/repositories';
 import { Location, Shop } from '@/modules/shop/entities';
-import { LocationRepository, ShopRepository } from '@/modules/shop/repositories';
+import {
+  LocationRepository,
+  ShopRepository,
+} from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { StorageService } from '@/modules/storage/storage.service';
 import { User } from '@/modules/user/entities';
@@ -42,7 +48,16 @@ describe('ProductService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, Location, User, Product, Category, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([
+          Shop,
+          Location,
+          User,
+          Product,
+          Category,
+          ChatEvent,
+          StorefrontView,
+          Order,
+        ]),
       ],
       providers: [
         ProductService,
@@ -111,11 +126,18 @@ describe('ProductService Integration', () => {
     });
 
     it('should throw ConflictException for duplicate SKU', async () => {
-      const dto = { sku: 'PROD-001', name: 'Test Product', price: 100, quantity: 100 };
+      const dto = {
+        sku: 'PROD-001',
+        name: 'Test Product',
+        price: 100,
+        quantity: 100,
+      };
 
       await productService.create(dto, shopId);
 
-      await expect(productService.create(dto, shopId)).rejects.toThrow('Product with this SKU already exists');
+      await expect(productService.create(dto, shopId)).rejects.toThrow(
+        'Product with this SKU already exists',
+      );
     });
   });
 
@@ -123,14 +145,35 @@ describe('ProductService Integration', () => {
     beforeEach(async () => {
       const repo = dataSource.getRepository(Product);
       await repo.save([
-        repo.create({ sku: 'PROD-001', name: 'Test Product 1', price: 100, quantity: 10, shopId }),
-        repo.create({ sku: 'PROD-002', name: 'Test Product 2', price: 150, quantity: 20, shopId }),
-        repo.create({ sku: 'PROD-003', name: 'Another Product', price: 80, quantity: 30, shopId }),
+        repo.create({
+          sku: 'PROD-001',
+          name: 'Test Product 1',
+          price: 100,
+          quantity: 10,
+          shopId,
+        }),
+        repo.create({
+          sku: 'PROD-002',
+          name: 'Test Product 2',
+          price: 150,
+          quantity: 20,
+          shopId,
+        }),
+        repo.create({
+          sku: 'PROD-003',
+          name: 'Another Product',
+          price: 80,
+          quantity: 30,
+          shopId,
+        }),
       ]);
     });
 
     it('should search products by name', async () => {
-      const result = await productService.findAll({ page: 1, limit: 10, search: 'Test' }, shopId);
+      const result = await productService.findAll(
+        { page: 1, limit: 10, search: 'Test' },
+        shopId,
+      );
 
       expect(result.data).toHaveLength(2);
       expect(result.data?.every((p) => p.name.includes('Test'))).toBe(true);
@@ -139,17 +182,28 @@ describe('ProductService Integration', () => {
     it('should escape special characters in search', async () => {
       const repo = dataSource.getRepository(Product);
       const special = await repo.save(
-        repo.create({ sku: 'PROD-SPECIAL', name: 'Product %_special chars', price: 50, quantity: 5, shopId }),
+        repo.create({
+          sku: 'PROD-SPECIAL',
+          name: 'Product %_special chars',
+          price: 50,
+          quantity: 5,
+          shopId,
+        }),
       );
 
-      const result = await productService.findAll({ page: 1, limit: 10, search: '%_' }, shopId);
+      const result = await productService.findAll(
+        { page: 1, limit: 10, search: '%_' },
+        shopId,
+      );
 
       expect(result.data?.some((p) => p.id === special.id)).toBe(true);
     });
 
     it('should filter by category', async () => {
       const catRepo = dataSource.getRepository(Category);
-      const category = await catRepo.save(catRepo.create({ name: 'Electronics', slug: 'electronics', shopId }));
+      const category = await catRepo.save(
+        catRepo.create({ name: 'Electronics', slug: 'electronics', shopId }),
+      );
 
       const prodRepo = dataSource.getRepository(Product);
       await prodRepo.save(
@@ -163,13 +217,21 @@ describe('ProductService Integration', () => {
         }),
       );
 
-      const result = await productService.findAll({ page: 1, limit: 10, category: category.id }, shopId);
+      const result = await productService.findAll(
+        { page: 1, limit: 10, category: category.id },
+        shopId,
+      );
 
-      expect(result.data?.every((p) => p.categoryId === category.id)).toBe(true);
+      expect(result.data?.every((p) => p.categoryId === category.id)).toBe(
+        true,
+      );
     });
 
     it('should return paginated results', async () => {
-      const result = await productService.findAll({ page: 1, limit: 2 }, shopId);
+      const result = await productService.findAll(
+        { page: 1, limit: 2 },
+        shopId,
+      );
 
       expect(result.data).toHaveLength(2);
       expect(result.pagination?.total).toBe(3);
@@ -187,7 +249,9 @@ describe('ProductService Integration', () => {
 
       await productService.remove(product.id, shopId);
 
-      await expect(productService.findOne(product.id, shopId)).rejects.toThrow('Product not found');
+      await expect(productService.findOne(product.id, shopId)).rejects.toThrow(
+        'Product not found',
+      );
     });
 
     it('should restore a soft deleted product', async () => {
@@ -227,13 +291,22 @@ describe('ProductService Integration', () => {
       );
 
       const product = await productService.create(
-        { sku: 'PROD-OTHER-1', name: 'Other Product', price: 100, quantity: 100 },
+        {
+          sku: 'PROD-OTHER-1',
+          name: 'Other Product',
+          price: 100,
+          quantity: 100,
+        },
         otherShop.id,
       );
 
-      await expect(productService.updateStock(product.id, 150, shopId)).rejects.toThrow('Product not found');
+      await expect(
+        productService.updateStock(product.id, 150, shopId),
+      ).rejects.toThrow('Product not found');
 
-      const persisted = await dataSource.getRepository(Product).findOneByOrFail({ id: product.id });
+      const persisted = await dataSource
+        .getRepository(Product)
+        .findOneByOrFail({ id: product.id });
       expect(persisted.quantity).toBe(100);
     });
 
@@ -256,13 +329,22 @@ describe('ProductService Integration', () => {
       );
 
       const product = await productService.create(
-        { sku: 'PROD-OTHER-2', name: 'Other Product', price: 100, quantity: 100 },
+        {
+          sku: 'PROD-OTHER-2',
+          name: 'Other Product',
+          price: 100,
+          quantity: 100,
+        },
         otherShop.id,
       );
 
-      await expect(productService.adjustStock(product.id, 50, shopId)).rejects.toThrow('Product not found');
+      await expect(
+        productService.adjustStock(product.id, 50, shopId),
+      ).rejects.toThrow('Product not found');
 
-      const persisted = await dataSource.getRepository(Product).findOneByOrFail({ id: product.id });
+      const persisted = await dataSource
+        .getRepository(Product)
+        .findOneByOrFail({ id: product.id });
       expect(persisted.quantity).toBe(100);
     });
 
@@ -280,7 +362,12 @@ describe('ProductService Integration', () => {
   describe('findOneBySku', () => {
     it('should find product by SKU', async () => {
       const created = await productService.create(
-        { sku: 'UNIQUE-SKU-123', name: 'Test Product', price: 100, quantity: 100 },
+        {
+          sku: 'UNIQUE-SKU-123',
+          name: 'Test Product',
+          price: 100,
+          quantity: 100,
+        },
         shopId,
       );
 
@@ -291,7 +378,9 @@ describe('ProductService Integration', () => {
     });
 
     it('should throw NotFoundException for non-existent SKU', async () => {
-      await expect(productService.findOneBySku('NON-EXISTENT', shopId)).rejects.toThrow('Product not found');
+      await expect(
+        productService.findOneBySku('NON-EXISTENT', shopId),
+      ).rejects.toThrow('Product not found');
     });
   });
 
@@ -320,9 +409,27 @@ describe('ProductService Integration', () => {
     it('should return products below threshold', async () => {
       const repo = dataSource.getRepository(Product);
       await repo.save([
-        repo.create({ sku: 'PROD-LOW-1', name: 'Low Stock 1', price: 10, quantity: 5, shopId }),
-        repo.create({ sku: 'PROD-LOW-2', name: 'Low Stock 2', price: 20, quantity: 3, shopId }),
-        repo.create({ sku: 'PROD-HIGH', name: 'High Stock', price: 30, quantity: 100, shopId }),
+        repo.create({
+          sku: 'PROD-LOW-1',
+          name: 'Low Stock 1',
+          price: 10,
+          quantity: 5,
+          shopId,
+        }),
+        repo.create({
+          sku: 'PROD-LOW-2',
+          name: 'Low Stock 2',
+          price: 20,
+          quantity: 3,
+          shopId,
+        }),
+        repo.create({
+          sku: 'PROD-HIGH',
+          name: 'High Stock',
+          price: 30,
+          quantity: 100,
+          shopId,
+        }),
       ]);
 
       const result = await productService.findLowStock(10, shopId);
@@ -337,14 +444,36 @@ describe('ProductService Integration', () => {
 
     beforeEach(async () => {
       const catRepo = dataSource.getRepository(Category);
-      const category = await catRepo.save(catRepo.create({ name: 'Electronics', slug: 'electronics', shopId }));
+      const category = await catRepo.save(
+        catRepo.create({ name: 'Electronics', slug: 'electronics', shopId }),
+      );
       categoryId = category.id;
 
       const prodRepo = dataSource.getRepository(Product);
       await prodRepo.save([
-        prodRepo.create({ sku: 'PROD-001', name: 'Product 1', price: 100, quantity: 10, shopId, categoryId }),
-        prodRepo.create({ sku: 'PROD-002', name: 'Product 2', price: 150, quantity: 20, shopId, categoryId }),
-        prodRepo.create({ sku: 'PROD-003', name: 'Product 3', price: 80, quantity: 30, shopId }),
+        prodRepo.create({
+          sku: 'PROD-001',
+          name: 'Product 1',
+          price: 100,
+          quantity: 10,
+          shopId,
+          categoryId,
+        }),
+        prodRepo.create({
+          sku: 'PROD-002',
+          name: 'Product 2',
+          price: 150,
+          quantity: 20,
+          shopId,
+          categoryId,
+        }),
+        prodRepo.create({
+          sku: 'PROD-003',
+          name: 'Product 3',
+          price: 80,
+          quantity: 30,
+          shopId,
+        }),
       ]);
     });
 

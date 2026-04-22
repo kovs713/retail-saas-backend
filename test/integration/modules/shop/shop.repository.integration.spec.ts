@@ -31,7 +31,14 @@ describe('ShopRepository Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, Location, User, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([
+          Shop,
+          Location,
+          User,
+          ChatEvent,
+          StorefrontView,
+          Order,
+        ]),
       ],
       providers: [ShopRepository],
     }).compile();
@@ -66,7 +73,11 @@ describe('ShopRepository Integration', () => {
     );
   };
 
-  const createShop = async (name: string, slug: string, ownerId?: string | null): Promise<Shop> => {
+  const createShop = async (
+    name: string,
+    slug: string,
+    ownerId?: string | null,
+  ): Promise<Shop> => {
     return dataSource.getRepository(Shop).save(
       dataSource.getRepository(Shop).create({
         name,
@@ -96,9 +107,19 @@ describe('ShopRepository Integration', () => {
 
   it('findByOwnerId returns the shop owned by the given user', async () => {
     const owner = await createUser(`owner-${Date.now()}@example.com`);
-    const otherOwner = await createUser(`other-owner-${Date.now()}@example.com`);
-    const ownedShop = await createShop('Owned Shop', `owned-shop-${Date.now()}`, owner.id);
-    await createShop('Other Owned Shop', `other-owned-shop-${Date.now()}`, otherOwner.id);
+    const otherOwner = await createUser(
+      `other-owner-${Date.now()}@example.com`,
+    );
+    const ownedShop = await createShop(
+      'Owned Shop',
+      `owned-shop-${Date.now()}`,
+      owner.id,
+    );
+    await createShop(
+      'Other Owned Shop',
+      `other-owned-shop-${Date.now()}`,
+      otherOwner.id,
+    );
 
     const result = await repository.findByOwnerId(owner.id);
 
@@ -107,18 +128,33 @@ describe('ShopRepository Integration', () => {
   });
 
   it('existsBySlug returns true only for existing slug', async () => {
-    const savedShop = await createShop('Exists Shop', `exists-shop-${Date.now()}`);
+    const savedShop = await createShop(
+      'Exists Shop',
+      `exists-shop-${Date.now()}`,
+    );
 
     await expect(repository.existsBySlug(savedShop.slug)).resolves.toBe(true);
-    await expect(repository.existsBySlug(`missing-${Date.now()}`)).resolves.toBe(false);
+    await expect(
+      repository.existsBySlug(`missing-${Date.now()}`),
+    ).resolves.toBe(false);
   });
 
   it('existsBySlugAndNotId ignores the current shop id and detects another shop with the slug', async () => {
-    const currentShop = await createShop('Current Shop', `current-shop-${Date.now()}`);
-    const otherShop = await createShop('Other Shop', `other-shop-${Date.now()}`);
+    const currentShop = await createShop(
+      'Current Shop',
+      `current-shop-${Date.now()}`,
+    );
+    const otherShop = await createShop(
+      'Other Shop',
+      `other-shop-${Date.now()}`,
+    );
 
-    await expect(repository.existsBySlugAndNotId(currentShop.slug, currentShop.id)).resolves.toBe(false);
+    await expect(
+      repository.existsBySlugAndNotId(currentShop.slug, currentShop.id),
+    ).resolves.toBe(false);
 
-    await expect(repository.existsBySlugAndNotId(otherShop.slug, currentShop.id)).resolves.toBe(true);
+    await expect(
+      repository.existsBySlugAndNotId(otherShop.slug, currentShop.id),
+    ).resolves.toBe(true);
   });
 });

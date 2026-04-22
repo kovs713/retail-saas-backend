@@ -1,13 +1,21 @@
 import { AuthGuard } from '@/common/guards';
 import { AuthConfig } from '@/common/types';
 import { mockAuthGuard } from '@/common/utils';
-import { createAuthResponseDto, createTokenPayload } from '@/core/database/factories';
+import {
+  createAuthResponseDto,
+  createTokenPayload,
+} from '@/core/database/factories';
 import { AuthController } from '@/core/auth/auth.controller';
 import { AuthOptions } from '@/core/auth/auth.module';
 import { AuthService } from '@/core/auth/auth.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { ConflictException, INestApplication, UnauthorizedException, ValidationPipe } from '@nestjs/common';
+import {
+  ConflictException,
+  INestApplication,
+  UnauthorizedException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
@@ -17,7 +25,9 @@ describe('Auth E2E', () => {
   let app: INestApplication;
   let service: DeepMocked<AuthService>;
 
-  const mockUser = createTokenPayload({ overrides: { sub: 'user_001', shopId: 'shop_001' } });
+  const mockUser = createTokenPayload({
+    overrides: { sub: 'user_001', shopId: 'shop_001' },
+  });
 
   const mockAuthConfig: AuthOptions = {
     refreshTokenCookie: 'refreshToken',
@@ -90,18 +100,25 @@ describe('Auth E2E', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.id).toBe('application_001');
       expect(response.body.data.status).toBe('pending');
-      expect(response.body.message).toBe('Registration application created successfully');
+      expect(response.body.message).toBe(
+        'Registration application created successfully',
+      );
       expect(response.headers['set-cookie']).toBeUndefined();
     });
 
     it('should return 400 for invalid input', async () => {
-      const response = await request(app.getHttpServer()).post('/auth/register').send({ email: 'invalid' }).expect(400);
+      const response = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: 'invalid' })
+        .expect(400);
 
       expect(response.body.message).toBeDefined();
     });
 
     it('should return 409 for duplicate email', async () => {
-      service.register.mockRejectedValue(new ConflictException('Email already exists'));
+      service.register.mockRejectedValue(
+        new ConflictException('Email already exists'),
+      );
 
       await request(app.getHttpServer())
         .post('/auth/register')
@@ -134,7 +151,9 @@ describe('Auth E2E', () => {
     });
 
     it('should return 401 for invalid credentials', async () => {
-      service.signIn.mockRejectedValue(new UnauthorizedException('Invalid credentials'));
+      service.signIn.mockRejectedValue(
+        new UnauthorizedException('Invalid credentials'),
+      );
 
       await request(app.getHttpServer())
         .post('/auth/login')

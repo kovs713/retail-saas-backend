@@ -14,8 +14,14 @@ export class EvotorApiModule {
           provide: EvotorConfig,
           inject: [ConfigService],
           useFactory: (configService: ConfigService): EvotorOptions => ({
-            baseUrl: configService.getOrThrow<string>('EVOTOR_BASE_URL', 'http://localhost:3001'),
-            token: configService.getOrThrow<string>('EVOTOR_TOKEN', 'mock-evotor-token'),
+            baseUrl: configService.getOrThrow<string>(
+              'EVOTOR_BASE_URL',
+              'http://localhost:3001',
+            ),
+            token: configService.getOrThrow<string>(
+              'EVOTOR_TOKEN',
+              'mock-evotor-token',
+            ),
           }),
         },
 

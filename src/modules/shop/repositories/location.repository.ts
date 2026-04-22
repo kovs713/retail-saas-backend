@@ -30,7 +30,10 @@ export class LocationRepository extends Repository<Location> {
     });
   }
 
-  async findByIdAndShopId(id: string, shopId: string): Promise<Location | null> {
+  async findByIdAndShopId(
+    id: string,
+    shopId: string,
+  ): Promise<Location | null> {
     return this.repository.findOne({
       where: {
         id,

@@ -8,7 +8,10 @@ export class CreateCategoryDto {
   @MaxLength(100)
   name: string;
 
-  @ApiProperty({ description: 'Category slug (URL-friendly)', example: 'korma' })
+  @ApiProperty({
+    description: 'Category slug (URL-friendly)',
+    example: 'korma',
+  })
   @IsNotEmpty()
   @IsString()
   @MaxLength(100)

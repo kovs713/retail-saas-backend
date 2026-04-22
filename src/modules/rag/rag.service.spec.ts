@@ -46,7 +46,8 @@ describe('RagService', () => {
 
     service = module.get<RagService>(RagService);
     llmService = module.get<DeepMocked<LLMService>>(LLMService);
-    vectorStoreService = module.get<DeepMocked<VectorStoreService>>(VectorStoreService);
+    vectorStoreService =
+      module.get<DeepMocked<VectorStoreService>>(VectorStoreService);
     productService = module.get<DeepMocked<ProductService>>(ProductService);
   });
 
@@ -66,7 +67,10 @@ describe('RagService', () => {
 
       vectorStoreService.addDocuments.mockResolvedValue(mockIds);
 
-      const result = await service.addDocuments(mockDocuments, mockTenantContext);
+      const result = await service.addDocuments(
+        mockDocuments,
+        mockTenantContext,
+      );
 
       expect(result).toEqual(mockIds);
     });
@@ -82,7 +86,9 @@ describe('RagService', () => {
 
       vectorStoreService.addDocuments.mockRejectedValue(mockError);
 
-      await expect(service.addDocuments(mockDocuments, mockTenantContext)).rejects.toThrow('Vector store error');
+      await expect(
+        service.addDocuments(mockDocuments, mockTenantContext),
+      ).rejects.toThrow('Vector store error');
     });
   });
 
@@ -114,7 +120,9 @@ describe('RagService', () => {
           totalPages: 1,
         },
       });
-      expect(vectorStoreService.getDocuments).toHaveBeenCalledWith(mockTenantContext);
+      expect(vectorStoreService.getDocuments).toHaveBeenCalledWith(
+        mockTenantContext,
+      );
     });
 
     it('should use default pagination values', async () => {
@@ -135,7 +143,11 @@ describe('RagService', () => {
 
       vectorStoreService.addTexts.mockResolvedValue(mockIds);
 
-      const result = await service.addTexts(mockTexts, mockTenantContext, mockMetadatas);
+      const result = await service.addTexts(
+        mockTexts,
+        mockTenantContext,
+        mockMetadatas,
+      );
 
       expect(result).toEqual(mockIds);
     });
@@ -176,7 +188,8 @@ describe('RagService', () => {
 
     it('should handle empty results', async () => {
       const mockQuery = 'Non-existent topic';
-      const mockEmptyAnswer = "I don't have enough information to answer this question based on the available context.";
+      const mockEmptyAnswer =
+        "I don't have enough information to answer this question based on the available context.";
 
       vectorStoreService.similaritySearch.mockResolvedValue([]);
       llmService.generateText.mockResolvedValue(mockEmptyAnswer);
@@ -212,7 +225,11 @@ describe('RagService', () => {
         pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
       });
 
-      const result = await service.query(mockQuery, mockTenantContext, mockMaxResults);
+      const result = await service.query(
+        mockQuery,
+        mockTenantContext,
+        mockMaxResults,
+      );
 
       expect(result.answer).toBe('Test answer');
     });
@@ -240,7 +257,10 @@ describe('RagService', () => {
         })
         .mockResolvedValueOnce({
           success: true,
-          data: [inStockProduct as any, { ...inStockProduct, id: 'product-2', quantity: 0 }],
+          data: [
+            inStockProduct as any,
+            { ...inStockProduct, id: 'product-2', quantity: 0 },
+          ],
           pagination: { total: 2, page: 1, limit: 50, totalPages: 1 },
         });
 
@@ -251,20 +271,40 @@ describe('RagService', () => {
         { page: 1, limit: 50, search: mockQuery },
         mockTenantContext,
       );
-      expect(productService.findAll).toHaveBeenNthCalledWith(2, { page: 1, limit: 50 }, mockTenantContext);
+      expect(productService.findAll).toHaveBeenNthCalledWith(
+        2,
+        { page: 1, limit: 50 },
+        mockTenantContext,
+      );
       expect(result.sources).toEqual([
         {
           pageContent:
             'Product: Milk\nSKU: MILK-001\nPrice: 120\nQuantity: 8\nCategory: Dairy\nStock status: in stock\nDescription: Fresh milk',
-          metadata: { source: 'postgresql', productId: 'product-1', type: 'product' },
+          metadata: {
+            source: 'postgresql',
+            productId: 'product-1',
+            type: 'product',
+          },
         },
       ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('## Catalog summary:'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('In-stock products: 1'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Categories: Dairy (1)'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Price range: 120-120'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Product: Milk'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.not.stringContaining('Quantity: 0'));
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('## Catalog summary:'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('In-stock products: 1'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('Categories: Dairy (1)'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('Price range: 120-120'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('Product: Milk'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.not.stringContaining('Quantity: 0'),
+      );
     });
 
     it('should detect english availability phrasing and use in-stock fallback', async () => {
@@ -296,10 +336,19 @@ describe('RagService', () => {
 
       const result = await service.query(mockQuery, mockTenantContext);
 
-      expect(productService.findAll).toHaveBeenNthCalledWith(2, { page: 1, limit: 50 }, mockTenantContext);
+      expect(productService.findAll).toHaveBeenNthCalledWith(
+        2,
+        { page: 1, limit: 50 },
+        mockTenantContext,
+      );
       expect(result.sources[0]).toEqual({
-        pageContent: 'Product: Bread\nSKU: BREAD-001\nPrice: 90\nQuantity: 4\nStock status: in stock',
-        metadata: { source: 'postgresql', productId: 'product-1', type: 'product' },
+        pageContent:
+          'Product: Bread\nSKU: BREAD-001\nPrice: 90\nQuantity: 4\nStock status: in stock',
+        metadata: {
+          source: 'postgresql',
+          productId: 'product-1',
+          type: 'product',
+        },
       });
     });
 
@@ -342,16 +391,28 @@ describe('RagService', () => {
 
       const result = await service.query(mockQuery, mockTenantContext);
 
-      expect(productService.findAll).toHaveBeenNthCalledWith(2, { page: 1, limit: 50 }, mockTenantContext);
+      expect(productService.findAll).toHaveBeenNthCalledWith(
+        2,
+        { page: 1, limit: 50 },
+        mockTenantContext,
+      );
       expect(result.sources).toEqual([
         {
           pageContent:
             'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Phones\nStock status: in stock\nDescription: Smartphone',
-          metadata: { source: 'postgresql', productId: 'product-1', type: 'product' },
+          metadata: {
+            source: 'postgresql',
+            productId: 'product-1',
+            type: 'product',
+          },
         },
       ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Product: iPhone 15'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.not.stringContaining('Gaming Laptop'));
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('Product: iPhone 15'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.not.stringContaining('Gaming Laptop'),
+      );
     });
 
     it('should ignore accessory-only search hits and fall back to matching phones', async () => {
@@ -398,16 +459,28 @@ describe('RagService', () => {
         { page: 1, limit: 50, search: mockQuery },
         mockTenantContext,
       );
-      expect(productService.findAll).toHaveBeenNthCalledWith(2, { page: 1, limit: 50 }, mockTenantContext);
+      expect(productService.findAll).toHaveBeenNthCalledWith(
+        2,
+        { page: 1, limit: 50 },
+        mockTenantContext,
+      );
       expect(result.sources).toEqual([
         {
           pageContent:
             'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Phones\nStock status: in stock\nDescription: Smartphone',
-          metadata: { source: 'postgresql', productId: 'product-2', type: 'product' },
+          metadata: {
+            source: 'postgresql',
+            productId: 'product-2',
+            type: 'product',
+          },
         },
       ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Product: iPhone 15'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.not.stringContaining('Phone Case'));
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('Product: iPhone 15'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.not.stringContaining('Phone Case'),
+      );
     });
 
     it('should match smartphones and phone accessories for phone-related query', async () => {
@@ -444,7 +517,9 @@ describe('RagService', () => {
       };
 
       vectorStoreService.similaritySearch.mockResolvedValue([]);
-      llmService.generateText.mockResolvedValue('iPhone 15 and charger available');
+      llmService.generateText.mockResolvedValue(
+        'iPhone 15 and charger available',
+      );
       productService.findAll
         .mockResolvedValueOnce({
           success: true,
@@ -453,7 +528,11 @@ describe('RagService', () => {
         })
         .mockResolvedValueOnce({
           success: true,
-          data: [smartphoneProduct as any, accessoryProduct as any, unrelatedProduct as any],
+          data: [
+            smartphoneProduct as any,
+            accessoryProduct as any,
+            unrelatedProduct as any,
+          ],
           pagination: { total: 3, page: 1, limit: 50, totalPages: 1 },
         });
 
@@ -463,17 +542,31 @@ describe('RagService', () => {
         {
           pageContent:
             'Product: Wireless Charger\nSKU: CHARGER-01\nPrice: 49\nQuantity: 12\nCategory: Accessories\nStock status: in stock\nDescription: Phone accessory charger',
-          metadata: { source: 'postgresql', productId: 'product-2', type: 'product' },
+          metadata: {
+            source: 'postgresql',
+            productId: 'product-2',
+            type: 'product',
+          },
         },
         {
           pageContent:
             'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Smartphones\nStock status: in stock\nDescription: Smartphone',
-          metadata: { source: 'postgresql', productId: 'product-1', type: 'product' },
+          metadata: {
+            source: 'postgresql',
+            productId: 'product-1',
+            type: 'product',
+          },
         },
       ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Product: Wireless Charger'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Product: iPhone 15'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.not.stringContaining('Gaming Mouse'));
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('Product: Wireless Charger'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('Product: iPhone 15'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.not.stringContaining('Gaming Mouse'),
+      );
     });
   });
 
@@ -484,13 +577,20 @@ describe('RagService', () => {
 
       productService.findAll.mockResolvedValue({
         success: true,
-        data: [lowStock as any, { id: 'product-3', name: 'Sugar', quantity: 0 } as any, highStock as any],
+        data: [
+          lowStock as any,
+          { id: 'product-3', name: 'Sugar', quantity: 0 } as any,
+          highStock as any,
+        ],
         pagination: { total: 3, page: 1, limit: 100, totalPages: 1 },
       });
 
       const result = await service.getAvailableProducts(mockTenantContext);
 
-      expect(productService.findAll).toHaveBeenCalledWith({ page: 1, limit: 100 }, mockTenantContext);
+      expect(productService.findAll).toHaveBeenCalledWith(
+        { page: 1, limit: 100 },
+        mockTenantContext,
+      );
       expect(result).toEqual([highStock, lowStock]);
     });
   });
@@ -505,7 +605,9 @@ describe('RagService', () => {
       const mockDocsWithScores: [any, number][] = [[mockDocument, 0.95]];
       const mockAnswer = 'Test answer with scores';
 
-      vectorStoreService.similaritySearchWithScore.mockResolvedValue(mockDocsWithScores);
+      vectorStoreService.similaritySearchWithScore.mockResolvedValue(
+        mockDocsWithScores,
+      );
       vectorStoreService.similaritySearch.mockResolvedValue([mockDocument]);
       llmService.generateText.mockResolvedValue(mockAnswer);
       productService.findAll.mockResolvedValue({
@@ -514,7 +616,10 @@ describe('RagService', () => {
         pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
       });
 
-      const result = await service.queryWithScores(mockQuery, mockTenantContext);
+      const result = await service.queryWithScores(
+        mockQuery,
+        mockTenantContext,
+      );
 
       expect(result).toEqual({
         answer: mockAnswer,

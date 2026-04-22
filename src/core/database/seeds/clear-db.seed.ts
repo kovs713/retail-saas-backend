@@ -15,7 +15,8 @@ async function bootstrap() {
 }
 
 bootstrap().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : 'Unknown clear-db error';
+  const message =
+    error instanceof Error ? error.message : 'Unknown clear-db error';
   process.stderr.write(`${message}\n`);
   process.exit(1);
 });

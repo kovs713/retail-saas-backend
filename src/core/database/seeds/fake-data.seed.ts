@@ -97,7 +97,15 @@ const SHOP_SEEDS: ShopSeedData[] = [
 
 async function clearDatabase(dataSource: DataSource): Promise<void> {
   await dataSource.transaction(async () => {
-    for (const table of ['products', 'categories', 'orders', 'chat_events', 'storefront_views', 'users', 'shops']) {
+    for (const table of [
+      'products',
+      'categories',
+      'orders',
+      'chat_events',
+      'storefront_views',
+      'users',
+      'shops',
+    ]) {
       await dataSource.query(`DELETE FROM "${table}"`);
     }
   });
@@ -121,7 +129,10 @@ async function seedShops(dataSource: DataSource): Promise<Shop[]> {
   );
 }
 
-async function seedUsers(dataSource: DataSource, shops: Shop[]): Promise<User[]> {
+async function seedUsers(
+  dataSource: DataSource,
+  shops: Shop[],
+): Promise<User[]> {
   const userRepo = dataSource.getRepository(User);
   const passwordHash = await hash('changeme123', 10);
   const adminPasswordHash = await hash('admin123', 10);
@@ -175,7 +186,10 @@ async function seedUsers(dataSource: DataSource, shops: Shop[]): Promise<User[]>
   ]);
 }
 
-async function seedCategories(dataSource: DataSource, shops: Shop[]): Promise<Category[]> {
+async function seedCategories(
+  dataSource: DataSource,
+  shops: Shop[],
+): Promise<Category[]> {
   const categoryRepo = dataSource.getRepository(Category);
   return Promise.all(
     SHOP_SEEDS.flatMap((seed, i) =>
@@ -192,14 +206,21 @@ async function seedCategories(dataSource: DataSource, shops: Shop[]): Promise<Ca
   );
 }
 
-async function seedProducts(dataSource: DataSource, shops: Shop[], categories: Category[]): Promise<void> {
+async function seedProducts(
+  dataSource: DataSource,
+  shops: Shop[],
+  categories: Category[],
+): Promise<void> {
   const productRepo = dataSource.getRepository(Product);
   const shopCategories = [categories.slice(0, 4), categories.slice(4, 8)];
 
   await Promise.all(
     SHOP_SEEDS.flatMap((seed, i) =>
       seed.products.map((prod) => {
-        const category = shopCategories[i][Math.floor(Math.random() * shopCategories[i].length)];
+        const category =
+          shopCategories[i][
+            Math.floor(Math.random() * shopCategories[i].length)
+          ];
         return productRepo.save(
           productRepo.create({
             name: prod.name,
@@ -226,7 +247,10 @@ async function seedProducts(dataSource: DataSource, shops: Shop[], categories: C
   );
 }
 
-async function seedStorefrontViews(dataSource: DataSource, shops: Shop[]): Promise<void> {
+async function seedStorefrontViews(
+  dataSource: DataSource,
+  shops: Shop[],
+): Promise<void> {
   const viewRepo = dataSource.getRepository(StorefrontView);
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -244,7 +268,10 @@ async function seedStorefrontViews(dataSource: DataSource, shops: Shop[]): Promi
   await viewRepo.save(views);
 }
 
-async function seedChatEvents(dataSource: DataSource, shops: Shop[]): Promise<void> {
+async function seedChatEvents(
+  dataSource: DataSource,
+  shops: Shop[],
+): Promise<void> {
   const eventRepo = dataSource.getRepository(ChatEvent);
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

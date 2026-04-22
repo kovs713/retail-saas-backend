@@ -210,7 +210,9 @@ export class AppService {
   }
 
   getProductsByStoreId(storeId: string, id?: string, since?: string) {
-    let products = Array.from(this.products.values()).filter((product) => product.store_id === storeId);
+    let products = Array.from(this.products.values()).filter(
+      (product) => product.store_id === storeId,
+    );
 
     if (id) {
       const ids = new Set(id.split(','));
@@ -220,7 +222,9 @@ export class AppService {
     if (since) {
       const sinceTimestamp = Number(since);
       if (!Number.isNaN(sinceTimestamp)) {
-        products = products.filter((product) => new Date(product.updated_at).getTime() > sinceTimestamp);
+        products = products.filter(
+          (product) => new Date(product.updated_at).getTime() > sinceTimestamp,
+        );
       }
     }
 
@@ -267,7 +271,9 @@ export class AppService {
   }
 
   getDocumentsByStoreId(storeId: string) {
-    return Array.from(this.documents.values()).filter((document) => document.store_id === storeId);
+    return Array.from(this.documents.values()).filter(
+      (document) => document.store_id === storeId,
+    );
   }
 
   getDocumentById(storeId: string, documentId: string) {
@@ -275,7 +281,9 @@ export class AppService {
   }
 
   getDocumentsByDeviceId(storeId: string, deviceId: string) {
-    return this.getDocumentsByStoreId(storeId).filter((document) => document.device_id === deviceId);
+    return this.getDocumentsByStoreId(storeId).filter(
+      (document) => document.device_id === deviceId,
+    );
   }
 
   reset() {

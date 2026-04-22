@@ -19,8 +19,12 @@ export class AuthModule {
           provide: AuthConfig,
           inject: [ConfigService],
           useFactory: (configService: ConfigService): AuthOptions => ({
-            refreshTokenCookie: configService.getOrThrow<string>('REFRESH_TOKEN_COOKIE'),
-            refreshTokenMaxAge: configService.getOrThrow<number>('REFRESH_TOKEN_MAX_AGE'),
+            refreshTokenCookie: configService.getOrThrow<string>(
+              'REFRESH_TOKEN_COOKIE',
+            ),
+            refreshTokenMaxAge: configService.getOrThrow<number>(
+              'REFRESH_TOKEN_MAX_AGE',
+            ),
           }),
         },
 

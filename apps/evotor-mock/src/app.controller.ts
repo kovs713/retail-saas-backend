@@ -20,7 +20,11 @@ export class AppController {
       documentCount?: number;
     },
   ) {
-    return this.appService.seedStore(body.storeId, body.productCount ?? 0, body.documentCount ?? 0);
+    return this.appService.seedStore(
+      body.storeId,
+      body.productCount ?? 0,
+      body.documentCount ?? 0,
+    );
   }
 
   @Delete('reset')

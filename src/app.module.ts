@@ -38,7 +38,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
               limit: configService.getOrThrow<number>('THROTTLE_LIMIT'),
             },
           ],
-          storage: new ThrottlerStorageRedisService(`redis://${host}:${port}`, { password }),
+          storage: new ThrottlerStorageRedisService(`redis://${host}:${port}`, {
+            password,
+          }),
         };
       },
     }),

@@ -6,7 +6,12 @@ import { ShopController } from '@/modules/shop/shop.controller';
 import { ShopService } from '@/modules/shop/shop.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { BadRequestException, INestApplication, NotFoundException, ValidationPipe } from '@nestjs/common';
+import {
+  BadRequestException,
+  INestApplication,
+  NotFoundException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
@@ -34,7 +39,9 @@ describe('Location E2E', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true })],
-      providers: [{ provide: ShopService, useValue: createMock<ShopService>() }],
+      providers: [
+        { provide: ShopService, useValue: createMock<ShopService>() },
+      ],
       controllers: [ShopController],
     })
       .overrideGuard(ThrottlerGuard)
@@ -82,15 +89,24 @@ describe('Location E2E', () => {
     });
 
     it('should return 400 when max locations reached', async () => {
-      service.createLocation.mockRejectedValue(new BadRequestException('Maximum 3 active locations per shop'));
+      service.createLocation.mockRejectedValue(
+        new BadRequestException('Maximum 3 active locations per shop'),
+      );
 
-      await request(app.getHttpServer()).post('/shops/shop_001/locations').send({ name: 'New Branch' }).expect(400);
+      await request(app.getHttpServer())
+        .post('/shops/shop_001/locations')
+        .send({ name: 'New Branch' })
+        .expect(400);
     });
 
     it('should return 404 for non-existent shop', async () => {
-      service.findLocations.mockRejectedValue(new NotFoundException('Shop not found'));
+      service.findLocations.mockRejectedValue(
+        new NotFoundException('Shop not found'),
+      );
 
-      await request(app.getHttpServer()).get('/shops/shop_001/locations').expect(404);
+      await request(app.getHttpServer())
+        .get('/shops/shop_001/locations')
+        .expect(404);
     });
   });
 
@@ -98,7 +114,9 @@ describe('Location E2E', () => {
     it('should return locations for a shop', async () => {
       service.findLocations.mockResolvedValue([mockLocation] as Location[]);
 
-      const response = await request(app.getHttpServer()).get('/shops/shop_001/locations').expect(200);
+      const response = await request(app.getHttpServer())
+        .get('/shops/shop_001/locations')
+        .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveLength(1);
@@ -106,9 +124,14 @@ describe('Location E2E', () => {
     });
 
     it('should return 404 for non-existent shop', async () => {
-      service.createLocation.mockRejectedValue(new NotFoundException('Shop not found'));
+      service.createLocation.mockRejectedValue(
+        new NotFoundException('Shop not found'),
+      );
 
-      await request(app.getHttpServer()).post('/shops/shop_001/locations').send({ name: 'New Branch' }).expect(404);
+      await request(app.getHttpServer())
+        .post('/shops/shop_001/locations')
+        .send({ name: 'New Branch' })
+        .expect(404);
     });
   });
 
@@ -116,7 +139,9 @@ describe('Location E2E', () => {
     it('should return a location by ID', async () => {
       service.findLocation.mockResolvedValue(mockLocation as Location);
 
-      const response = await request(app.getHttpServer()).get('/shops/shop_001/locations/loc_001').expect(200);
+      const response = await request(app.getHttpServer())
+        .get('/shops/shop_001/locations/loc_001')
+        .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.id).toBe('loc_001');
@@ -124,15 +149,22 @@ describe('Location E2E', () => {
     });
 
     it('should return 404 for non-existent location', async () => {
-      service.findLocation.mockRejectedValue(new NotFoundException('Location not found'));
+      service.findLocation.mockRejectedValue(
+        new NotFoundException('Location not found'),
+      );
 
-      await request(app.getHttpServer()).get('/shops/shop_001/locations/non-existent').expect(404);
+      await request(app.getHttpServer())
+        .get('/shops/shop_001/locations/non-existent')
+        .expect(404);
     });
   });
 
   describe('PATCH /shops/:shopId/locations/:id', () => {
     it('should update a location', async () => {
-      service.updateLocation.mockResolvedValue({ ...mockLocation, name: 'Updated Branch' } as Location);
+      service.updateLocation.mockResolvedValue({
+        ...mockLocation,
+        name: 'Updated Branch',
+      } as Location);
 
       const response = await request(app.getHttpServer())
         .patch('/shops/shop_001/locations/loc_001')
@@ -144,7 +176,9 @@ describe('Location E2E', () => {
     });
 
     it('should return 404 for non-existent location', async () => {
-      service.updateLocation.mockRejectedValue(new NotFoundException('Location not found'));
+      service.updateLocation.mockRejectedValue(
+        new NotFoundException('Location not found'),
+      );
 
       await request(app.getHttpServer())
         .patch('/shops/shop_001/locations/non-existent')
@@ -157,16 +191,22 @@ describe('Location E2E', () => {
     it('should delete a location', async () => {
       service.deleteLocation.mockResolvedValue(undefined);
 
-      const response = await request(app.getHttpServer()).delete('/shops/shop_001/locations/loc_001').expect(200);
+      const response = await request(app.getHttpServer())
+        .delete('/shops/shop_001/locations/loc_001')
+        .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.message).toBe('Location deleted successfully');
     });
 
     it('should return 404 for non-existent location', async () => {
-      service.deleteLocation.mockRejectedValue(new NotFoundException('Location not found'));
+      service.deleteLocation.mockRejectedValue(
+        new NotFoundException('Location not found'),
+      );
 
-      await request(app.getHttpServer()).delete('/shops/shop_001/locations/non-existent').expect(404);
+      await request(app.getHttpServer())
+        .delete('/shops/shop_001/locations/non-existent')
+        .expect(404);
     });
   });
 });

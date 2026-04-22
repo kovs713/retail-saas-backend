@@ -1,4 +1,4 @@
-import { RegistrationApplication } from '../entities/registration-application.entity';
+import { RegistrationApplication } from '../entities';
 
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, plainToInstance } from 'class-transformer';
@@ -32,11 +32,17 @@ export class RegistrationApplicationDto {
   @Expose()
   createdAt: Date;
 
-  static fromEntity(entity: RegistrationApplication): RegistrationApplicationDto {
-    return plainToInstance(RegistrationApplicationDto, entity, { excludeExtraneousValues: true });
+  static fromEntity(
+    entity: RegistrationApplication,
+  ): RegistrationApplicationDto {
+    return plainToInstance(RegistrationApplicationDto, entity, {
+      excludeExtraneousValues: true,
+    });
   }
 
-  static fromEntities(entities: RegistrationApplication[]): RegistrationApplicationDto[] {
+  static fromEntities(
+    entities: RegistrationApplication[],
+  ): RegistrationApplicationDto[] {
     return entities.map((entity) => this.fromEntity(entity));
   }
 }

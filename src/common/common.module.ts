@@ -27,7 +27,10 @@ import { StringValue } from 'ms';
       inject: [ConfigService],
       useFactory: (configService: ConfigService): JwtOptions => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
-        expiresIn: configService.getOrThrow<StringValue>('JWT_EXPIRED_TIME', '1d'),
+        expiresIn: configService.getOrThrow<StringValue>(
+          'JWT_EXPIRED_TIME',
+          '1d',
+        ),
       }),
     },
     AuthGuard,

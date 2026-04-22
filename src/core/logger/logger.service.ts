@@ -11,7 +11,11 @@ export class LoggerService extends Logger {
   }
 
   error(message: any, trace?: string, context?: string) {
-    super.error(message, ...(trace ? [trace] : []), ...(context ? [context] : []));
+    super.error(
+      message,
+      ...(trace ? [trace] : []),
+      ...(context ? [context] : []),
+    );
   }
 
   warn(message: any, context?: string) {

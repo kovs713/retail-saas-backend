@@ -48,7 +48,10 @@ describe('LLMService', () => {
 
       await service.generateText(prompt, systemMessage);
 
-      expect(chatGroqClient.invoke).toHaveBeenCalledWith([new SystemMessage(systemMessage), new HumanMessage(prompt)]);
+      expect(chatGroqClient.invoke).toHaveBeenCalledWith([
+        new SystemMessage(systemMessage),
+        new HumanMessage(prompt),
+      ]);
     });
 
     it('should handle prompt without system message', async () => {
@@ -56,7 +59,9 @@ describe('LLMService', () => {
 
       await service.generateText(prompt);
 
-      expect(chatGroqClient.invoke).toHaveBeenCalledWith([new HumanMessage(prompt)]);
+      expect(chatGroqClient.invoke).toHaveBeenCalledWith([
+        new HumanMessage(prompt),
+      ]);
     });
 
     it('should return string content from response', async () => {
@@ -80,7 +85,9 @@ describe('LLMService', () => {
     });
 
     it('should work with only human messages', async () => {
-      const messages: (HumanMessage | SystemMessage)[] = [new HumanMessage('Hello')];
+      const messages: (HumanMessage | SystemMessage)[] = [
+        new HumanMessage('Hello'),
+      ];
 
       await service.generateWithMessages(messages);
 

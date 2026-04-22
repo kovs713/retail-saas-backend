@@ -11,7 +11,10 @@ describe('Roles Decorator', () => {
     }
 
     const reflector = new Reflector();
-    const roles = reflector.get<Role[]>(ROLES_KEY, TestController.prototype.testMethod);
+    const roles = reflector.get<Role[]>(
+      ROLES_KEY,
+      TestController.prototype.testMethod,
+    );
     expect(roles).toEqual([Role.ADMIN, Role.OWNER]);
   });
 
@@ -22,7 +25,10 @@ describe('Roles Decorator', () => {
     }
 
     const reflector = new Reflector();
-    const roles = reflector.get<Role[]>(ROLES_KEY, TestController.prototype.testMethod);
+    const roles = reflector.get<Role[]>(
+      ROLES_KEY,
+      TestController.prototype.testMethod,
+    );
     expect(roles).toEqual([]);
   });
 });

@@ -3,7 +3,11 @@ import { ShopService } from '@/modules/shop/shop.service';
 import { EvotorIntegration } from './entities/evotor-integration.entity';
 import { EvotorApiService } from './evotor-api.service';
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -21,8 +25,11 @@ export class EvotorService {
     await this.shopService.findById(shopId);
     await this.evotorApiService.seedStore(shopId);
 
-    const existing = await this.integrationRepository.findOne({ where: { shopId } });
-    const integration = existing ?? this.integrationRepository.create({ shopId });
+    const existing = await this.integrationRepository.findOne({
+      where: { shopId },
+    });
+    const integration =
+      existing ?? this.integrationRepository.create({ shopId });
 
     integration.provider = 'mock';
     integration.status = 'connected';
@@ -97,12 +104,23 @@ export class EvotorService {
     };
   }
 
-  async syncProducts(shopId: string): Promise<{ importedCount: number; deletedCount: number; syncedAt: string }> {
+  async syncProducts(shopId: string): Promise<{
+    importedCount: number;
+    deletedCount: number;
+    syncedAt: string;
+  }> {
     const integration = await this.getConnectedIntegration(shopId);
-    const remoteProducts = await this.evotorApiService.getProducts(integration.externalStoreId);
-    const syncedProducts = await this.productRepository.findSyncedByShop(shopId, true);
+    const remoteProducts = await this.evotorApiService.getProducts(
+      integration.externalStoreId,
+    );
+    const syncedProducts = await this.productRepository.findSyncedByShop(
+      shopId,
+      true,
+    );
     const remoteIds = new Set(remoteProducts.map((product) => product.id));
-    const syncedByExternalId = new Map(syncedProducts.map((product) => [product.externalId, product]));
+    const syncedByExternalId = new Map(
+      syncedProducts.map((product) => [product.externalId, product]),
+    );
     let importedCount = 0;
     let deletedCount = 0;
 
@@ -152,7 +170,11 @@ export class EvotorService {
     }
 
     for (const syncedProduct of syncedProducts) {
-      if (!syncedProduct.externalId || syncedProduct.deletedAt || remoteIds.has(syncedProduct.externalId)) {
+      if (
+        !syncedProduct.externalId ||
+        syncedProduct.deletedAt ||
+        remoteIds.has(syncedProduct.externalId)
+      ) {
         continue;
       }
 
@@ -170,9 +192,14 @@ export class EvotorService {
     };
   }
 
-  private async getConnectedIntegration(shopId: string, requireConnected = true): Promise<EvotorIntegration> {
+  private async getConnectedIntegration(
+    shopId: string,
+    requireConnected = true,
+  ): Promise<EvotorIntegration> {
     await this.shopService.findById(shopId);
-    const integration = await this.integrationRepository.findOne({ where: { shopId } });
+    const integration = await this.integrationRepository.findOne({
+      where: { shopId },
+    });
 
     if (!integration) {
       throw new NotFoundException('Evotor integration not found');

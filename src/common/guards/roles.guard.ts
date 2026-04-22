@@ -1,7 +1,13 @@
 import { Role } from '../enums';
 import { JwtOptions, JwtConfig, Request } from '../types';
 
-import { CanActivate, ExecutionContext, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 
@@ -14,7 +20,10 @@ export class RolesGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredRoles = this.reflector.getAllAndOverride<Role[]>('roles', [context.getHandler(), context.getClass()]);
+    const requiredRoles = this.reflector.getAllAndOverride<Role[]>('roles', [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;

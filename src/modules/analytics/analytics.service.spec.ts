@@ -1,4 +1,7 @@
-import { createChatEvent, createStorefrontView } from '@/core/database/factories';
+import {
+  createChatEvent,
+  createStorefrontView,
+} from '@/core/database/factories';
 import { AnalyticsRepository } from '@/modules/analytics/repositories';
 import { OrderRepository } from '@/modules/order/repositories';
 import { AnalyticsService } from './analytics.service';
@@ -34,12 +37,20 @@ describe('AnalyticsService', () => {
   });
 
   describe('logChatEvent', () => {
-    const mockChatEvent = createChatEvent({ id: 'chat_001', shopId: 'shop_001' });
+    const mockChatEvent = createChatEvent({
+      id: 'chat_001',
+      shopId: 'shop_001',
+    });
 
     it('should create chat event and return it', async () => {
       repository.createChatEvent.mockResolvedValue(mockChatEvent);
 
-      const result = await service.logChatEvent('shop_001', 'test query', 100, 3);
+      const result = await service.logChatEvent(
+        'shop_001',
+        'test query',
+        100,
+        3,
+      );
 
       expect(result).toEqual(mockChatEvent);
       expect(repository.createChatEvent).toHaveBeenCalledWith({
@@ -61,7 +72,11 @@ describe('AnalyticsService', () => {
       const result = await service.getChatStats('shop_001', from, to);
 
       expect(result).toEqual(mockEvents);
-      expect(repository.getChatStats).toHaveBeenCalledWith('shop_001', from, to);
+      expect(repository.getChatStats).toHaveBeenCalledWith(
+        'shop_001',
+        from,
+        to,
+      );
     });
   });
 
@@ -87,7 +102,10 @@ describe('AnalyticsService', () => {
   });
 
   describe('logStorefrontView', () => {
-    const mockStorefrontView = createStorefrontView({ id: 'view_001', shopId: 'shop_001' });
+    const mockStorefrontView = createStorefrontView({
+      id: 'view_001',
+      shopId: 'shop_001',
+    });
 
     it('should create storefront view and return it', async () => {
       repository.createStorefrontView.mockResolvedValue(mockStorefrontView);
@@ -110,7 +128,11 @@ describe('AnalyticsService', () => {
       const result = await service.getStorefrontViewCount('shop_001', from, to);
 
       expect(result).toBe(42);
-      expect(repository.getStorefrontViewCount).toHaveBeenCalledWith('shop_001', from, to);
+      expect(repository.getStorefrontViewCount).toHaveBeenCalledWith(
+        'shop_001',
+        from,
+        to,
+      );
     });
   });
 });

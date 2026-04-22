@@ -49,7 +49,14 @@ describe('AdminOrderController', () => {
       ],
     })
       .overrideGuard(AuthGuard)
-      .useValue(mockAuthGuard({ sub: 'user-1', email: 'test@test.com', shopId: 'shop-1', role: 'owner' }))
+      .useValue(
+        mockAuthGuard({
+          sub: 'user-1',
+          email: 'test@test.com',
+          shopId: 'shop-1',
+          role: 'owner',
+        }),
+      )
       .overrideGuard(RolesGuard)
       .useValue(mockGuard())
       .compile();
@@ -87,7 +94,11 @@ describe('AdminOrderController', () => {
       expect(result.success).toBe(true);
       expect(result.data!.data).toHaveLength(1);
       expect(result.data!.total).toBe(1);
-      expect(orderService.findByShopId).toHaveBeenCalledWith('shop-1', { page: 1, limit: 20, status: undefined });
+      expect(orderService.findByShopId).toHaveBeenCalledWith('shop-1', {
+        page: 1,
+        limit: 20,
+        status: undefined,
+      });
     });
 
     it('should return filtered orders by status', async () => {
@@ -100,7 +111,11 @@ describe('AdminOrderController', () => {
 
       await controller.getOrders(mockTenantContext, 1, 10, 'PENDING');
 
-      expect(orderService.findByShopId).toHaveBeenCalledWith('shop-1', { page: 1, limit: 10, status: 'PENDING' });
+      expect(orderService.findByShopId).toHaveBeenCalledWith('shop-1', {
+        page: 1,
+        limit: 10,
+        status: 'PENDING',
+      });
     });
   });
 
@@ -120,12 +135,20 @@ describe('AdminOrderController', () => {
         updatedAt: '2025-01-01T00:00:00.000Z',
       });
 
-      const result = await controller.updateOrderStatus('order-1', { status: 'CONFIRMED' as any }, mockTenantContext);
+      const result = await controller.updateOrderStatus(
+        'order-1',
+        { status: 'CONFIRMED' as any },
+        mockTenantContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.data!.status).toBe('CONFIRMED');
       expect(result.message).toBe('Order status updated successfully');
-      expect(orderService.updateStatus).toHaveBeenCalledWith('order-1', 'shop-1', { status: 'CONFIRMED' });
+      expect(orderService.updateStatus).toHaveBeenCalledWith(
+        'order-1',
+        'shop-1',
+        { status: 'CONFIRMED' },
+      );
     });
   });
 });

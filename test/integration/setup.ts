@@ -1,4 +1,7 @@
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import {
+  PostgreSqlContainer,
+  StartedPostgreSqlContainer,
+} from '@testcontainers/postgresql';
 
 let postgresContainer: StartedPostgreSqlContainer;
 

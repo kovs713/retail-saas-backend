@@ -7,7 +7,9 @@ import { Between, FindOptionsWhere, Not, Repository } from 'typeorm';
 
 @Injectable()
 export class OrderRepository extends Repository<Order> {
-  constructor(@InjectRepository(Order) private readonly repository: Repository<Order>) {
+  constructor(
+    @InjectRepository(Order) private readonly repository: Repository<Order>,
+  ) {
     super(Order, repository.manager);
   }
 
@@ -64,7 +66,11 @@ export class OrderRepository extends Repository<Order> {
       .getCount();
   }
 
-  async getRevenueByDay(shopId: string, from: Date, to: Date): Promise<{ date: string; revenue: number }[]> {
+  async getRevenueByDay(
+    shopId: string,
+    from: Date,
+    to: Date,
+  ): Promise<{ date: string; revenue: number }[]> {
     return this.repository
       .createQueryBuilder('order')
       .select('DATE(order.createdAt)', 'date')
@@ -77,7 +83,11 @@ export class OrderRepository extends Repository<Order> {
       .getRawMany();
   }
 
-  async getOrdersByDay(shopId: string, from: Date, to: Date): Promise<{ date: string; count: number }[]> {
+  async getOrdersByDay(
+    shopId: string,
+    from: Date,
+    to: Date,
+  ): Promise<{ date: string; count: number }[]> {
     return this.repository
       .createQueryBuilder('order')
       .select('DATE(order.createdAt)', 'date')
@@ -102,7 +112,11 @@ export class OrderRepository extends Repository<Order> {
     return Number(result?.aov) || 0;
   }
 
-  async getNewCustomersCount(shopId: string, from: Date, to: Date): Promise<number> {
+  async getNewCustomersCount(
+    shopId: string,
+    from: Date,
+    to: Date,
+  ): Promise<number> {
     const subQuery = this.repository
       .createQueryBuilder('order_inner')
       .select('MIN(order_inner.createdAt)', 'firstOrderAt')
@@ -121,7 +135,11 @@ export class OrderRepository extends Repository<Order> {
     return result;
   }
 
-  async getTotalCustomersCount(shopId: string, from: Date, to: Date): Promise<number> {
+  async getTotalCustomersCount(
+    shopId: string,
+    from: Date,
+    to: Date,
+  ): Promise<number> {
     const result = await this.repository
       .createQueryBuilder('order')
       .select('COUNT(DISTINCT order.customerPhone)', 'count')
@@ -133,7 +151,11 @@ export class OrderRepository extends Repository<Order> {
     return Number(result?.count) || 0;
   }
 
-  async getRepeatCustomerCount(shopId: string, from: Date, to: Date): Promise<number> {
+  async getRepeatCustomerCount(
+    shopId: string,
+    from: Date,
+    to: Date,
+  ): Promise<number> {
     return this.repository
       .createQueryBuilder('order')
       .select('order.customerPhone', 'customerPhone')

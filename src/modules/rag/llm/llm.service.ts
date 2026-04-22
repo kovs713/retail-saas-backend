@@ -23,12 +23,17 @@ export class LLMService {
     return response.content as string;
   }
 
-  async generateWithMessages(messages: (HumanMessage | SystemMessage)[]): Promise<string> {
+  async generateWithMessages(
+    messages: (HumanMessage | SystemMessage)[],
+  ): Promise<string> {
     const response = await this.chatGroqClient.invoke(messages);
     return response.content as string;
   }
 
-  async *generateStream(prompt: string, systemMessage?: string): AsyncGenerator<string> {
+  async *generateStream(
+    prompt: string,
+    systemMessage?: string,
+  ): AsyncGenerator<string> {
     const messages = systemMessage
       ? [new SystemMessage(systemMessage), new HumanMessage(prompt)]
       : [new HumanMessage(prompt)];

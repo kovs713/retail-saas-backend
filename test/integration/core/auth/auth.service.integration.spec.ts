@@ -1,15 +1,18 @@
-import { AuthConfig } from '@/common/types';
 import { RegistrationStatus } from '@/common/enums';
+import { AuthConfig } from '@/common/types';
 import { mockCacheService } from '@/common/utils';
 import { AuthService } from '@/core/auth/auth.service';
 import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
-import { RegistrationApplication } from '@/modules/registration-application/entities/registration-application.entity';
+import { RegistrationApplication } from '@/modules/registration-application/entities';
 import { RegistrationApplicationService } from '@/modules/registration-application/registration-application.service';
 import { Location, Shop } from '@/modules/shop/entities';
-import { LocationRepository, ShopRepository } from '@/modules/shop/repositories';
+import {
+  LocationRepository,
+  ShopRepository,
+} from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
 import { UserRepository } from '@/modules/user/repositories';
@@ -133,9 +136,13 @@ describe('AuthService Integration', () => {
       }),
     ).rejects.toThrow();
 
-    const shops = await dataSource.getRepository(Shop).findBy({ slug: 'rollback-shop' });
+    const shops = await dataSource
+      .getRepository(Shop)
+      .findBy({ slug: 'rollback-shop' });
     expect(shops).toHaveLength(0);
-    const applications = await dataSource.getRepository(RegistrationApplication).findBy({ email: 'taken@example.com' });
+    const applications = await dataSource
+      .getRepository(RegistrationApplication)
+      .findBy({ email: 'taken@example.com' });
     expect(applications).toHaveLength(0);
   });
 
@@ -161,18 +168,24 @@ describe('AuthService Integration', () => {
   });
 
   it('should approve registration application and create user with shop', async () => {
-    const application = await dataSource.getRepository(RegistrationApplication).save(
-      dataSource.getRepository(RegistrationApplication).create({
-        email: 'approve@example.com',
-        passwordHash: 'hashed-password',
-        shopName: 'Approve Shop',
-        shopSlug: 'approve-shop',
-        status: RegistrationStatus.PENDING,
-      }),
-    );
+    const application = await dataSource
+      .getRepository(RegistrationApplication)
+      .save(
+        dataSource.getRepository(RegistrationApplication).create({
+          email: 'approve@example.com',
+          passwordHash: 'hashed-password',
+          shopName: 'Approve Shop',
+          shopSlug: 'approve-shop',
+          status: RegistrationStatus.PENDING,
+        }),
+      );
 
-    const registrationApplicationService = app.get(RegistrationApplicationService);
-    const approved = await registrationApplicationService.approve(application.id);
+    const registrationApplicationService = app.get(
+      RegistrationApplicationService,
+    );
+    const approved = await registrationApplicationService.approve(
+      application.id,
+    );
 
     expect(approved.status).toBe(RegistrationStatus.APPROVED);
 

@@ -1,7 +1,7 @@
 import { RegistrationStatus } from '@/common/enums';
 import { Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
-import { RegistrationApplication } from './entities/registration-application.entity';
+import { RegistrationApplication } from './entities';
 import { RegistrationApplicationService } from './registration-application.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
@@ -30,7 +30,9 @@ describe('RegistrationApplicationService', () => {
       ],
     }).compile();
 
-    service = module.get<RegistrationApplicationService>(RegistrationApplicationService);
+    service = module.get<RegistrationApplicationService>(
+      RegistrationApplicationService,
+    );
     repository = module.get<DeepMocked<Repository<RegistrationApplication>>>(
       getRepositoryToken(RegistrationApplication),
     );
@@ -44,7 +46,9 @@ describe('RegistrationApplicationService', () => {
     repository.findOne.mockResolvedValue(null);
     userRepository.findOne.mockResolvedValue(null);
     shopRepository.findOne.mockResolvedValue(null);
-    dataSource.getRepository.mockReturnValueOnce(userRepository as never).mockReturnValueOnce(shopRepository as never);
+    dataSource.getRepository
+      .mockReturnValueOnce(userRepository as never)
+      .mockReturnValueOnce(shopRepository as never);
     repository.create.mockImplementation((value) => value as never);
     repository.save.mockImplementation((value) => value as never);
 
@@ -61,7 +65,9 @@ describe('RegistrationApplicationService', () => {
   });
 
   it('rejects duplicate pending applications by email or slug', async () => {
-    repository.findOne.mockResolvedValue({ id: 'app-1' } as RegistrationApplication);
+    repository.findOne.mockResolvedValue({
+      id: 'app-1',
+    } as RegistrationApplication);
 
     await expect(
       service.create({

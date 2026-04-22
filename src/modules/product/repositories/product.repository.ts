@@ -23,7 +23,10 @@ export class ProductRepository extends Repository<Product> {
     super(Product, repository.manager);
   }
 
-  async findAll(shopId: string, query: Pagination): Promise<[Product[], number]> {
+  async findAll(
+    shopId: string,
+    query: Pagination,
+  ): Promise<[Product[], number]> {
     const page = query.page ?? 1;
     const limit = Math.min(query.limit ?? 10, 100);
     const skip = (page - 1) * limit;
@@ -94,7 +97,10 @@ export class ProductRepository extends Repository<Product> {
       .getOne();
   }
 
-  async findByIdAndShopSlug(id: string, shopSlug: string): Promise<Product | null> {
+  async findByIdAndShopSlug(
+    id: string,
+    shopSlug: string,
+  ): Promise<Product | null> {
     return this.repository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.shop', 'shop')
@@ -115,7 +121,10 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
-  async findByBarcode(barcode: string, shopId: string): Promise<Product | null> {
+  async findByBarcode(
+    barcode: string,
+    shopId: string,
+  ): Promise<Product | null> {
     return this.repository.findOne({
       where: {
         barcode,
@@ -125,7 +134,10 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
-  async findLowStock(shopId: string, threshold: number = 10): Promise<Product[]> {
+  async findLowStock(
+    shopId: string,
+    threshold: number = 10,
+  ): Promise<Product[]> {
     return this.repository.find({
       where: {
         shopId,
@@ -135,7 +147,10 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
-  async countByShop(shopId: string, where?: FindOptionsWhere<Product>): Promise<number> {
+  async countByShop(
+    shopId: string,
+    where?: FindOptionsWhere<Product>,
+  ): Promise<number> {
     const countWhere: FindOptionsWhere<Product> = where
       ? {
           ...where,
@@ -171,7 +186,10 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
-  async findOneWithDeleted(id: string, shopId: string): Promise<Product | null> {
+  async findOneWithDeleted(
+    id: string,
+    shopId: string,
+  ): Promise<Product | null> {
     return this.repository.findOne({
       where: {
         id,
@@ -181,7 +199,10 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
-  async findSyncedByShop(shopId: string, withDeleted = false): Promise<Product[]> {
+  async findSyncedByShop(
+    shopId: string,
+    withDeleted = false,
+  ): Promise<Product[]> {
     return this.repository.find({
       where: {
         shopId,
@@ -191,7 +212,11 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
-  async incrementQuantity(id: string, shopId: string, adjustment: number): Promise<void> {
+  async incrementQuantity(
+    id: string,
+    shopId: string,
+    adjustment: number,
+  ): Promise<void> {
     await this.repository.increment(
       {
         id,
@@ -217,7 +242,11 @@ export class ProductRepository extends Repository<Product> {
     return this.repository.restore({ id });
   }
 
-  async updateQuantity(id: string, shopId: string, quantity: number): Promise<void> {
+  async updateQuantity(
+    id: string,
+    shopId: string,
+    quantity: number,
+  ): Promise<void> {
     await this.repository.update(
       {
         id,
@@ -229,7 +258,10 @@ export class ProductRepository extends Repository<Product> {
     );
   }
 
-  private getOrderOptions(sortBy?: string, sortOrder?: 'ASC' | 'DESC'): Record<string, 'ASC' | 'DESC'> {
+  private getOrderOptions(
+    sortBy?: string,
+    sortOrder?: 'ASC' | 'DESC',
+  ): Record<string, 'ASC' | 'DESC'> {
     const order: Record<string, 'ASC' | 'DESC'> = { createdAt: 'DESC' };
 
     if (sortBy) {

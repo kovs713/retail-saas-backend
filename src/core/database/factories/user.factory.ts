@@ -23,15 +23,26 @@ export function createUser(overrides: UserOverrides = {}): User {
   };
 }
 
-export function createUsers(count: number, overrides: Omit<UserOverrides, 'index'> = {}): User[] {
-  return Array.from({ length: count }, (_, i) => createUser({ ...overrides, index: i + 1 }));
+export function createUsers(
+  count: number,
+  overrides: Omit<UserOverrides, 'index'> = {},
+): User[] {
+  return Array.from({ length: count }, (_, i) =>
+    createUser({ ...overrides, index: i + 1 }),
+  );
 }
 
-export function createOwnerUser(shopId: string, overrides: Partial<User> = {}): User {
+export function createOwnerUser(
+  shopId: string,
+  overrides: Partial<User> = {},
+): User {
   return createUser({ ...overrides, role: Role.OWNER, shopId });
 }
 
-export function createEmployeeUser(shopId: string, overrides: Partial<User> = {}): User {
+export function createEmployeeUser(
+  shopId: string,
+  overrides: Partial<User> = {},
+): User {
   return createUser({ ...overrides, role: Role.EMPLOYEE, shopId });
 }
 
@@ -39,7 +50,9 @@ export function createAdminUser(overrides: Partial<User> = {}): User {
   return createUser({ ...overrides, role: Role.ADMIN, shopId: null });
 }
 
-export function createTokenPayload(overrides: Partial<TokenPayload> = {}): TokenPayload {
+export function createTokenPayload(
+  overrides: Partial<TokenPayload> = {},
+): TokenPayload {
   return {
     sub: 'user_001',
     email: 'test@example.com',

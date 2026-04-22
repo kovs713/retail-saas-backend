@@ -42,7 +42,9 @@ describe('PublicMediaController', () => {
     jest.spyOn(stream, 'pipe').mockReturnValue(res as any);
     storageService.getObjectStream.mockResolvedValue(stream);
     productService.findPublicByShopSlugAndId.mockResolvedValue(product);
-    productService.buildProductImageObjectKey.mockReturnValue('products/p1/images/a.jpg');
+    productService.buildProductImageObjectKey.mockReturnValue(
+      'products/p1/images/a.jpg',
+    );
     storageService.statObject.mockResolvedValue({
       size: 11,
       contentType: 'image/jpeg',
@@ -52,8 +54,13 @@ describe('PublicMediaController', () => {
 
     await controller.getProductImage('shop-1', 'p1', 'a.jpg', req, res);
 
-    expect(storageService.getObjectStream).toHaveBeenCalledWith('products/p1/images/a.jpg');
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'public, max-age=31536000, immutable');
+    expect(storageService.getObjectStream).toHaveBeenCalledWith(
+      'products/p1/images/a.jpg',
+    );
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Cache-Control',
+      'public, max-age=31536000, immutable',
+    );
     expect(res.setHeader).toHaveBeenCalledWith('ETag', 'etag-1');
     expect(stream.pipe).toHaveBeenCalledWith(res);
   });
@@ -62,6 +69,8 @@ describe('PublicMediaController', () => {
     const res = createMock<Response>();
     productService.findPublicByShopSlugAndId.mockResolvedValue(null);
 
-    await expect(controller.getProductImage('shop-1', 'p1', 'a.jpg', req, res)).rejects.toThrow(NotFoundException);
+    await expect(
+      controller.getProductImage('shop-1', 'p1', 'a.jpg', req, res),
+    ).rejects.toThrow(NotFoundException);
   });
 });

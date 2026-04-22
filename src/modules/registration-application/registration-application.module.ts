@@ -1,4 +1,4 @@
-import { RegistrationApplication } from './entities/registration-application.entity';
+import { RegistrationApplication } from './entities';
 import { RegistrationApplicationController } from './registration-application.controller';
 import { RegistrationApplicationService } from './registration-application.service';
 

@@ -8,7 +8,11 @@ import { ChatEvent, StorefrontView } from './entities';
 import { AnalyticsRepository } from './repositories';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ChatEvent, StorefrontView]), ProductModule, OrderModule],
+  imports: [
+    TypeOrmModule.forFeature([ChatEvent, StorefrontView]),
+    ProductModule,
+    OrderModule,
+  ],
   providers: [AnalyticsService, AnalyticsRepository],
   exports: [AnalyticsService],
   controllers: [AnalyticsController],

@@ -15,9 +15,15 @@ export class DocPreprocessorModule {
         {
           provide: DocPreprocessorConfig,
           inject: [ConfigService],
-          useFactory: (configService: ConfigService): DocPreprocessorOptions => ({
-            docPreprocessorTimeoutMs: configService.getOrThrow<number>('DOC_PREPROCESSOR_TIMEOUT_MS'),
-            docPreprocessorUrl: configService.getOrThrow<string>('DOC_PREPROCESSOR_URL'),
+          useFactory: (
+            configService: ConfigService,
+          ): DocPreprocessorOptions => ({
+            docPreprocessorTimeoutMs: configService.getOrThrow<number>(
+              'DOC_PREPROCESSOR_TIMEOUT_MS',
+            ),
+            docPreprocessorUrl: configService.getOrThrow<string>(
+              'DOC_PREPROCESSOR_URL',
+            ),
           }),
         },
 

@@ -1,5 +1,15 @@
-import { JwtOptions, JwtConfig, TenantContext, TokenPayload } from '@/common/types';
-import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common';
+import {
+  JwtOptions,
+  JwtConfig,
+  TenantContext,
+  TokenPayload,
+} from '@/common/types';
+import {
+  CanActivate,
+  ExecutionContext,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 
 import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';
@@ -39,7 +49,8 @@ export class WsAuthGuard implements CanActivate {
   }
 
   private extractToken(client: Socket): string | null {
-    const auth = client.handshake.auth?.token || client.handshake.headers?.authorization;
+    const auth =
+      client.handshake.auth?.token || client.handshake.headers?.authorization;
     if (!auth) return null;
 
     if (typeof auth === 'string') {

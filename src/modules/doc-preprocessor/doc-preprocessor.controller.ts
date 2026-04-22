@@ -18,7 +18,14 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Response } from 'express';
 
 @ApiTags('Document preprocessing')
@@ -26,14 +33,20 @@ import { Response } from 'express';
 @Controller('documents')
 @UseGuards(AuthGuard)
 export class DocPreprocessorController {
-  private readonly logger: LoggerService = new LoggerService(DocPreprocessorController.name);
+  private readonly logger: LoggerService = new LoggerService(
+    DocPreprocessorController.name,
+  );
 
-  constructor(private readonly docPreprocessorService: DocPreprocessorService) {}
+  constructor(
+    private readonly docPreprocessorService: DocPreprocessorService,
+  ) {}
 
   @Post('preprocess')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Preprocess and convert uploaded document' })
+  @ApiOperation({
+    summary: 'Preprocess and convert uploaded document',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -41,21 +54,40 @@ export class DocPreprocessorController {
       required: ['file'],
       properties: {
         file: { type: 'string', format: 'binary' },
-        targetType: { type: 'string', enum: Object.values(TargetDocumentType), default: TargetDocumentType.TXT },
-        sourceType: { type: 'string', enum: ['txt', 'md', 'json', 'docx', 'pdf'] },
+        targetType: {
+          type: 'string',
+          enum: Object.values(TargetDocumentType),
+          default: TargetDocumentType.TXT,
+        },
+        sourceType: {
+          type: 'string',
+          enum: ['txt', 'md', 'json', 'docx', 'pdf'],
+        },
         removeNoise: { type: 'boolean', default: true },
         normalizeWhitespace: { type: 'boolean', default: true },
         lowercase: { type: 'boolean', default: false },
       },
     },
   })
-  @ApiResponse({ status: 200, description: 'Processed file' })
-  @ApiResponse({ status: 400, description: 'Invalid request payload' })
-  @ApiResponse({ status: 502, description: 'Doc preprocessor unavailable' })
+  @ApiResponse({
+    status: 200,
+    description: 'Processed file',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request payload',
+  })
+  @ApiResponse({
+    status: 502,
+    description: 'Doc preprocessor unavailable',
+  })
   async preprocessDocument(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() dto: PreprocessDocumentDto,
-    @Res({ passthrough: true }) response: Response,
+    @UploadedFile()
+    file: Express.Multer.File,
+    @Body()
+    dto: PreprocessDocumentDto,
+    @Res({ passthrough: true })
+    response: Response,
   ): Promise<StreamableFile> {
     if (!file) {
       throw new BadRequestException('file is required');

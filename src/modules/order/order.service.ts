@@ -1,9 +1,19 @@
 import { ProductRepository } from '@/modules/product/repositories';
-import { CreateOrderDto, OrderResponseDto, OrderStatus, UpdateOrderStatusDto } from './dto';
+import {
+  CreateOrderDto,
+  OrderResponseDto,
+  OrderStatus,
+  UpdateOrderStatusDto,
+} from './dto';
 import { Order } from './entities';
 import { OrderRepository } from './repositories';
 
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { In, IsNull } from 'typeorm';
 
 @Injectable()
@@ -27,13 +37,17 @@ export class OrderService {
       },
     });
 
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
 
     const items = createOrderDto.items.map((item) => {
       const product = productMap.get(item.productId);
 
       if (!product) {
-        throw new NotFoundException(`Product ${item.productId} not found for this shop`);
+        throw new NotFoundException(
+          `Product ${item.productId} not found for this shop`,
+        );
       }
 
       return {
@@ -43,7 +57,10 @@ export class OrderService {
       };
     });
 
-    const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const totalAmount = items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0,
+    );
 
     const order = this.orderRepository.create({
       shopId,
@@ -67,7 +84,11 @@ export class OrderService {
     const page = options?.page ?? 1;
     const limit = options?.limit ?? 20;
 
-    const [orders, total] = await this.orderRepository.findByShopId(shopId, { page, limit, status: options?.status });
+    const [orders, total] = await this.orderRepository.findByShopId(shopId, {
+      page,
+      limit,
+      status: options?.status,
+    });
 
     return {
       data: orders,
@@ -97,7 +118,11 @@ export class OrderService {
     return order;
   }
 
-  async updateStatus(id: string, shopId: string, updateStatusDto: UpdateOrderStatusDto): Promise<Order> {
+  async updateStatus(
+    id: string,
+    shopId: string,
+    updateStatusDto: UpdateOrderStatusDto,
+  ): Promise<Order> {
     this.logger.log(`Updating order ${id} status to ${updateStatusDto.status}`);
 
     const order = await this.findByIdAndShopId(id, shopId);
@@ -112,7 +137,10 @@ export class OrderService {
     return updatedOrder;
   }
 
-  private validateStatusTransition(currentStatus: Order['status'], newStatus: UpdateOrderStatusDto['status']): void {
+  private validateStatusTransition(
+    currentStatus: Order['status'],
+    newStatus: UpdateOrderStatusDto['status'],
+  ): void {
     const validTransitions: Record<Order['status'], Order['status'][]> = {
       [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
       [OrderStatus.CONFIRMED]: [OrderStatus.READY, OrderStatus.CANCELLED],
@@ -122,7 +150,9 @@ export class OrderService {
     };
 
     if (!validTransitions[currentStatus]?.includes(newStatus)) {
-      throw new BadRequestException(`Cannot transition from ${currentStatus} to ${newStatus}`);
+      throw new BadRequestException(
+        `Cannot transition from ${currentStatus} to ${newStatus}`,
+      );
     }
   }
 

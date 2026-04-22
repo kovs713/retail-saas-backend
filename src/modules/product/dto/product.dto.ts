@@ -4,7 +4,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Expose, Transform, plainToInstance } from 'class-transformer';
 
 export class ProductDto {
-  @ApiProperty({ description: 'Product ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'Product ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @Expose()
   id: string;
 
@@ -58,7 +61,10 @@ export class ProductDto {
   @Expose()
   metadata: Record<string, unknown> | null;
 
-  @ApiProperty({ description: 'Created at timestamp', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Created at timestamp',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   @Expose()
   @Transform(({ value }) => {
     if (value instanceof Date) {
@@ -71,7 +77,10 @@ export class ProductDto {
   })
   createdAt: string;
 
-  @ApiProperty({ description: 'Updated at timestamp', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Updated at timestamp',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   @Expose()
   @Transform(({ value }) => {
     if (value instanceof Date) {
@@ -85,7 +94,9 @@ export class ProductDto {
   updatedAt: string;
 
   static fromEntity(entity: Product): ProductDto {
-    return plainToInstance(ProductDto, entity, { excludeExtraneousValues: true });
+    return plainToInstance(ProductDto, entity, {
+      excludeExtraneousValues: true,
+    });
   }
 
   static fromEntities(entities: Product[]): ProductDto[] {

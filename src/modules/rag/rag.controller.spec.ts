@@ -78,9 +78,16 @@ describe('RagController', () => {
 
       service.getDocuments.mockResolvedValue(mockResult);
 
-      const result = await controller.getDocuments({ page: 1, limit: 10 }, tenantContext);
+      const result = await controller.getDocuments(
+        { page: 1, limit: 10 },
+        tenantContext,
+      );
 
-      expect(service.getDocuments).toHaveBeenCalledWith(tenantContext.shopId, 1, 10);
+      expect(service.getDocuments).toHaveBeenCalledWith(
+        tenantContext.shopId,
+        1,
+        10,
+      );
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(2);
       expect(result.data?.[0].pageContent).toBe('Document 1');
@@ -109,7 +116,11 @@ describe('RagController', () => {
 
       const result = await controller.getDocuments({}, tenantContext);
 
-      expect(service.getDocuments).toHaveBeenCalledWith(tenantContext.shopId, 1, 10);
+      expect(service.getDocuments).toHaveBeenCalledWith(
+        tenantContext.shopId,
+        1,
+        10,
+      );
       expect(result.pagination).toEqual({
         page: 1,
         limit: 10,
@@ -142,7 +153,9 @@ describe('RagController', () => {
 
       const result = await controller.getAvailableProducts(tenantContext);
 
-      expect(service.getAvailableProducts).toHaveBeenCalledWith(tenantContext.shopId);
+      expect(service.getAvailableProducts).toHaveBeenCalledWith(
+        tenantContext.shopId,
+      );
       expect(result).toEqual({
         success: true,
         data: ProductDto.fromEntities(products as any),
@@ -193,7 +206,11 @@ describe('RagController', () => {
         buffer: Buffer.from('raw'),
       } as Express.Multer.File;
 
-      const result = await controller.uploadDocument(file, { removeNoise: true }, tenantContext);
+      const result = await controller.uploadDocument(
+        file,
+        { removeNoise: true },
+        tenantContext,
+      );
 
       expect(docPreprocessorService.preprocess).toHaveBeenCalledWith(
         file,
@@ -224,7 +241,9 @@ describe('RagController', () => {
         buffer: Buffer.from('raw'),
       } as Express.Multer.File;
 
-      await expect(controller.uploadDocument(file, {}, tenantContext)).rejects.toThrow('Unsupported file type');
+      await expect(
+        controller.uploadDocument(file, {}, tenantContext),
+      ).rejects.toThrow('Unsupported file type');
     });
   });
 
@@ -240,7 +259,11 @@ describe('RagController', () => {
 
       const result = await controller.addTexts(addRequest, tenantContext);
 
-      expect(service.addTexts).toHaveBeenCalledWith(addRequest.texts, tenantContext.shopId, addRequest.metadata);
+      expect(service.addTexts).toHaveBeenCalledWith(
+        addRequest.texts,
+        tenantContext.shopId,
+        addRequest.metadata,
+      );
       expect(result.success).toBe(true);
       expect(result.data?.textIds).toEqual(mockTextIds);
       expect(result.data?.count).toBe(2);
@@ -277,7 +300,9 @@ describe('RagController', () => {
         throw new Error('Clear failed');
       });
 
-      await expect(controller.clearDocuments(tenantContext)).rejects.toThrow('Clear failed');
+      await expect(controller.clearDocuments(tenantContext)).rejects.toThrow(
+        'Clear failed',
+      );
     });
   });
 });

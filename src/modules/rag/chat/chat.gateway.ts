@@ -1,15 +1,32 @@
 import { WsAuthGuard } from '@/common/guards';
 import { WsValidationPipe } from '@/common/pipes';
-import { JwtConfig, JwtOptions, RagChatConfig, RagChatOptions, TenantContext, TokenPayload } from '@/common/types';
+import {
+  JwtConfig,
+  JwtOptions,
+  RagChatConfig,
+  RagChatOptions,
+  TenantContext,
+  TokenPayload,
+} from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
-import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from '../dto';
+import {
+  ChatChunkEventDto,
+  ChatCompleteEventDto,
+  ChatErrorEventDto,
+  ChatMessageDto,
+} from '../dto';
 import { RagService } from '../rag.service';
 import { ChatSessionService } from './chat-session.service';
 
 import { Inject, Injectable, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
+import {
+  ConnectedSocket,
+  MessageBody,
+  SubscribeMessage,
+  WebSocketGateway,
+} from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 
 interface SocketWithData extends Socket {
@@ -61,10 +78,15 @@ export class ChatGateway {
 
       client.data.user = payload;
       client.data.tenantContext = { shopId: payload.shopId } as TenantContext;
-      this.logger.log(`Client connected: ${client.id} (shop: ${payload.shopId})`);
+      this.logger.log(
+        `Client connected: ${client.id} (shop: ${payload.shopId})`,
+      );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.warn(`Invalid token for client ${client.id}: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(
+        `Invalid token for client ${client.id}: ${errorMessage}`,
+      );
       client.disconnect();
     }
   }
@@ -84,7 +106,9 @@ export class ChatGateway {
   }
 
   private buildRetrievalQuery(
-    session: { messages: Array<{ role: 'user' | 'assistant'; content: string }> },
+    session: {
+      messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    },
     message: string,
   ): string {
     const recentUserMessages = session.messages
@@ -111,14 +135,22 @@ export class ChatGateway {
   ) {
     const tenant = client.data.tenantContext;
     if (!tenant) {
-      client.emit('chat:error', { message: 'Missing tenant context', code: 'MISSING_TENANT' } as ChatErrorEventDto);
+      client.emit('chat:error', {
+        message: 'Missing tenant context',
+        code: 'MISSING_TENANT',
+      } as ChatErrorEventDto);
       return;
     }
 
-    this.logger.log(`Chat from ${client.id} [shop:${tenant.shopId}]: ${payload.message}`);
+    this.logger.log(
+      `Chat from ${client.id} [shop:${tenant.shopId}]: ${payload.message}`,
+    );
 
     const rateLimitKey = `ratelimit:ws:${client.id}`;
-    const count = await this.cacheService.incrementWithTtl(rateLimitKey, this.ragChatConfig.WsRateLimitWindow);
+    const count = await this.cacheService.incrementWithTtl(
+      rateLimitKey,
+      this.ragChatConfig.WsRateLimitWindow,
+    );
 
     if (count > this.ragChatConfig.WsRateLimitMax) {
       client.emit('chat:error', {
@@ -132,15 +164,31 @@ export class ChatGateway {
     try {
       const userId = client.data.user?.sub;
       if (!userId) {
-        client.emit('chat:error', { message: 'Missing user context', code: 'MISSING_USER' } as ChatErrorEventDto);
+        client.emit('chat:error', {
+          message: 'Missing user context',
+          code: 'MISSING_USER',
+        } as ChatErrorEventDto);
         return;
       }
 
-      const session = await this.sessionService.getOrCreateSession(payload.sessionId, tenant.shopId, userId);
-      await this.sessionService.appendMessage(session.id, tenant.shopId, userId, 'user', payload.message);
+      const session = await this.sessionService.getOrCreateSession(
+        payload.sessionId,
+        tenant.shopId,
+        userId,
+      );
+      await this.sessionService.appendMessage(
+        session.id,
+        tenant.shopId,
+        userId,
+        'user',
+        payload.message,
+      );
 
       let fullAnswer = '';
-      const sources: Array<{ content: string; metadata?: Record<string, unknown> }> = [];
+      const sources: Array<{
+        content: string;
+        metadata?: Record<string, unknown>;
+      }> = [];
 
       for await (const event of this.ragService.queryStream(
         payload.message,
@@ -151,13 +199,27 @@ export class ChatGateway {
       )) {
         if (event.type === 'chunk') {
           fullAnswer += event.content;
-          client.emit('chat:chunk', { sessionId: session.id, chunk: event.content } as ChatChunkEventDto);
+          client.emit('chat:chunk', {
+            sessionId: session.id,
+            chunk: event.content,
+          } as ChatChunkEventDto);
         } else if (event.type === 'complete') {
-          sources.push(...event.sources.map((s) => ({ content: s.pageContent, metadata: s.metadata })));
+          sources.push(
+            ...event.sources.map((s) => ({
+              content: s.pageContent,
+              metadata: s.metadata,
+            })),
+          );
         }
       }
 
-      await this.sessionService.appendMessage(session.id, tenant.shopId, userId, 'assistant', fullAnswer);
+      await this.sessionService.appendMessage(
+        session.id,
+        tenant.shopId,
+        userId,
+        'assistant',
+        fullAnswer,
+      );
 
       client.emit('chat:complete', {
         sessionId: session.id,
@@ -168,7 +230,10 @@ export class ChatGateway {
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(`Chat error: ${error.message}`, error.stack);
-      client.emit('chat:error', { message: 'Failed to process chat message', code: 'CHAT_ERROR' } as ChatErrorEventDto);
+      client.emit('chat:error', {
+        message: 'Failed to process chat message',
+        code: 'CHAT_ERROR',
+      } as ChatErrorEventDto);
     }
   }
 }

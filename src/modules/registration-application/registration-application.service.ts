@@ -2,9 +2,13 @@ import { RegistrationStatus } from '@/common/enums';
 import { RegisterDto } from '@/core/auth/dto';
 import { Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
-import { RegistrationApplication } from './entities/registration-application.entity';
+import { RegistrationApplication } from './entities';
 
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { hash } from 'bcryptjs';
 import { DataSource, Repository } from 'typeorm';
@@ -13,12 +17,12 @@ import { DataSource, Repository } from 'typeorm';
 export class RegistrationApplicationService {
   constructor(
     @InjectRepository(RegistrationApplication)
-    private readonly registrationApplicationRepository: Repository<RegistrationApplication>,
+    private readonly repository: Repository<RegistrationApplication>,
     private readonly dataSource: DataSource,
   ) {}
 
   async create(registerDto: RegisterDto): Promise<RegistrationApplication> {
-    const existingApplication = await this.registrationApplicationRepository.findOne({
+    const existingApplication = await this.repository.findOne({
       where: [{ email: registerDto.email }, { shopSlug: registerDto.shopSlug }],
     });
 
@@ -27,8 +31,12 @@ export class RegistrationApplicationService {
     }
 
     const [existingUser, existingShop] = await Promise.all([
-      this.dataSource.getRepository(User).findOne({ where: { email: registerDto.email } }),
-      this.dataSource.getRepository(Shop).findOne({ where: { slug: registerDto.shopSlug } }),
+      this.dataSource
+        .getRepository(User)
+        .findOne({ where: { email: registerDto.email } }),
+      this.dataSource
+        .getRepository(Shop)
+        .findOne({ where: { slug: registerDto.shopSlug } }),
     ]);
 
     if (existingUser || existingShop) {
@@ -36,7 +44,7 @@ export class RegistrationApplicationService {
     }
 
     const passwordHash = await hash(registerDto.password, 10);
-    const application = this.registrationApplicationRepository.create({
+    const application = this.repository.create({
       email: registerDto.email,
       passwordHash,
       shopName: registerDto.shopName,
@@ -52,11 +60,25 @@ export class RegistrationApplicationService {
       approvedUserId: null,
     });
 
-    return this.registrationApplicationRepository.save(application);
+    return this.repository.save(application);
   }
 
-  async list(): Promise<RegistrationApplication[]> {
-    return this.registrationApplicationRepository.find({ order: { createdAt: 'DESC' } });
+  async list(status?: RegistrationStatus): Promise<RegistrationApplication[]> {
+    if (status) {
+      return this.repository.find({
+        order: {
+          createdAt: 'DESC',
+        },
+        where: {
+          status: status,
+        },
+      });
+    }
+    return this.repository.find({
+      order: {
+        createdAt: 'DESC',
+      },
+    });
   }
 
   async approve(id: string): Promise<RegistrationApplication> {
@@ -65,7 +87,9 @@ export class RegistrationApplicationService {
     const approved = await this.dataSource.transaction(async (manager) => {
       const shopRepository = manager.getRepository(Shop);
       const userRepository = manager.getRepository(User);
-      const applicationRepository = manager.getRepository(RegistrationApplication);
+      const applicationRepository = manager.getRepository(
+        RegistrationApplication,
+      );
 
       const shop = await shopRepository.save(
         shopRepository.create({
@@ -109,11 +133,15 @@ export class RegistrationApplicationService {
     application.status = RegistrationStatus.REJECTED;
     application.reviewedAt = new Date();
     application.rejectionReason = reason ?? null;
-    return this.registrationApplicationRepository.save(application);
+    return this.repository.save(application);
   }
 
   private async findPending(id: string): Promise<RegistrationApplication> {
-    const application = await this.registrationApplicationRepository.findOne({ where: { id } });
+    const application = await this.repository.findOne({
+      where: {
+        id,
+      },
+    });
 
     if (!application) {
       throw new NotFoundException('Registration application not found');

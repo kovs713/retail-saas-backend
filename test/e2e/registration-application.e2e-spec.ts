@@ -18,14 +18,21 @@ describe('Registration Application E2E', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true })],
       controllers: [RegistrationApplicationController],
-      providers: [{ provide: RegistrationApplicationService, useValue: createMock<RegistrationApplicationService>() }],
+      providers: [
+        {
+          provide: RegistrationApplicationService,
+          useValue: createMock<RegistrationApplicationService>(),
+        },
+      ],
     })
       .overrideGuard(ThrottlerGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(AuthGuard)
       .useValue({
         canActivate: (context: any) => {
-          context.switchToHttp().getRequest().user = createTokenPayload({ overrides: { role: 'admin', shopId: '' } });
+          context.switchToHttp().getRequest().user = createTokenPayload({
+            overrides: { role: 'admin', shopId: '' },
+          });
           return true;
         },
       })
@@ -34,7 +41,13 @@ describe('Registration Application E2E', () => {
       .compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+      }),
+    );
     await app.init();
 
     service = moduleRef.get(RegistrationApplicationService);
@@ -61,7 +74,9 @@ describe('Registration Application E2E', () => {
       } as any,
     ]);
 
-    const response = await request(app.getHttpServer()).get('/admin/registration-applications').expect(200);
+    const response = await request(app.getHttpServer())
+      .get('/admin/registration-applications')
+      .expect(200);
 
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);

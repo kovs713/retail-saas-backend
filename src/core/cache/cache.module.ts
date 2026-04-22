@@ -16,7 +16,9 @@ export class CacheModule {
         {
           provide: RedisClient,
           inject: [ConfigService],
-          useFactory: async (configService: ConfigService): Promise<RedisClientType> => {
+          useFactory: async (
+            configService: ConfigService,
+          ): Promise<RedisClientType> => {
             const host = configService.getOrThrow<string>('REDIS_HOST');
             const port = configService.getOrThrow<number>('REDIS_PORT');
             const password = configService.getOrThrow<string>('REDIS_PASSWORD');

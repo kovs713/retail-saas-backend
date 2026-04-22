@@ -1,9 +1,25 @@
 import { Pagination } from '@/common/dto';
-import { CategoryRepository, ProductRepository } from '@/modules/product/repositories';
-import { StorefrontCategoryDto, StorefrontProductDto, StorefrontResponseDto, StorefrontShopDto } from './dto';
+import {
+  CategoryRepository,
+  ProductRepository,
+} from '@/modules/product/repositories';
+import {
+  StorefrontCategoryDto,
+  StorefrontProductDto,
+  StorefrontResponseDto,
+  StorefrontShopDto,
+} from './dto';
 import { ShopService } from './shop.service';
 
-import { BadRequestException, Controller, Get, HttpCode, HttpStatus, Logger, Param } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Param,
+} from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Public shop')
@@ -19,11 +35,28 @@ export class PublicShopController {
 
   @Get(':slug')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get public storefront data by shop slug (no authentication required)' })
-  @ApiParam({ name: 'slug', description: 'Shop slug', example: 'my-shop' })
-  @ApiResponse({ status: 200, description: 'Successful response', type: StorefrontResponseDto })
-  @ApiResponse({ status: 404, description: 'Shop not found' })
-  async getStorefront(@Param('slug') slug: string): Promise<{ success: true; data: StorefrontResponseDto }> {
+  @ApiOperation({
+    summary:
+      'Get public storefront data by shop slug (no authentication required)',
+  })
+  @ApiParam({
+    name: 'slug',
+    description: 'Shop slug',
+    example: 'my-shop',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successful response',
+    type: StorefrontResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Shop not found',
+  })
+  async getStorefront(
+    @Param('slug')
+    slug: string,
+  ): Promise<{ success: true; data: StorefrontResponseDto }> {
     const shop = await this.shopService.findBySlug(slug);
 
     if (!shop.isActive) {
@@ -31,7 +64,10 @@ export class PublicShopController {
     }
 
     const paginationQuery: Pagination = { page: 1, limit: 100 };
-    const [products, totalProducts] = await this.productRepository.findAll(shop.id, paginationQuery);
+    const [products, totalProducts] = await this.productRepository.findAll(
+      shop.id,
+      paginationQuery,
+    );
 
     const categories = await this.categoryRepository.findAllByShop(shop.id);
 

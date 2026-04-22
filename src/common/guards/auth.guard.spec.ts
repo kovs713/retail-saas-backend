@@ -61,7 +61,9 @@ describe('AuthGuard', () => {
         getRequest: () => mockRequest,
       });
 
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for invalid token', async () => {
@@ -92,7 +94,9 @@ describe('AuthGuard', () => {
         getRequest: () => mockRequest,
       });
 
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should attach user payload to request', async () => {
@@ -123,7 +127,9 @@ describe('AuthGuard', () => {
         getRequest: () => mockRequest,
       });
 
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for empty Authorization header', async () => {
@@ -137,7 +143,9 @@ describe('AuthGuard', () => {
         getRequest: () => mockRequest,
       });
 
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for expired token', async () => {

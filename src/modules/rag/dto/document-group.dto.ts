@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsNumber, IsObject, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class DocumentChunkDto {

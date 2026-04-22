@@ -1,4 +1,9 @@
-import { createChatEvent, createChatEvents, createStorefrontView, createStorefrontViews } from './analytics.factory';
+import {
+  createChatEvent,
+  createChatEvents,
+  createStorefrontView,
+  createStorefrontViews,
+} from './analytics.factory';
 
 describe('analytics.factory', () => {
   describe('createChatEvent', () => {
@@ -20,7 +25,9 @@ describe('analytics.factory', () => {
     });
 
     it('should allow overriding userQuery', () => {
-      const chatEvent = createChatEvent({ userQuery: 'What products do you have?' });
+      const chatEvent = createChatEvent({
+        userQuery: 'What products do you have?',
+      });
 
       expect(chatEvent.userQuery).toBe('What products do you have?');
     });

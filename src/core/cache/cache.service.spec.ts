@@ -105,7 +105,9 @@ describe('CacheService', () => {
 
   describe('generateKey', () => {
     it('should join parts with colon', () => {
-      expect(service.generateKey('shop', '123', 'products')).toBe('shop:123:products');
+      expect(service.generateKey('shop', '123', 'products')).toBe(
+        'shop:123:products',
+      );
     });
 
     it('should filter out undefined and null', () => {

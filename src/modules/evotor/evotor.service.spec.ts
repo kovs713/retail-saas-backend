@@ -21,8 +21,14 @@ describe('EvotorService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EvotorService,
-        { provide: getRepositoryToken(EvotorIntegration), useValue: createMock<Repository<EvotorIntegration>>() },
-        { provide: ProductRepository, useValue: createMock<ProductRepository>() },
+        {
+          provide: getRepositoryToken(EvotorIntegration),
+          useValue: createMock<Repository<EvotorIntegration>>(),
+        },
+        {
+          provide: ProductRepository,
+          useValue: createMock<ProductRepository>(),
+        },
         { provide: EvotorApiService, useValue: createMock<EvotorApiService>() },
         { provide: ShopService, useValue: createMock<ShopService>() },
       ],
@@ -38,8 +44,12 @@ describe('EvotorService', () => {
   it('connects a shop to evotor mock with deterministic ids', async () => {
     shopService.findById.mockResolvedValue({ id: 'shop-1' } as never);
     integrationRepository.findOne.mockResolvedValue(null);
-    integrationRepository.create.mockImplementation((value) => value as EvotorIntegration);
-    integrationRepository.save.mockImplementation(async (value) => Promise.resolve(value as EvotorIntegration));
+    integrationRepository.create.mockImplementation(
+      (value) => value as EvotorIntegration,
+    );
+    integrationRepository.save.mockImplementation(async (value) =>
+      Promise.resolve(value as EvotorIntegration),
+    );
 
     const result = await service.connect('shop-1');
 
@@ -67,7 +77,9 @@ describe('EvotorService', () => {
     integrationRepository.findOne.mockResolvedValue(integration);
     productRepository.findSyncedByShop.mockResolvedValue([staleProduct]);
     productRepository.create.mockImplementation((value) => value as never);
-    integrationRepository.save.mockImplementation(async (value) => Promise.resolve(value as EvotorIntegration));
+    integrationRepository.save.mockImplementation(async (value) =>
+      Promise.resolve(value as EvotorIntegration),
+    );
     evotorApiService.getProducts.mockResolvedValue([
       {
         id: 'remote-1',
@@ -143,8 +155,12 @@ describe('EvotorService', () => {
         externalStoreId: 'store-shop-1',
         lastSyncAt: new Date('2026-04-21T11:00:00.000Z'),
       } as EvotorIntegration);
-    integrationRepository.create.mockImplementation((value) => value as EvotorIntegration);
-    integrationRepository.save.mockImplementation(async (value) => Promise.resolve(value as EvotorIntegration));
+    integrationRepository.create.mockImplementation(
+      (value) => value as EvotorIntegration,
+    );
+    integrationRepository.save.mockImplementation(async (value) =>
+      Promise.resolve(value as EvotorIntegration),
+    );
     productRepository.findSyncedByShop.mockResolvedValue([]);
     evotorApiService.getProducts.mockResolvedValue([
       {
@@ -156,11 +172,18 @@ describe('EvotorService', () => {
       },
     ]);
     productRepository.create.mockImplementation((value) => value as never);
-    integrationRepository.save.mockImplementation(async (value) => Promise.resolve(value as EvotorIntegration));
+    integrationRepository.save.mockImplementation(async (value) =>
+      Promise.resolve(value as EvotorIntegration),
+    );
 
     const result = await service.demoSetup('shop-1');
 
-    expect(evotorApiService.seedStore).toHaveBeenCalledWith('shop-1', 12, 0, 'electronics');
+    expect(evotorApiService.seedStore).toHaveBeenCalledWith(
+      'shop-1',
+      12,
+      0,
+      'electronics',
+    );
     expect(result).toEqual(
       expect.objectContaining({
         shopRegistered: true,

@@ -31,7 +31,9 @@ describe('ShopDto', () => {
     });
 
     it('should pass through string date values', () => {
-      const shop = createMockShop({ createdAt: '2024-06-15T12:00:00.000Z' as any });
+      const shop = createMockShop({
+        createdAt: '2024-06-15T12:00:00.000Z' as any,
+      });
 
       const dto = ShopDto.fromEntity(shop);
 

@@ -1,6 +1,13 @@
 import { Shop } from '@/modules/shop/entities';
 
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { OrderStatus } from '../dto';
 
 @Entity('orders')

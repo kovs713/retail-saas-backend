@@ -37,7 +37,11 @@ export class CacheService {
 
   async incrementWithTtl(key: string, ttlSeconds: number): Promise<number> {
     try {
-      const result = await this.client.multi().incr(key).expire(key, ttlSeconds, 'NX').exec();
+      const result = await this.client
+        .multi()
+        .incr(key)
+        .expire(key, ttlSeconds, 'NX')
+        .exec();
       const incrementResult = result?.[0];
       if (typeof incrementResult === 'number') {
         return incrementResult;

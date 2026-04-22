@@ -3,7 +3,10 @@ import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
 import { Location, Shop } from '@/modules/shop/entities';
-import { LocationRepository, ShopRepository } from '@/modules/shop/repositories';
+import {
+  LocationRepository,
+  ShopRepository,
+} from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
 import { UserRepository } from '@/modules/user/repositories';
@@ -37,7 +40,14 @@ describe('UserService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, Location, User, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([
+          Shop,
+          Location,
+          User,
+          ChatEvent,
+          StorefrontView,
+          Order,
+        ]),
       ],
       providers: [
         UserService,
@@ -107,17 +117,29 @@ describe('UserService Integration', () => {
     });
 
     it('should throw ConflictException for duplicate email', async () => {
-      const dto = { email: 'test@example.com', password: 'password123', role: 'member' as const, shopId };
+      const dto = {
+        email: 'test@example.com',
+        password: 'password123',
+        role: 'member' as const,
+        shopId,
+      };
 
       await userService.create(dto);
 
-      await expect(userService.create(dto)).rejects.toThrow('User with email "test@example.com" already exists');
+      await expect(userService.create(dto)).rejects.toThrow(
+        'User with email "test@example.com" already exists',
+      );
     });
   });
 
   describe('findByEmail', () => {
     it('should return user by email', async () => {
-      await userService.create({ email: 'findme@example.com', password: 'password123', role: 'member', shopId });
+      await userService.create({
+        email: 'findme@example.com',
+        password: 'password123',
+        role: 'member',
+        shopId,
+      });
 
       const result = await userService.findByEmail('findme@example.com');
 
@@ -125,9 +147,9 @@ describe('UserService Integration', () => {
     });
 
     it('should throw NotFoundException for non-existent email', async () => {
-      await expect(userService.findByEmail('nonexistent@example.com')).rejects.toThrow(
-        'User with email "nonexistent@example.com" not found',
-      );
+      await expect(
+        userService.findByEmail('nonexistent@example.com'),
+      ).rejects.toThrow('User with email "nonexistent@example.com" not found');
     });
   });
 
@@ -147,7 +169,9 @@ describe('UserService Integration', () => {
     });
 
     it('should throw NotFoundException for invalid ID', async () => {
-      await expect(userService.findById('00000000-0000-0000-0000-000000000000')).rejects.toThrow(
+      await expect(
+        userService.findById('00000000-0000-0000-0000-000000000000'),
+      ).rejects.toThrow(
         'User with ID "00000000-0000-0000-0000-000000000000" not found',
       );
     });
@@ -155,8 +179,18 @@ describe('UserService Integration', () => {
 
   describe('findByShop', () => {
     it('should return all users in shop', async () => {
-      await userService.create({ email: 'user1@example.com', password: 'password123', role: 'member', shopId });
-      await userService.create({ email: 'user2@example.com', password: 'password123', role: 'admin', shopId });
+      await userService.create({
+        email: 'user1@example.com',
+        password: 'password123',
+        role: 'member',
+        shopId,
+      });
+      await userService.create({
+        email: 'user2@example.com',
+        password: 'password123',
+        role: 'admin',
+        shopId,
+      });
 
       const result = await userService.findByShop(shopId);
 
@@ -180,7 +214,9 @@ describe('UserService Integration', () => {
     });
 
     it('should throw NotFoundException for non-existent user', async () => {
-      await expect(userService.updateRole('00000000-0000-0000-0000-000000000000', 'admin')).rejects.toThrow(
+      await expect(
+        userService.updateRole('00000000-0000-0000-0000-000000000000', 'admin'),
+      ).rejects.toThrow(
         'User with ID "00000000-0000-0000-0000-000000000000" not found',
       );
     });
@@ -224,7 +260,10 @@ describe('UserService Integration', () => {
         shopId,
       });
 
-      const result = await userService.validatePassword(user, 'correct-password');
+      const result = await userService.validatePassword(
+        user,
+        'correct-password',
+      );
 
       expect(result).toBe(true);
     });
@@ -252,7 +291,9 @@ describe('UserService Integration', () => {
         shopId,
       });
 
-      const result = await userService.update(created.id, { email: 'new@example.com' });
+      const result = await userService.update(created.id, {
+        email: 'new@example.com',
+      });
 
       expect(result.email).toBe('new@example.com');
     });
@@ -272,15 +313,21 @@ describe('UserService Integration', () => {
         shopId,
       });
 
-      await expect(userService.update(user2.id, { email: 'existing@example.com' })).rejects.toThrow(
+      await expect(
+        userService.update(user2.id, { email: 'existing@example.com' }),
+      ).rejects.toThrow(
         'User with email "existing@example.com" already exists',
       );
     });
 
     it('should throw NotFoundException for non-existent user', async () => {
       await expect(
-        userService.update('00000000-0000-0000-0000-000000000000', { email: 'new@example.com' }),
-      ).rejects.toThrow('User with ID "00000000-0000-0000-0000-000000000000" not found');
+        userService.update('00000000-0000-0000-0000-000000000000', {
+          email: 'new@example.com',
+        }),
+      ).rejects.toThrow(
+        'User with ID "00000000-0000-0000-0000-000000000000" not found',
+      );
     });
   });
 
@@ -290,15 +337,29 @@ describe('UserService Integration', () => {
 
     beforeEach(async () => {
       const shopRepo = dataSource.getRepository(Shop);
-      const a = await shopRepo.save(shopRepo.create({ name: 'Shop A', slug: `shop-a-${Date.now()}` }));
-      const b = await shopRepo.save(shopRepo.create({ name: 'Shop B', slug: `shop-b-${Date.now()}` }));
+      const a = await shopRepo.save(
+        shopRepo.create({ name: 'Shop A', slug: `shop-a-${Date.now()}` }),
+      );
+      const b = await shopRepo.save(
+        shopRepo.create({ name: 'Shop B', slug: `shop-b-${Date.now()}` }),
+      );
       shopA = a.id;
       shopB = b.id;
     });
 
     it('should not allow user from shop A to see shop B users', async () => {
-      await userService.create({ email: 'user-a@example.com', password: 'password123', role: 'member', shopId: shopA });
-      await userService.create({ email: 'user-b@example.com', password: 'password123', role: 'member', shopId: shopB });
+      await userService.create({
+        email: 'user-a@example.com',
+        password: 'password123',
+        role: 'member',
+        shopId: shopA,
+      });
+      await userService.create({
+        email: 'user-b@example.com',
+        password: 'password123',
+        role: 'member',
+        shopId: shopB,
+      });
 
       const usersA = await userService.findByShop(shopA);
       const usersB = await userService.findByShop(shopB);

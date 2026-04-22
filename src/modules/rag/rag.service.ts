@@ -129,7 +129,10 @@ export class RagService {
       }
 
       if (!groupsMap.has(groupId)) {
-        const source = (doc.metadata?.source as string) || (doc.metadata?.filename as string) || 'unknown';
+        const source =
+          (doc.metadata?.source as string) ||
+          (doc.metadata?.filename as string) ||
+          'unknown';
         groupsMap.set(groupId, {
           documentGroupId: groupId,
           source,
@@ -179,19 +182,31 @@ export class RagService {
 
   async clearDocuments(shopId: string): Promise<void> {
     await this.vectorStoreService.deleteDocuments(shopId);
-    this.logger.warn('clearDocuments not fully implemented for LangChain Chroma wrapper');
+    this.logger.warn(
+      'clearDocuments not fully implemented for LangChain Chroma wrapper',
+    );
   }
 
-  async deleteDocumentGroup(documentGroupId: string, shopId: string): Promise<number> {
-    const deletedCount = await this.vectorStoreService.deleteDocumentGroup(documentGroupId, shopId);
-    this.logger.log(`Deleted ${deletedCount} chunks for documentGroupId: ${documentGroupId}`);
+  async deleteDocumentGroup(
+    documentGroupId: string,
+    shopId: string,
+  ): Promise<number> {
+    const deletedCount = await this.vectorStoreService.deleteDocumentGroup(
+      documentGroupId,
+      shopId,
+    );
+    this.logger.log(
+      `Deleted ${deletedCount} chunks for documentGroupId: ${documentGroupId}`,
+    );
     return deletedCount;
   }
 
   private isAvailabilityQuery(query: string): boolean {
     const normalizedQuery = query.toLowerCase();
 
-    return RagService.availabilityMarkers.some((marker) => normalizedQuery.includes(marker));
+    return RagService.availabilityMarkers.some((marker) =>
+      normalizedQuery.includes(marker),
+    );
   }
 
   private extractQueryTerms(query: string): string[] {
@@ -213,7 +228,10 @@ export class RagService {
       }
     }
 
-    if (normalizedQuery.includes('phone-related') || normalizedQuery.includes('related to phone')) {
+    if (
+      normalizedQuery.includes('phone-related') ||
+      normalizedQuery.includes('related to phone')
+    ) {
       expandedTerms.add('accessory');
       expandedTerms.add('charger');
       expandedTerms.add('case');
@@ -261,7 +279,10 @@ export class RagService {
     }
 
     const identityMatches = products.filter((product) => {
-      const identityTerms = new Set([...this.tokenize(product.name), ...this.tokenize(product.sku)]);
+      const identityTerms = new Set([
+        ...this.tokenize(product.name),
+        ...this.tokenize(product.sku),
+      ]);
       return terms.some((term) => identityTerms.has(term));
     });
     if (identityMatches.length > 0) {
@@ -301,7 +322,10 @@ export class RagService {
       maxPrice = Math.max(maxPrice, product.price);
     }
 
-    const parts = [`In-stock products: ${products.length}`, `Price range: ${minPrice}-${maxPrice}`];
+    const parts = [
+      `In-stock products: ${products.length}`,
+      `Price range: ${minPrice}-${maxPrice}`,
+    ];
     if (categories.size > 0) {
       parts.push(
         `Categories: ${Array.from(categories.entries())
@@ -328,8 +352,14 @@ export class RagService {
     ].join('\n');
   }
 
-  async getAvailableProducts(shopId: string, limit: number = 100): Promise<Product[]> {
-    const result = await this.productService.findAll({ page: 1, limit }, shopId);
+  async getAvailableProducts(
+    shopId: string,
+    limit: number = 100,
+  ): Promise<Product[]> {
+    const result = await this.productService.findAll(
+      { page: 1, limit },
+      shopId,
+    );
 
     return (result.data || [])
       .filter((product) => product.quantity > 0)
@@ -340,13 +370,18 @@ export class RagService {
     query: string,
     shopId: string,
     maxResults: number,
-  ): Promise<{ context: string; sources: Array<{ pageContent: string; metadata: Record<string, any> }> }> {
+  ): Promise<{
+    context: string;
+    sources: Array<{ pageContent: string; metadata: Record<string, any> }>;
+  }> {
     const [vectorDocs, productsSearchResult] = await Promise.all([
       this.vectorStoreService.similaritySearch(query, shopId, maxResults),
-      this.productService.findAll({ page: 1, limit: 50, search: query }, shopId).catch(() => ({
-        data: [],
-        pagination: { total: 0 },
-      })),
+      this.productService
+        .findAll({ page: 1, limit: 50, search: query }, shopId)
+        .catch(() => ({
+          data: [],
+          pagination: { total: 0 },
+        })),
     ]);
 
     const isAvailabilityQuery = this.isAvailabilityQuery(query);
@@ -354,16 +389,27 @@ export class RagService {
 
     if (isAvailabilityQuery) {
       products = this.filterProductsByQuery(products, query);
-      const fallbackProducts = await this.getAvailableProducts(shopId, 50).catch(() => []);
-      const filteredFallbackProducts = this.filterProductsByQuery(fallbackProducts, query);
+      const fallbackProducts = await this.getAvailableProducts(
+        shopId,
+        50,
+      ).catch(() => []);
+      const filteredFallbackProducts = this.filterProductsByQuery(
+        fallbackProducts,
+        query,
+      );
       if (filteredFallbackProducts.length > 0) {
         products = filteredFallbackProducts;
       }
     }
 
-    this.logger.log(`Found ${vectorDocs.length} vector docs, ${products.length} products`);
+    this.logger.log(
+      `Found ${vectorDocs.length} vector docs, ${products.length} products`,
+    );
 
-    const sources: Array<{ pageContent: string; metadata: Record<string, any> }> = [];
+    const sources: Array<{
+      pageContent: string;
+      metadata: Record<string, any>;
+    }> = [];
     const productContextParts: string[] = [];
     const vectorContextParts: string[] = [];
 
@@ -372,7 +418,11 @@ export class RagService {
       productContextParts.push(productInfo);
       sources.push({
         pageContent: productInfo,
-        metadata: { source: 'postgresql', productId: product.id, type: 'product' },
+        metadata: {
+          source: 'postgresql',
+          productId: product.id,
+          type: 'product',
+        },
       });
     }
 
@@ -388,10 +438,14 @@ export class RagService {
     const parts: string[] = [];
     if (productContextParts.length > 0) {
       parts.push(this.buildCatalogSummary(products));
-      parts.push('## Products from catalog:\n\n' + productContextParts.join('\n\n'));
+      parts.push(
+        '## Products from catalog:\n\n' + productContextParts.join('\n\n'),
+      );
     }
     if (vectorContextParts.length > 0) {
-      parts.push('## Additional context:\n\n' + vectorContextParts.join('\n\n'));
+      parts.push(
+        '## Additional context:\n\n' + vectorContextParts.join('\n\n'),
+      );
     }
 
     return { context: parts.join('\n\n'), sources };
@@ -409,9 +463,15 @@ export class RagService {
       metadata: Record<string, any>;
     }>;
   }> {
-    this.logger.log(`Processing RAG query: "${query}" for organization: ${shopId}`);
+    this.logger.log(
+      `Processing RAG query: "${query}" for organization: ${shopId}`,
+    );
 
-    const { context, sources } = await this.buildCombinedContext(query, shopId, maxResults);
+    const { context, sources } = await this.buildCombinedContext(
+      query,
+      shopId,
+      maxResults,
+    );
 
     const baseInstructions =
       'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
@@ -437,7 +497,9 @@ Question: ${query}`;
 
     const answer = await this.llmService.generateText(prompt);
 
-    this.logger.log(`Generated answer for query: "${query.substring(0, 50)}..."`);
+    this.logger.log(
+      `Generated answer for query: "${query.substring(0, 50)}..."`,
+    );
 
     return { answer, sources };
   }
@@ -457,14 +519,22 @@ Question: ${query}`;
       score: number;
     }>;
   }> {
-    this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${shopId}`);
+    this.logger.log(
+      `Processing RAG query with scores: "${query}" for organization: ${shopId}`,
+    );
 
     const [vectorDocsWithScores, { context, sources }] = await Promise.all([
-      this.vectorStoreService.similaritySearchWithScore(query, shopId, maxResults),
+      this.vectorStoreService.similaritySearchWithScore(
+        query,
+        shopId,
+        maxResults,
+      ),
       this.buildCombinedContext(query, shopId, maxResults),
     ]);
 
-    this.logger.log(`Found ${vectorDocsWithScores.length} vector documents with scores`);
+    this.logger.log(
+      `Found ${vectorDocsWithScores.length} vector documents with scores`,
+    );
 
     const baseInstructions =
       'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
@@ -490,19 +560,30 @@ Question: ${query}`;
 
     const answer = await this.llmService.generateText(prompt);
 
-    this.logger.log(`Generated answer for query: "${query.substring(0, 50)}..."`);
+    this.logger.log(
+      `Generated answer for query: "${query.substring(0, 50)}..."`,
+    );
 
     return {
       answer,
       sources: sources.map((src, idx) => ({
         document: { pageContent: src.pageContent, metadata: src.metadata },
-        score: idx < vectorDocsWithScores.length ? vectorDocsWithScores[idx][1] : 0,
+        score:
+          idx < vectorDocsWithScores.length ? vectorDocsWithScores[idx][1] : 0,
       })),
     };
   }
 
-  async addTexts(texts: string[], shopId: string, metadata?: Record<string, any>[]): Promise<string[]> {
-    const documentIds = await this.vectorStoreService.addTexts(texts, shopId, metadata);
+  async addTexts(
+    texts: string[],
+    shopId: string,
+    metadata?: Record<string, any>[],
+  ): Promise<string[]> {
+    const documentIds = await this.vectorStoreService.addTexts(
+      texts,
+      shopId,
+      metadata,
+    );
     return documentIds;
   }
 
@@ -514,11 +595,20 @@ Question: ${query}`;
     retrievalQuery?: string,
   ): AsyncGenerator<
     | { type: 'chunk'; content: string }
-    | { type: 'complete'; sources: Array<{ pageContent: string; metadata: Record<string, any> }> }
+    | {
+        type: 'complete';
+        sources: Array<{ pageContent: string; metadata: Record<string, any> }>;
+      }
   > {
-    this.logger.log(`Processing streaming RAG query: "${query}" for organization: ${shopId}`);
+    this.logger.log(
+      `Processing streaming RAG query: "${query}" for organization: ${shopId}`,
+    );
 
-    const { context, sources } = await this.buildCombinedContext(retrievalQuery ?? query, shopId, maxResults);
+    const { context, sources } = await this.buildCombinedContext(
+      retrievalQuery ?? query,
+      shopId,
+      maxResults,
+    );
 
     const baseInstructions =
       'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
@@ -546,7 +636,9 @@ Question: ${query}`;
       yield { type: 'chunk', content: chunk };
     }
 
-    this.logger.log(`Generated streaming answer for query: "${query.substring(0, 50)}..."`);
+    this.logger.log(
+      `Generated streaming answer for query: "${query.substring(0, 50)}..."`,
+    );
 
     yield { type: 'complete', sources };
   }

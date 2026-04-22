@@ -9,7 +9,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, Category]), EvotorApiModule.forRoot()],
+  imports: [
+    TypeOrmModule.forFeature([Product, Category]),
+    EvotorApiModule.forRoot(),
+  ],
   providers: [ProductService, ProductRepository, CategoryRepository],
   exports: [ProductService, ProductRepository, CategoryRepository],
   controllers: [ProductController, PublicMediaController],

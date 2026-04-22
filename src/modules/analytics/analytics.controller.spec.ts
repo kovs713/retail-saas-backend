@@ -44,7 +44,14 @@ describe('AnalyticsController', () => {
       ],
     })
       .overrideGuard(AuthGuard)
-      .useValue(mockAuthGuard({ sub: 'user-1', email: 'test@test.com', shopId: 'shop-1', role: 'owner' }))
+      .useValue(
+        mockAuthGuard({
+          sub: 'user-1',
+          email: 'test@test.com',
+          shopId: 'shop-1',
+          role: 'owner',
+        }),
+      )
       .overrideGuard(RolesGuard)
       .useValue(mockGuard())
       .compile();
@@ -63,7 +70,11 @@ describe('AnalyticsController', () => {
       const mockStats = [{ id: 'chat-1' }] as any;
       analyticsService.getChatStats.mockResolvedValue(mockStats);
 
-      const result = await controller.getChatStats('2024-01-01', '2024-01-31', mockTenantContext);
+      const result = await controller.getChatStats(
+        '2024-01-01',
+        '2024-01-31',
+        mockTenantContext,
+      );
 
       expect(result).toEqual({ success: true, data: mockStats });
       expect(analyticsService.getChatStats).toHaveBeenCalledWith(
@@ -79,10 +90,16 @@ describe('AnalyticsController', () => {
       const mockQuestions = [{ question: 'What?', count: '5' }];
       analyticsService.getTopQuestions.mockResolvedValue(mockQuestions);
 
-      const result = await controller.getTopQuestions(undefined, mockTenantContext);
+      const result = await controller.getTopQuestions(
+        undefined,
+        mockTenantContext,
+      );
 
       expect(result).toEqual({ success: true, data: mockQuestions });
-      expect(analyticsService.getTopQuestions).toHaveBeenCalledWith('shop-1', 10);
+      expect(analyticsService.getTopQuestions).toHaveBeenCalledWith(
+        'shop-1',
+        10,
+      );
     });
 
     it('should return top questions with custom limit', async () => {
@@ -91,7 +108,10 @@ describe('AnalyticsController', () => {
 
       await controller.getTopQuestions(5, mockTenantContext);
 
-      expect(analyticsService.getTopQuestions).toHaveBeenCalledWith('shop-1', 5);
+      expect(analyticsService.getTopQuestions).toHaveBeenCalledWith(
+        'shop-1',
+        5,
+      );
     });
   });
 
@@ -99,7 +119,11 @@ describe('AnalyticsController', () => {
     it('should return storefront view count for the tenant shop', async () => {
       analyticsService.getStorefrontViewCount.mockResolvedValue(42);
 
-      const result = await controller.getStorefrontViews('2024-01-01', '2024-01-31', mockTenantContext);
+      const result = await controller.getStorefrontViews(
+        '2024-01-01',
+        '2024-01-31',
+        mockTenantContext,
+      );
 
       expect(result).toEqual({ success: true, data: 42 });
       expect(analyticsService.getStorefrontViewCount).toHaveBeenCalledWith(
@@ -137,7 +161,10 @@ describe('AnalyticsController', () => {
 
       await controller.getStockReport(mockRes as any, mockTenantContext);
 
-      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
+      expect(mockRes.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'text/csv; charset=utf-8',
+      );
       expect(mockRes.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
         'attachment; filename="stock-report-shop-1.csv"',
@@ -181,7 +208,9 @@ describe('AnalyticsController', () => {
 
       await controller.getStockReport(mockRes as any, mockTenantContext);
 
-      expect(mockRes.send).toHaveBeenCalledWith('\uFEFFSKU,Name,Category,Price,Quantity\n');
+      expect(mockRes.send).toHaveBeenCalledWith(
+        '\uFEFFSKU,Name,Category,Price,Quantity\n',
+      );
     });
   });
 });

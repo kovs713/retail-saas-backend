@@ -10,6 +10,9 @@ export function generateUniqueSlug(base: string, index: number): string {
   return `${base.toLowerCase().replace(/\s+/g, '-')}-${String(index).padStart(3, '0')}`;
 }
 
-export function createMany<T>(count: number, factory: (index: number) => T): T[] {
+export function createMany<T>(
+  count: number,
+  factory: (index: number) => T,
+): T[] {
   return Array.from({ length: count }, (_, i) => factory(i + 1));
 }

@@ -17,9 +17,15 @@ export class VectorStoreModule {
         {
           provide: ChromaDBClient,
           inject: [ConfigService, EmbeddingsService],
-          useFactory: (configService: ConfigService, embeddingsService: EmbeddingsService): Chroma => {
-            const collectionName = configService.getOrThrow<string>('VECTOR_COLLECTION_NAME');
-            const chromadbUrl = configService.getOrThrow<string>('CHROMADB_URL');
+          useFactory: (
+            configService: ConfigService,
+            embeddingsService: EmbeddingsService,
+          ): Chroma => {
+            const collectionName = configService.getOrThrow<string>(
+              'VECTOR_COLLECTION_NAME',
+            );
+            const chromadbUrl =
+              configService.getOrThrow<string>('CHROMADB_URL');
 
             const parsedUrl = new URL(chromadbUrl || 'http://localhost:8000');
             const ssl = parsedUrl.protocol === 'https:';

@@ -2,7 +2,9 @@ import { Product } from '@/modules/product/entities';
 import { DEFAULT_IDS } from './defaults';
 import { createMany, generateId } from './shared.utils';
 
-export function createProduct(overrides: Partial<Product> & { index?: number } = {}): Product {
+export function createProduct(
+  overrides: Partial<Product> & { index?: number } = {},
+): Product {
   const { index = 1, ...fields } = overrides;
   const now = new Date();
   return {
@@ -28,10 +30,15 @@ export function createProduct(overrides: Partial<Product> & { index?: number } =
   } as Product;
 }
 
-export function createProducts(count: number, overrides: Partial<Product> = {}): Product[] {
+export function createProducts(
+  count: number,
+  overrides: Partial<Product> = {},
+): Product[] {
   return createMany(count, (i) => createProduct({ ...overrides, index: i }));
 }
 
-export function createDeletedProduct(overrides: Partial<Product> = {}): Product {
+export function createDeletedProduct(
+  overrides: Partial<Product> = {},
+): Product {
   return createProduct({ ...overrides, deletedAt: new Date() });
 }

@@ -93,7 +93,9 @@ describe('OrderService', () => {
       );
 
       await expect(
-        service.updateStatus('order_001', 'shop_001', { status: 'CONFIRMED' } as UpdateOrderStatusDto),
+        service.updateStatus('order_001', 'shop_001', {
+          status: 'CONFIRMED',
+        } as UpdateOrderStatusDto),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -127,18 +129,30 @@ describe('OrderService', () => {
       expect(result.total).toBe(1);
       expect(result.page).toBe(1);
       expect(result.limit).toBe(20);
-      expect(orderRepository.findByShopId).toHaveBeenCalledWith('shop_001', { page: 1, limit: 20, status: undefined });
+      expect(orderRepository.findByShopId).toHaveBeenCalledWith('shop_001', {
+        page: 1,
+        limit: 20,
+        status: undefined,
+      });
     });
 
     it('should return paginated orders with custom pagination and status filter', async () => {
       const mockOrders = [mockOrder];
       orderRepository.findByShopId.mockResolvedValue([mockOrders, 5]);
 
-      const result = await service.findByShopId('shop_001', { page: 2, limit: 10, status: 'PENDING' });
+      const result = await service.findByShopId('shop_001', {
+        page: 2,
+        limit: 10,
+        status: 'PENDING',
+      });
 
       expect(result.page).toBe(2);
       expect(result.limit).toBe(10);
-      expect(orderRepository.findByShopId).toHaveBeenCalledWith('shop_001', { page: 2, limit: 10, status: 'PENDING' });
+      expect(orderRepository.findByShopId).toHaveBeenCalledWith('shop_001', {
+        page: 2,
+        limit: 10,
+        status: 'PENDING',
+      });
     });
   });
 
@@ -154,8 +168,12 @@ describe('OrderService', () => {
     it('should throw NotFoundException when order not found', async () => {
       orderRepository.findById.mockResolvedValue(null);
 
-      await expect(service.findById('non-existent')).rejects.toThrow(NotFoundException);
-      await expect(service.findById('non-existent')).rejects.toThrow('Order non-existent not found');
+      await expect(service.findById('non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(service.findById('non-existent')).rejects.toThrow(
+        'Order non-existent not found',
+      );
     });
   });
 
@@ -171,53 +189,83 @@ describe('OrderService', () => {
     it('should throw NotFoundException when order not found for shop', async () => {
       orderRepository.findByIdAndShopId.mockResolvedValue(null);
 
-      await expect(service.findByIdAndShopId('order_001', 'shop_002')).rejects.toThrow(NotFoundException);
-      await expect(service.findByIdAndShopId('order_001', 'shop_002')).rejects.toThrow(
-        'Order order_001 not found for this shop',
-      );
+      await expect(
+        service.findByIdAndShopId('order_001', 'shop_002'),
+      ).rejects.toThrow(NotFoundException);
+      await expect(
+        service.findByIdAndShopId('order_001', 'shop_002'),
+      ).rejects.toThrow('Order order_001 not found for this shop');
     });
   });
 
   describe('updateStatus', () => {
     it('should update order status with valid transition PENDING -> CONFIRMED', async () => {
       orderRepository.findByIdAndShopId.mockResolvedValue(mockOrder);
-      orderRepository.save.mockResolvedValue(createConfirmedOrder({ id: 'order_001', shopId: 'shop_001' }));
+      orderRepository.save.mockResolvedValue(
+        createConfirmedOrder({ id: 'order_001', shopId: 'shop_001' }),
+      );
 
       const result = await service.updateStatus('order_001', 'shop_001', {
         status: 'CONFIRMED',
       } as UpdateOrderStatusDto);
 
       expect(result.status).toBe('CONFIRMED');
-      expect(orderRepository.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'CONFIRMED' }));
+      expect(orderRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'CONFIRMED' }),
+      );
     });
 
     it('should allow PENDING -> CANCELLED transition', async () => {
       orderRepository.findByIdAndShopId.mockResolvedValue(mockOrder);
-      orderRepository.save.mockResolvedValue(createCancelledOrder({ id: 'order_001', shopId: 'shop_001' }));
+      orderRepository.save.mockResolvedValue(
+        createCancelledOrder({ id: 'order_001', shopId: 'shop_001' }),
+      );
 
-      await service.updateStatus('order_001', 'shop_001', { status: 'CANCELLED' } as UpdateOrderStatusDto);
+      await service.updateStatus('order_001', 'shop_001', {
+        status: 'CANCELLED',
+      } as UpdateOrderStatusDto);
 
-      expect(orderRepository.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'CANCELLED' }));
+      expect(orderRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'CANCELLED' }),
+      );
     });
 
     it('should allow CONFIRMED -> READY transition', async () => {
-      const confirmedOrder = createConfirmedOrder({ id: 'order_001', shopId: 'shop_001' });
+      const confirmedOrder = createConfirmedOrder({
+        id: 'order_001',
+        shopId: 'shop_001',
+      });
       orderRepository.findByIdAndShopId.mockResolvedValue(confirmedOrder);
-      orderRepository.save.mockResolvedValue(createReadyOrder({ id: 'order_001', shopId: 'shop_001' }));
+      orderRepository.save.mockResolvedValue(
+        createReadyOrder({ id: 'order_001', shopId: 'shop_001' }),
+      );
 
-      await service.updateStatus('order_001', 'shop_001', { status: 'READY' } as UpdateOrderStatusDto);
+      await service.updateStatus('order_001', 'shop_001', {
+        status: 'READY',
+      } as UpdateOrderStatusDto);
 
-      expect(orderRepository.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'READY' }));
+      expect(orderRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'READY' }),
+      );
     });
 
     it('should allow READY -> COMPLETED transition', async () => {
-      const readyOrder = createReadyOrder({ id: 'order_001', shopId: 'shop_001' });
+      const readyOrder = createReadyOrder({
+        id: 'order_001',
+        shopId: 'shop_001',
+      });
       orderRepository.findByIdAndShopId.mockResolvedValue(readyOrder);
-      orderRepository.save.mockResolvedValue(createCompletedOrder({ id: 'order_001', shopId: 'shop_001' }));
+      orderRepository.save.mockResolvedValue(
+        createCompletedOrder({ id: 'order_001', shopId: 'shop_001' }),
+      );
 
-      await service.updateStatus('order_001', 'shop_001', { status: 'COMPLETED' } as UpdateOrderStatusDto);
+      await service.updateStatus('order_001', 'shop_001', {
+        status: 'COMPLETED',
+      } as UpdateOrderStatusDto);
 
-      expect(orderRepository.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'COMPLETED' }));
+      expect(orderRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'COMPLETED' }),
+      );
     });
 
     it('should reject COMPLETED -> any transition', async () => {
@@ -226,7 +274,9 @@ describe('OrderService', () => {
       );
 
       await expect(
-        service.updateStatus('order_001', 'shop_001', { status: 'CANCELLED' } as UpdateOrderStatusDto),
+        service.updateStatus('order_001', 'shop_001', {
+          status: 'CANCELLED',
+        } as UpdateOrderStatusDto),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -236,7 +286,9 @@ describe('OrderService', () => {
       );
 
       await expect(
-        service.updateStatus('order_001', 'shop_001', { status: 'PENDING' } as UpdateOrderStatusDto),
+        service.updateStatus('order_001', 'shop_001', {
+          status: 'PENDING',
+        } as UpdateOrderStatusDto),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -246,7 +298,9 @@ describe('OrderService', () => {
       );
 
       await expect(
-        service.updateStatus('order_001', 'shop_001', { status: 'PENDING' } as UpdateOrderStatusDto),
+        service.updateStatus('order_001', 'shop_001', {
+          status: 'PENDING',
+        } as UpdateOrderStatusDto),
       ).rejects.toThrow(BadRequestException);
     });
   });

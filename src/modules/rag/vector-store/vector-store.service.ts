@@ -9,9 +9,15 @@ import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class VectorStoreService {
-  private readonly logger: LoggerService = new LoggerService(VectorStoreService.name);
+  private readonly logger: LoggerService = new LoggerService(
+    VectorStoreService.name,
+  );
 
-  private static readonly allowedMetadataTypes = new Set(['string', 'number', 'boolean']);
+  private static readonly allowedMetadataTypes = new Set([
+    'string',
+    'number',
+    'boolean',
+  ]);
 
   constructor(
     @Inject(ChromaDBClient)
@@ -44,12 +50,17 @@ export class VectorStoreService {
       };
     });
 
-    this.logger.log(`Retrieved ${result.length} documents from vector store for organization: ${shopId}`);
+    this.logger.log(
+      `Retrieved ${result.length} documents from vector store for organization: ${shopId}`,
+    );
 
     return result;
   }
 
-  async getDocumentsByGroup(documentGroupId: string, shopId: string): Promise<Document[]> {
+  async getDocumentsByGroup(
+    documentGroupId: string,
+    shopId: string,
+  ): Promise<Document[]> {
     const collection = this.chromaDBClient.collection;
 
     if (!collection) {
@@ -84,7 +95,9 @@ export class VectorStoreService {
         return aIndex - bIndex;
       });
 
-    this.logger.log(`Retrieved ${result.length} documents for documentGroupId: ${documentGroupId}`);
+    this.logger.log(
+      `Retrieved ${result.length} documents for documentGroupId: ${documentGroupId}`,
+    );
 
     return result;
   }
@@ -121,16 +134,25 @@ export class VectorStoreService {
       }
     }
 
-    this.logger.log(`Split ${documents.length} documents into ${splitDocs.length} chunks`);
+    this.logger.log(
+      `Split ${documents.length} documents into ${splitDocs.length} chunks`,
+    );
 
     const ids = await this.chromaDBClient.addDocuments(splitDocs);
-    this.logger.log(`Added ${splitDocs.length} document chunks to vector store for organization: ${shopId}`);
+    this.logger.log(
+      `Added ${splitDocs.length} document chunks to vector store for organization: ${shopId}`,
+    );
     return ids;
   }
 
-  async addTexts(texts: string[], shopId: string, metadatas?: Record<string, any>[]): Promise<string[]> {
+  async addTexts(
+    texts: string[],
+    shopId: string,
+    metadatas?: Record<string, any>[],
+  ): Promise<string[]> {
     const docs = texts.map((text, index) => {
-      const metadata = metadatas?.length === 1 ? metadatas[0] : metadatas?.[index] || {};
+      const metadata =
+        metadatas?.length === 1 ? metadatas[0] : metadatas?.[index] || {};
       if (Object.keys(metadata).length === 0) {
         metadata.source = 'unknown';
       }
@@ -143,8 +165,13 @@ export class VectorStoreService {
       };
     });
 
-    const resultIds = await this.chromaDBClient.addVectors(await this.embeddingsService.embedDocuments(texts), docs);
-    this.logger.log(`Added ${texts.length} texts to vector store for organization: ${shopId}`);
+    const resultIds = await this.chromaDBClient.addVectors(
+      await this.embeddingsService.embedDocuments(texts),
+      docs,
+    );
+    this.logger.log(
+      `Added ${texts.length} texts to vector store for organization: ${shopId}`,
+    );
     return resultIds;
   }
 
@@ -156,8 +183,14 @@ export class VectorStoreService {
   ): Promise<Document[]> {
     const combinedFilter = filter ? { shopId, ...filter } : { shopId };
 
-    const results = await this.chromaDBClient.similaritySearch(query, k, combinedFilter);
-    this.logger.log(`Similarity search completed for query: "${query}" for organization: ${shopId}`);
+    const results = await this.chromaDBClient.similaritySearch(
+      query,
+      k,
+      combinedFilter,
+    );
+    this.logger.log(
+      `Similarity search completed for query: "${query}" for organization: ${shopId}`,
+    );
     return results;
   }
 
@@ -169,8 +202,14 @@ export class VectorStoreService {
   ): Promise<[Document, number][]> {
     const combinedFilter = filter ? { shopId, ...filter } : { shopId };
 
-    const results = await this.chromaDBClient.similaritySearchWithScore(query, k, combinedFilter);
-    this.logger.log(`Similarity search with scores completed for query: "${query}" for organization: ${shopId}`);
+    const results = await this.chromaDBClient.similaritySearchWithScore(
+      query,
+      k,
+      combinedFilter,
+    );
+    this.logger.log(
+      `Similarity search with scores completed for query: "${query}" for organization: ${shopId}`,
+    );
     return results;
   }
 
@@ -186,10 +225,15 @@ export class VectorStoreService {
 
     await this.chromaDBClient.delete({ ids: documents.ids });
 
-    this.logger.log(`Deleted ${documents.ids.length} documents from vector store`);
+    this.logger.log(
+      `Deleted ${documents.ids.length} documents from vector store`,
+    );
   }
 
-  async deleteDocumentGroup(documentGroupId: string, shopId: string): Promise<number> {
+  async deleteDocumentGroup(
+    documentGroupId: string,
+    shopId: string,
+  ): Promise<number> {
     const collection = this.chromaDBClient.collection;
 
     if (!collection) {
@@ -201,22 +245,36 @@ export class VectorStoreService {
     });
 
     if (!documents.ids?.length) {
-      this.logger.log(`No documents found for documentGroupId: ${documentGroupId}`);
+      this.logger.log(
+        `No documents found for documentGroupId: ${documentGroupId}`,
+      );
       return 0;
     }
 
     await this.chromaDBClient.delete({ ids: documents.ids });
 
-    this.logger.log(`Deleted ${documents.ids.length} chunks for documentGroupId: ${documentGroupId}`);
+    this.logger.log(
+      `Deleted ${documents.ids.length} chunks for documentGroupId: ${documentGroupId}`,
+    );
     return documents.ids.length;
   }
 
-  asRetriever(shopId: string, searchKwargs?: { k?: number; filter?: Record<string, any> }) {
-    const combinedFilter = searchKwargs?.filter ? { shopId, ...searchKwargs.filter } : { shopId };
-    return this.chromaDBClient.asRetriever({ ...searchKwargs, filter: combinedFilter });
+  asRetriever(
+    shopId: string,
+    searchKwargs?: { k?: number; filter?: Record<string, any> },
+  ) {
+    const combinedFilter = searchKwargs?.filter
+      ? { shopId, ...searchKwargs.filter }
+      : { shopId };
+    return this.chromaDBClient.asRetriever({
+      ...searchKwargs,
+      filter: combinedFilter,
+    });
   }
 
-  private sanitizeMetadata(metadata?: Record<string, unknown>): Record<string, string | number | boolean | null> {
+  private sanitizeMetadata(
+    metadata?: Record<string, unknown>,
+  ): Record<string, string | number | boolean | null> {
     const safeMetadata: Record<string, string | number | boolean | null> = {};
 
     for (const [key, value] of Object.entries(metadata ?? {})) {

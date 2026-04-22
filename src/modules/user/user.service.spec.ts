@@ -70,7 +70,10 @@ describe('UserService', () => {
 
     it('should use default role "owner" when not provided', async () => {
       repository.existsByEmail.mockResolvedValue(false);
-      repository.create.mockImplementation((data) => ({ ...mockUser, ...data }));
+      repository.create.mockImplementation((data) => ({
+        ...mockUser,
+        ...data,
+      }));
       repository.save.mockImplementation((user) => Promise.resolve(user));
 
       const result = await service.create({ ...createDto, role: undefined });
@@ -81,8 +84,12 @@ describe('UserService', () => {
     it('should throw ConflictException for duplicate email', async () => {
       repository.existsByEmail.mockResolvedValue(true);
 
-      await expect(service.create(createDto)).rejects.toThrow(ConflictException);
-      await expect(service.create(createDto)).rejects.toThrow(`User with email "${createDto.email}" already exists`);
+      await expect(service.create(createDto)).rejects.toThrow(
+        ConflictException,
+      );
+      await expect(service.create(createDto)).rejects.toThrow(
+        `User with email "${createDto.email}" already exists`,
+      );
     });
   });
 
@@ -98,7 +105,9 @@ describe('UserService', () => {
     it('should throw NotFoundException for non-existent email', async () => {
       repository.findByEmail.mockResolvedValue(null);
 
-      await expect(service.findByEmail('nonexistent@example.com')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.findByEmail('nonexistent@example.com'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -114,7 +123,9 @@ describe('UserService', () => {
     it('should throw NotFoundException for invalid ID', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.findById('invalid-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findById('invalid-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -141,7 +152,9 @@ describe('UserService', () => {
     it('should throw NotFoundException for non-existent user', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.updateRole('invalid-id', 'admin')).rejects.toThrow(NotFoundException);
+      await expect(service.updateRole('invalid-id', 'admin')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -158,7 +171,9 @@ describe('UserService', () => {
     it('should throw NotFoundException for non-existent user', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.deactivate('invalid-id')).rejects.toThrow(NotFoundException);
+      await expect(service.deactivate('invalid-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -198,7 +213,10 @@ describe('UserService', () => {
     it('should update user email', async () => {
       repository.findById.mockResolvedValueOnce(mockUser);
       repository.existsByEmailAndNotId.mockResolvedValueOnce(false);
-      repository.save.mockResolvedValue({ ...mockUser, email: updateDto.email! });
+      repository.save.mockResolvedValue({
+        ...mockUser,
+        email: updateDto.email!,
+      });
 
       const result = await service.update('user-123', updateDto);
 
@@ -209,13 +227,17 @@ describe('UserService', () => {
       repository.findById.mockResolvedValueOnce(mockUser);
       repository.existsByEmailAndNotId.mockResolvedValueOnce(true);
 
-      await expect(service.update('user-123', { email: 'duplicate@example.com' })).rejects.toThrow(ConflictException);
+      await expect(
+        service.update('user-123', { email: 'duplicate@example.com' }),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('should throw NotFoundException for non-existent user', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.update('invalid-id', updateDto)).rejects.toThrow(NotFoundException);
+      await expect(service.update('invalid-id', updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

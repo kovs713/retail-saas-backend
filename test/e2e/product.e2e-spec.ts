@@ -5,7 +5,12 @@ import { ProductController } from '@/modules/product/product.controller';
 import { ProductService } from '@/modules/product/product.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { ConflictException, INestApplication, NotFoundException, ValidationPipe } from '@nestjs/common';
+import {
+  ConflictException,
+  INestApplication,
+  NotFoundException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
@@ -30,7 +35,9 @@ describe('Product E2E', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true })],
-      providers: [{ provide: ProductService, useValue: createMock<ProductService>() }],
+      providers: [
+        { provide: ProductService, useValue: createMock<ProductService>() },
+      ],
       controllers: [ProductController],
     })
       .overrideGuard(ThrottlerGuard)
@@ -69,7 +76,12 @@ describe('Product E2E', () => {
 
       const response = await request(app.getHttpServer())
         .post('/products')
-        .send({ sku: 'TEST-001', name: 'Test Product', price: 29.99, quantity: 100 })
+        .send({
+          sku: 'TEST-001',
+          name: 'Test Product',
+          price: 29.99,
+          quantity: 100,
+        })
         .expect(201);
 
       expect(response.body.success).toBe(true);
@@ -79,13 +91,18 @@ describe('Product E2E', () => {
     });
 
     it('should return 400 for invalid input', async () => {
-      const response = await request(app.getHttpServer()).post('/products').send({ sku: '' }).expect(400);
+      const response = await request(app.getHttpServer())
+        .post('/products')
+        .send({ sku: '' })
+        .expect(400);
 
       expect(response.body.message).toBeDefined();
     });
 
     it('should return 409 for duplicate SKU', async () => {
-      service.create.mockRejectedValue(new ConflictException('SKU already exists'));
+      service.create.mockRejectedValue(
+        new ConflictException('SKU already exists'),
+      );
 
       await request(app.getHttpServer())
         .post('/products')
@@ -102,7 +119,9 @@ describe('Product E2E', () => {
         pagination: { total: 1, page: 1, limit: 10, totalPages: 1 },
       });
 
-      const response = await request(app.getHttpServer()).get('/products').expect(200);
+      const response = await request(app.getHttpServer())
+        .get('/products')
+        .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveLength(1);
@@ -114,7 +133,9 @@ describe('Product E2E', () => {
     it('should return a product by ID', async () => {
       service.findOne.mockResolvedValue(mockProduct as any);
 
-      const response = await request(app.getHttpServer()).get('/products/prod_001').expect(200);
+      const response = await request(app.getHttpServer())
+        .get('/products/prod_001')
+        .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.id).toBe('prod_001');
@@ -122,15 +143,22 @@ describe('Product E2E', () => {
     });
 
     it('should return 404 for non-existent product', async () => {
-      service.findOne.mockRejectedValue(new NotFoundException('Product not found'));
+      service.findOne.mockRejectedValue(
+        new NotFoundException('Product not found'),
+      );
 
-      await request(app.getHttpServer()).get('/products/non-existent').expect(404);
+      await request(app.getHttpServer())
+        .get('/products/non-existent')
+        .expect(404);
     });
   });
 
   describe('PATCH /products/:id', () => {
     it('should update a product', async () => {
-      service.update.mockResolvedValue({ ...mockProduct, name: 'Updated' } as any);
+      service.update.mockResolvedValue({
+        ...mockProduct,
+        name: 'Updated',
+      } as any);
 
       const response = await request(app.getHttpServer())
         .patch('/products/prod_001')
@@ -146,7 +174,9 @@ describe('Product E2E', () => {
     it('should soft delete a product', async () => {
       service.remove.mockResolvedValue(undefined);
 
-      const response = await request(app.getHttpServer()).delete('/products/prod_001').expect(200);
+      const response = await request(app.getHttpServer())
+        .delete('/products/prod_001')
+        .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.message).toBe('Product deleted successfully');
@@ -155,7 +185,10 @@ describe('Product E2E', () => {
 
   describe('PATCH /products/:id/stock', () => {
     it('should update stock quantity', async () => {
-      service.updateStock.mockResolvedValue({ ...mockProduct, quantity: 200 } as any);
+      service.updateStock.mockResolvedValue({
+        ...mockProduct,
+        quantity: 200,
+      } as any);
 
       const response = await request(app.getHttpServer())
         .patch('/products/prod_001/stock')
@@ -169,7 +202,10 @@ describe('Product E2E', () => {
 
   describe('PATCH /products/:id/stock/adjust', () => {
     it('should adjust stock', async () => {
-      service.adjustStock.mockResolvedValue({ ...mockProduct, quantity: 150 } as any);
+      service.adjustStock.mockResolvedValue({
+        ...mockProduct,
+        quantity: 150,
+      } as any);
 
       const response = await request(app.getHttpServer())
         .patch('/products/prod_001/stock/adjust')
@@ -186,7 +222,9 @@ describe('Product E2E', () => {
       service.count.mockResolvedValue(50);
       service.findLowStock.mockResolvedValue([]);
 
-      const response = await request(app.getHttpServer()).get('/products/stats').expect(200);
+      const response = await request(app.getHttpServer())
+        .get('/products/stats')
+        .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.totalProducts).toBe(50);
@@ -198,7 +236,9 @@ describe('Product E2E', () => {
     it('should return low stock products', async () => {
       service.findLowStock.mockResolvedValue([mockProduct] as any[]);
 
-      const response = await request(app.getHttpServer()).get('/products/low-stock').expect(200);
+      const response = await request(app.getHttpServer())
+        .get('/products/low-stock')
+        .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveLength(1);
