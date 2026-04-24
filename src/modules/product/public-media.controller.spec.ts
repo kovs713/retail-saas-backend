@@ -36,7 +36,7 @@ describe('PublicMediaController', () => {
   const req = { ip: '127.0.0.1' } as Request;
 
   it('should stream image with headers', async () => {
-    const res = createMock<Response>();
+    const res = createMock<Response>({ setHeader: jest.fn() });
     const product = { id: 'p1' } as Product;
     const stream = new Readable({ read() {} });
     jest.spyOn(stream, 'pipe').mockReturnValue(res as any);

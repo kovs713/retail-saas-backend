@@ -635,6 +635,7 @@ export class ProductController {
     );
 
     res.setHeader('Content-Type', result.contentType);
+    const calls = (res.setHeader as any).mock.calls.length;
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate');
     res.setHeader('ETag', result.etag);

@@ -7,7 +7,6 @@ import { ProductService } from './product.service';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMock as createExpressMock } from '@golevelup/ts-jest';
 import type { Request, Response } from 'express';
 import { Readable } from 'stream';
 
@@ -248,28 +247,37 @@ describe('ProductController', () => {
 
   describe('getPrivateImage', () => {
     it('should stream image for authenticated owner/admin', async () => {
-      const req = createExpressMock<Request>();
-      const res = createExpressMock<Response>();
-      const stream = new Readable({ read() {} });
-      jest.spyOn(stream, 'pipe').mockReturnValue(res as any);
+const req = createMock<Request>({ user: { shopId: 'shop-456' } });
+      const req = createMock<Request>({ user: { shopId: 'shop-456' } });
+      const mockSetHeader = jest.fn();
+      const res = {
+        setHeader: mockSetHeader,
+        statusCode: 200,
+        get: () => {},
+      } as unknown as Response;
 
-      service.getPrivateImageStream.mockResolvedValue({
-        stream,
-        contentType: 'image/jpeg',
-        etag: 'etag-1',
-        lastModified: new Date('2025-01-01T00:00:00.000Z'),
-      });
+      let ctrlErr: any;
+      try {
+        await controller.getPrivateImage(
+          'prod_1',
+          'photo.jpg',
+          tenantContext,
+          req,
+          res,
+        );
+      } catch (e) {
+        ctrlErr = e;
+      }
 
-      await controller.getPrivateImage(
-        'prod_1',
-        'photo.jpg',
-        tenantContext,
-        req,
-        res,
+      throw new Error(
+        'mockSetHeader calls=' +
+          mockSetHeader.mock.calls.length +
+          ' ctrlErr=' +
+          (ctrlErr ? ctrlErr.message : 'none'),
       );
 
-      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
-      expect(res.setHeader).toHaveBeenCalledWith(
+      expect(mockSetHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
+      expect(mockSetHeader).toHaveBeenCalledWith(
         'Cache-Control',
         'private, max-age=0, must-revalidate',
       );
