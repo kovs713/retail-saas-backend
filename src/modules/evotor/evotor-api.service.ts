@@ -1,22 +1,7 @@
 import { EvotorConfig, EvotorOptions } from '@/common/types';
+import { RemoteProduct, TerminalBindingResult, UpsertProduct } from './dto';
 
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-
-export interface EvotorRemoteProduct {
-  id: string;
-  article_number: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-export interface EvotorUpsertProduct {
-  id: string;
-  article_number: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
 
 @Injectable()
 export class EvotorApiService {
@@ -46,8 +31,23 @@ export class EvotorApiService {
     });
   }
 
-  async getProducts(storeId: string): Promise<EvotorRemoteProduct[]> {
-    const response = await this.request<{ items: EvotorRemoteProduct[] }>(
+  async bindTerminals(
+    shopId: string,
+    phone: string,
+    imeis: string[],
+  ): Promise<TerminalBindingResult> {
+    return this.request<TerminalBindingResult>('/mock/terminal-bindings', {
+      method: 'POST',
+      body: JSON.stringify({
+        shopId,
+        phone,
+        imeis,
+      }),
+    });
+  }
+
+  async getProducts(storeId: string): Promise<RemoteProduct[]> {
+    const response = await this.request<{ items: RemoteProduct[] }>(
       `/stores/${storeId}/products`,
     );
     return response.items;
@@ -55,7 +55,7 @@ export class EvotorApiService {
 
   async upsertProducts(
     storeId: string,
-    products: EvotorUpsertProduct[],
+    products: UpsertProduct[],
   ): Promise<void> {
     await this.request(`/stores/${storeId}/products`, {
       method: 'PUT',

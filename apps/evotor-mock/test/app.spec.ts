@@ -96,12 +96,12 @@ describe('EvotorMock protocol', () => {
 
     expect(allDevicesResponse.body).toEqual({
       items: [
-        expect.objectContaining({
-          id: 'device-store-shop-2',
-          store_id: 'store-shop-2',
-          name: 'Mock Device store-shop-2',
-          timezone_offset: 10800000,
-        }),
+         expect.objectContaining({
+           id: 'device-store-shop-2-demo-terminal-1',
+           store_id: 'store-shop-2',
+           name: 'Mock Device store-shop-2',
+           timezone_offset: 10800000,
+         }),
       ],
       paging: {},
     });
@@ -245,22 +245,23 @@ describe('EvotorMock protocol', () => {
         expect.objectContaining({
           id: 'document-store-shop-5-1',
           type: 'SELL',
-          device_id: 'device-store-shop-5',
+           device_id: 'device-store-shop-5-demo-terminal-1',
           store_id: 'store-shop-5',
           user_id: 'user-shop-5',
           version: 'V2',
-          body: expect.objectContaining({
+      body: expect.objectContaining({
+        result_sum: 100,
+        payments: expect.any(Array),
+        positions: [
+          expect.objectContaining({
+            product_id: 'product-store-shop-5-1',
+            product_name: 'Mock Product 1',
+            price: 100,
+            quantity: 1,
             result_sum: 100,
-            positions: [
-              expect.objectContaining({
-                product_id: 'product-store-shop-5-1',
-                product_name: 'Mock Product 1',
-                price: 100,
-                quantity: 1,
-                result_sum: 100,
-              }),
-            ],
           }),
+        ],
+      }),
         }),
         expect.objectContaining({
           id: 'document-store-shop-5-2',
@@ -293,11 +294,12 @@ describe('EvotorMock protocol', () => {
     expect(response.body).toEqual(
       expect.objectContaining({
         id: 'document-store-shop-6-1',
-        device_id: 'device-store-shop-6',
+        device_id: 'device-store-shop-6-demo-terminal-1',
         store_id: 'store-shop-6',
-        body: expect.objectContaining({
-          result_sum: 100,
-        }),
+      body: expect.objectContaining({
+        result_sum: 100,
+        payments: expect.any(Array),
+      }),
       }),
     );
   });
@@ -314,7 +316,7 @@ describe('EvotorMock protocol', () => {
       .expect(201);
 
     const response = await request(app.getHttpServer())
-      .get('/stores/store-shop-7/devices/device-store-shop-7/documents')
+      .get('/stores/store-shop-7/devices/device-store-shop-7-demo-terminal-1/documents')
       .set('X-Authorization', 'Bearer mock-evotor-token')
       .expect(200);
 
@@ -322,7 +324,7 @@ describe('EvotorMock protocol', () => {
       items: [
         expect.objectContaining({
           id: 'document-store-shop-7-1',
-          device_id: 'device-store-shop-7',
+           device_id: 'device-store-shop-7-demo-terminal-1',
           store_id: 'store-shop-7',
         }),
       ],

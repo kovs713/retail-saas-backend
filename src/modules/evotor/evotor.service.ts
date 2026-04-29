@@ -1,58 +1,71 @@
 import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
-import { EvotorIntegration } from './entities/evotor-integration.entity';
+import { ConnectEvotorDto } from './dto';
+import { EvotorIntegration } from './entities';
 import { EvotorApiService } from './evotor-api.service';
+import { EvotorIntegrationRepository } from './repositories';
 
 import {
   BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
 @Injectable()
 export class EvotorService {
   constructor(
-    @InjectRepository(EvotorIntegration)
-    private readonly integrationRepository: Repository<EvotorIntegration>,
+    // @InjectRepository(EvotorIntegration)
+    // private readonly repository: Repository<EvotorIntegration>,
+    private readonly repository: EvotorIntegrationRepository,
     private readonly shopService: ShopService,
     private readonly productRepository: ProductRepository,
     private readonly evotorApiService: EvotorApiService,
   ) {}
 
-  async connect(shopId: string): Promise<EvotorIntegration> {
-    await this.shopService.findById(shopId);
-    await this.evotorApiService.seedStore(shopId);
+  async connect(
+    shopId: string,
+    payload?: ConnectEvotorDto,
+  ): Promise<EvotorIntegration> {
+    const shop = await this.shopService.findById(shopId);
+    const phone = payload?.phone ?? shop.phone ?? this.buildDemoPhone(shopId);
+    const imeis = this.normalizeImeis(payload?.imeis ?? ['demo-terminal-1']);
+    const binding = await this.evotorApiService.bindTerminals(
+      shopId,
+      phone,
+      imeis,
+    );
 
-    const existing = await this.integrationRepository.findOne({
+    const existing = await this.repository.findOne({
       where: { shopId },
     });
-    const integration =
-      existing ?? this.integrationRepository.create({ shopId });
+    const integration = existing ?? this.repository.create({ shopId });
 
     integration.provider = 'mock';
     integration.status = 'connected';
-    integration.externalStoreId = this.getExternalStoreId(shopId);
-    integration.externalDeviceId = this.getExternalDeviceId(shopId);
-    integration.externalUserId = this.getExternalUserId(shopId);
+    integration.externalStoreId = binding.storeId;
+    integration.externalDeviceId = binding.devices[0]?.id ?? null;
+    integration.externalUserId = binding.userId;
     integration.metadata = {
       ...(integration.metadata ?? {}),
       mode: 'mock',
+      phone,
+      imeis,
+      devices: binding.devices,
+      seededProductsCount: binding.seededProductsCount,
     };
 
-    return this.integrationRepository.save(integration);
+    return this.repository.save(integration);
   }
 
   async getStatus(shopId: string): Promise<EvotorIntegration | null> {
     await this.shopService.findById(shopId);
-    return this.integrationRepository.findOne({ where: { shopId } });
+    return this.repository.findOne({ where: { shopId } });
   }
 
   async disconnect(shopId: string): Promise<EvotorIntegration> {
     const integration = await this.getConnectedIntegration(shopId, false);
     integration.status = 'disconnected';
-    return this.integrationRepository.save(integration);
+    return this.repository.save(integration);
   }
 
   async getPresentationStatus(shopId: string): Promise<{
@@ -65,7 +78,7 @@ export class EvotorService {
   }> {
     await this.shopService.findById(shopId);
     const [integration, syncedProducts] = await Promise.all([
-      this.integrationRepository.findOne({ where: { shopId } }),
+      this.repository.findOne({ where: { shopId } }),
       this.productRepository.findSyncedByShop(shopId),
     ]);
 
@@ -110,6 +123,7 @@ export class EvotorService {
     syncedAt: string;
   }> {
     const integration = await this.getConnectedIntegration(shopId);
+    const syncTimestamp = new Date();
     const remoteProducts = await this.evotorApiService.getProducts(
       integration.externalStoreId,
     );
@@ -118,36 +132,57 @@ export class EvotorService {
       true,
     );
     const remoteIds = new Set(remoteProducts.map((product) => product.id));
+    const remoteSkus = new Set(
+      remoteProducts.map((product) => product.article_number),
+    );
     const syncedByExternalId = new Map(
       syncedProducts.map((product) => [product.externalId, product]),
     );
+    const syncedBySku = new Map(
+      syncedProducts.map((product) => [product.sku, product]),
+    );
+    const matchedProductIds = new Set<string>();
     let importedCount = 0;
     let deletedCount = 0;
 
     for (const remoteProduct of remoteProducts) {
-      const existingProduct = syncedByExternalId.get(remoteProduct.id) ?? null;
+      const existingProduct =
+        syncedByExternalId.get(remoteProduct.id) ??
+        syncedBySku.get(remoteProduct.article_number) ??
+        (await this.productRepository.findBySku(
+          remoteProduct.article_number,
+          shopId,
+        )) ??
+        null;
       const nextMetadata = {
         ...(existingProduct?.metadata ?? {}),
         evotor: {
           id: remoteProduct.id,
           storeId: integration.externalStoreId,
           managed: true,
-          syncedAt: new Date().toISOString(),
+          syncedAt: syncTimestamp.toISOString(),
         },
       };
 
       const product = existingProduct
-        ? Object.assign(existingProduct, {
+        ? {
+            ...existingProduct,
+            shopId,
             sku: remoteProduct.article_number,
             name: remoteProduct.name,
             price: remoteProduct.price,
             quantity: remoteProduct.quantity,
+            description: existingProduct.description ?? null,
+            cost: existingProduct.cost ?? null,
+            categoryId: existingProduct.categoryId ?? null,
+            barcode: existingProduct.barcode ?? null,
+            images: existingProduct.images ?? [],
+            metadata: nextMetadata,
             externalSource: 'evotor',
             externalId: remoteProduct.id,
             externalStoreId: integration.externalStoreId,
-            metadata: nextMetadata,
             deletedAt: null,
-          })
+          }
         : this.productRepository.create({
             shopId,
             sku: remoteProduct.article_number,
@@ -163,9 +198,11 @@ export class EvotorService {
             externalSource: 'evotor',
             externalId: remoteProduct.id,
             externalStoreId: integration.externalStoreId,
+            deletedAt: null,
           });
 
       await this.productRepository.save(product);
+      matchedProductIds.add(product.id);
       importedCount += 1;
     }
 
@@ -173,7 +210,9 @@ export class EvotorService {
       if (
         !syncedProduct.externalId ||
         syncedProduct.deletedAt ||
-        remoteIds.has(syncedProduct.externalId)
+        remoteIds.has(syncedProduct.externalId) ||
+        remoteSkus.has(syncedProduct.sku) ||
+        matchedProductIds.has(syncedProduct.id)
       ) {
         continue;
       }
@@ -182,8 +221,14 @@ export class EvotorService {
       deletedCount += 1;
     }
 
-    integration.lastSyncAt = new Date();
-    await this.integrationRepository.save(integration);
+    integration.lastSyncAt = syncTimestamp;
+    integration.metadata = {
+      ...(integration.metadata ?? {}),
+      lastImportedCount: importedCount,
+      lastDeletedCount: deletedCount,
+      lastSyncStatus: 'success',
+    };
+    await this.repository.save(integration);
 
     return {
       importedCount,
@@ -197,7 +242,7 @@ export class EvotorService {
     requireConnected = true,
   ): Promise<EvotorIntegration> {
     await this.shopService.findById(shopId);
-    const integration = await this.integrationRepository.findOne({
+    const integration = await this.repository.findOne({
       where: { shopId },
     });
 
@@ -216,11 +261,20 @@ export class EvotorService {
     return `store-${shopId}`;
   }
 
-  private getExternalDeviceId(shopId: string): string {
-    return `device-store-${shopId}`;
+  private normalizeImeis(imeis: string[]): string[] {
+    const normalizedImeis = [
+      ...new Set(imeis.map((imei) => imei.trim())),
+    ].filter(Boolean);
+
+    if (normalizedImeis.length === 0) {
+      throw new BadRequestException('At least one IMEI is required');
+    }
+
+    return normalizedImeis;
   }
 
-  private getExternalUserId(shopId: string): string {
-    return `user-${shopId}`;
+  private buildDemoPhone(shopId: string): string {
+    const digits = shopId.replace(/\D/g, '').slice(-10).padStart(10, '0');
+    return `+7${digits}`;
   }
 }

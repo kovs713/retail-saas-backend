@@ -7,7 +7,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { Readable } from 'stream';
 
 describe('PublicMediaController', () => {
@@ -33,10 +33,8 @@ describe('PublicMediaController', () => {
     controller = module.get(PublicMediaController);
   });
 
-  const req = { ip: '127.0.0.1' } as Request;
-
   it('should stream image with headers', async () => {
-    const res = createMock<Response>({ setHeader: jest.fn() });
+    const res = createMock<Response>();
     const product = { id: 'p1' } as Product;
     const stream = new Readable({ read() {} });
     jest.spyOn(stream, 'pipe').mockReturnValue(res as any);
@@ -52,7 +50,7 @@ describe('PublicMediaController', () => {
       etag: 'etag-1',
     });
 
-    await controller.getProductImage('shop-1', 'p1', 'a.jpg', req, res);
+    await controller.getProductImage('shop-1', 'p1', 'a.jpg', res);
 
     expect(storageService.getObjectStream).toHaveBeenCalledWith(
       'products/p1/images/a.jpg',
@@ -70,7 +68,7 @@ describe('PublicMediaController', () => {
     productService.findPublicByShopSlugAndId.mockResolvedValue(null);
 
     await expect(
-      controller.getProductImage('shop-1', 'p1', 'a.jpg', req, res),
+      controller.getProductImage('shop-1', 'p1', 'a.jpg', res),
     ).rejects.toThrow(NotFoundException);
   });
 });

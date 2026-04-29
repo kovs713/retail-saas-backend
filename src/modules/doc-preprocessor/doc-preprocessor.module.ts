@@ -10,7 +10,6 @@ export class DocPreprocessorModule {
   static forRoot(): DynamicModule {
     return {
       module: DocPreprocessorModule,
-      controllers: [DocPreprocessorController],
       providers: [
         {
           provide: DocPreprocessorConfig,
@@ -30,6 +29,7 @@ export class DocPreprocessorModule {
         DocPreprocessorService,
       ],
       exports: [DocPreprocessorService],
+      controllers: [DocPreprocessorController],
     };
   }
 }

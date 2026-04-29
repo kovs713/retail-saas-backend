@@ -3,9 +3,11 @@ import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { Request } from '@/common/types';
+import { ConnectEvotorDto } from './dto';
 import { EvotorService } from './evotor.service';
 
 import {
+  Body,
   Controller,
   Delete,
   ForbiddenException,
@@ -38,11 +40,13 @@ export class EvotorController {
   async connect(
     @Param('shopId')
     shopId: string,
+    @Body()
+    body: ConnectEvotorDto,
     @Req()
     req: Request,
   ): Promise<AppApiResponse<unknown>> {
     this.assertShopAccess(shopId, req);
-    const integration = await this.evotorService.connect(shopId);
+    const integration = await this.evotorService.connect(shopId, body);
     return {
       success: true,
       data: integration,

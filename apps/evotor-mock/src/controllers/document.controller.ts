@@ -1,4 +1,5 @@
-import { AppService, MockDocument } from './app.service';
+import { AppService } from '../app.service';
+import { MockDocument } from '../types';
 
 import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 

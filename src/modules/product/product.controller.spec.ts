@@ -7,7 +7,7 @@ import { ProductService } from './product.service';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { Readable } from 'stream';
 
 describe('ProductController', () => {
@@ -247,8 +247,6 @@ describe('ProductController', () => {
 
   describe('getPrivateImage', () => {
     it('should stream image for authenticated owner/admin', async () => {
-const req = createMock<Request>({ user: { shopId: 'shop-456' } });
-      const req = createMock<Request>({ user: { shopId: 'shop-456' } });
       const mockSetHeader = jest.fn();
       const res = {
         setHeader: mockSetHeader,
@@ -256,24 +254,22 @@ const req = createMock<Request>({ user: { shopId: 'shop-456' } });
         get: () => {},
       } as unknown as Response;
 
-      let ctrlErr: any;
-      try {
-        await controller.getPrivateImage(
-          'prod_1',
-          'photo.jpg',
-          tenantContext,
-          req,
-          res,
-        );
-      } catch (e) {
-        ctrlErr = e;
-      }
+      const mockStream = new Readable({ read() {} });
+      const pipeSpy = jest
+        .spyOn(mockStream, 'pipe')
+        .mockReturnValue(res as any);
+      service.getPrivateImageStream.mockResolvedValue({
+        stream: mockStream,
+        contentType: 'image/jpeg',
+        etag: 'etag-1',
+        lastModified: new Date('2025-01-01'),
+      });
 
-      throw new Error(
-        'mockSetHeader calls=' +
-          mockSetHeader.mock.calls.length +
-          ' ctrlErr=' +
-          (ctrlErr ? ctrlErr.message : 'none'),
+      await controller.getPrivateImage(
+        'prod_1',
+        'photo.jpg',
+        tenantContext,
+        res,
       );
 
       expect(mockSetHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
@@ -281,7 +277,7 @@ const req = createMock<Request>({ user: { shopId: 'shop-456' } });
         'Cache-Control',
         'private, max-age=0, must-revalidate',
       );
-      expect(stream.pipe).toHaveBeenCalledWith(res);
+      expect(pipeSpy).toHaveBeenCalledWith(res);
     });
   });
 
