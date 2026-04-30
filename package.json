@@ -24,7 +24,6 @@
     "test:integration": "jest --config jest.integration.config.ts",
     "test:e2e": "jest --config ./test/e2e/jest-e2e.json",
     "seed:clear": "ts-node -r tsconfig-paths/register src/core/database/seeds/clear-db.seed.ts",
-    "seed:default": "ts-node -r tsconfig-paths/register src/core/database/seeds/default-tenant.seed.ts",
     "seed:fake": "ts-node -r tsconfig-paths/register src/core/database/seeds/fake-data.seed.ts",
     "docker:build": "docker build -t retail-analytics-platform-backend .",
     "docker:run": "docker run -p 3000:3000 retail-analytics-platform-backend"
