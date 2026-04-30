@@ -1,7 +1,8 @@
 import { Tenant, User } from '@/common/decorators';
 import { ApiResponse as AppApiResponse } from '@/common/dto';
+import { AuthGuard } from '@/common/guards';
 import { TenantContext, TokenPayload } from '@/common/types';
-import { ChatSessionMetadataDto, ChatSessionDto } from '../dto';
+import { ChatSessionDto, ChatSessionMetadataDto } from '../dto';
 import { ChatSessionService } from './chat-session.service';
 
 import {
@@ -15,8 +16,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-
-import { AuthGuard } from '@/common/guards';
 
 @ApiTags('Chat Sessions')
 @ApiBearerAuth('JWT')

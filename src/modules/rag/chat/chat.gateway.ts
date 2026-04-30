@@ -183,6 +183,7 @@ export class ChatGateway {
         'user',
         payload.message,
       );
+      const retrievalQuery = this.buildRetrievalQuery(session, payload.message);
 
       let fullAnswer = '';
       const sources: Array<{
@@ -195,7 +196,7 @@ export class ChatGateway {
         tenant.shopId,
         payload.maxResults,
         payload.systemPrompt,
-        this.buildRetrievalQuery(session, payload.message),
+        retrievalQuery,
       )) {
         if (event.type === 'chunk') {
           fullAnswer += event.content;

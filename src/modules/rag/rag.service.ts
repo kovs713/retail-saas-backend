@@ -12,73 +12,7 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class RagService {
   private readonly logger: LoggerService = new LoggerService(RagService.name);
-  private static readonly availabilityMarkers = [
-    'in stock',
-    'available',
-    'avaliable',
-    'inventory',
-    'catalog',
-    'catalogue',
-    'is there any',
-    'do you have',
-    'what do you have',
-    'what products',
-    'what items',
-    'what is available',
-    'available in shop',
-    'phone-related',
-    'что есть',
-    'какие товары',
-    'в наличии',
-    'ассортимент',
-    'каталог',
-    'налич',
-  ];
-  private static readonly ignoredQueryTerms = new Set([
-    'is',
-    'there',
-    'any',
-    'are',
-    'in',
-    'the',
-    'shop',
-    'right',
-    'now',
-    'what',
-    'do',
-    'you',
-    'have',
-    'items',
-    'item',
-    'thing',
-    'things',
-    'related',
-    'products',
-    'product',
-    'available',
-    'avaliable',
-    'stock',
-    'inventory',
-    'catalog',
-    'catalogue',
-    'есть',
-    'что',
-    'какие',
-    'товары',
-    'товар',
-    'магазине',
-    'магазин',
-    'наличии',
-    'наличие',
-    'наличии',
-    'в',
-  ]);
-  private static readonly relatedTermExpansions: Record<string, string[]> = {
-    phone: ['smartphone', 'iphone', 'mobile', 'cellphone', 'handset'],
-    smartphone: ['phone', 'iphone', 'mobile', 'cellphone', 'handset'],
-    accessory: ['accessories', 'charger', 'case', 'cable', 'headphone'],
-    accessories: ['accessory', 'charger', 'case', 'cable', 'headphone'],
-  };
+  private static readonly catalogContextLimit = 50;
 
   constructor(
     private readonly llmService: LLMService,
@@ -201,106 +135,19 @@ export class RagService {
     return deletedCount;
   }
 
-  private isAvailabilityQuery(query: string): boolean {
-    const normalizedQuery = query.toLowerCase();
+  private mergeProducts(
+    searchProducts: Product[],
+    availableProducts: Product[],
+  ): Product[] {
+    const mergedProducts = new Map<string, Product>();
 
-    return RagService.availabilityMarkers.some((marker) =>
-      normalizedQuery.includes(marker),
-    );
-  }
-
-  private extractQueryTerms(query: string): string[] {
-    return query
-      .toLowerCase()
-      .split(/[^\p{L}\p{N}]+/u)
-      .map((term) => this.normalizeTerm(term))
-      .filter((term) => term.length > 2)
-      .filter((term) => !RagService.ignoredQueryTerms.has(term));
-  }
-
-  private expandQueryTerms(query: string, terms: string[]): string[] {
-    const expandedTerms = new Set(terms);
-    const normalizedQuery = query.toLowerCase();
-
-    for (const term of terms) {
-      for (const relatedTerm of RagService.relatedTermExpansions[term] ?? []) {
-        expandedTerms.add(this.normalizeTerm(relatedTerm));
+    for (const product of [...searchProducts, ...availableProducts]) {
+      if (!mergedProducts.has(product.id)) {
+        mergedProducts.set(product.id, product);
       }
     }
 
-    if (
-      normalizedQuery.includes('phone-related') ||
-      normalizedQuery.includes('related to phone')
-    ) {
-      expandedTerms.add('accessory');
-      expandedTerms.add('charger');
-      expandedTerms.add('case');
-    }
-
-    return [...expandedTerms];
-  }
-
-  private normalizeTerm(term: string): string {
-    if (term.endsWith('ies') && term.length > 4) {
-      return `${term.slice(0, -3)}y`;
-    }
-
-    if (term.endsWith('s') && term.length > 3) {
-      return term.slice(0, -1);
-    }
-
-    return term;
-  }
-
-  private tokenize(value?: string | null): string[] {
-    if (!value) {
-      return [];
-    }
-
-    return value
-      .toLowerCase()
-      .split(/[^\p{L}\p{N}]+/u)
-      .map((term) => this.normalizeTerm(term))
-      .filter((term) => term.length > 1);
-  }
-
-  private filterProductsByQuery(products: Product[], query: string): Product[] {
-    const terms = this.expandQueryTerms(query, this.extractQueryTerms(query));
-    if (terms.length === 0) {
-      return products;
-    }
-
-    const categoryMatches = products.filter((product) => {
-      const categoryTerms = this.tokenize(product.category?.name);
-      return terms.some((term) => categoryTerms.includes(term));
-    });
-    if (categoryMatches.length > 0) {
-      return categoryMatches;
-    }
-
-    const identityMatches = products.filter((product) => {
-      const identityTerms = new Set([
-        ...this.tokenize(product.name),
-        ...this.tokenize(product.sku),
-      ]);
-      return terms.some((term) => identityTerms.has(term));
-    });
-    if (identityMatches.length > 0) {
-      return identityMatches;
-    }
-
-    const matchedProducts = products.filter((product) => {
-      const haystackTerms = new Set([
-        ...this.tokenize(product.name),
-        ...this.tokenize(product.description),
-        ...this.tokenize(product.sku),
-        ...this.tokenize(product.category?.name),
-      ]);
-
-      return terms.some((term) => haystackTerms.has(term));
-    });
-
-    return matchedProducts.length > 0 ? matchedProducts : products;
+    return [...mergedProducts.values()];
   }
 
   private buildCatalogSummary(products: Product[]): string {
@@ -374,46 +221,54 @@ export class RagService {
     context: string;
     sources: Array<{ pageContent: string; metadata: Record<string, any> }>;
   }> {
-    const [vectorDocs, productsSearchResult] = await Promise.all([
-      this.vectorStoreService.similaritySearch(query, shopId, maxResults),
-      this.productService
-        .findAll({ page: 1, limit: 50, search: query }, shopId)
-        .catch(() => ({
-          data: [],
-          pagination: { total: 0 },
-        })),
-    ]);
+    const [vectorDocs, productsSearchResult, availableProducts] =
+      await Promise.all([
+        this.vectorStoreService.similaritySearch(query, shopId, maxResults),
+        this.productService
+          .findAll(
+            {
+              page: 1,
+              limit: RagService.catalogContextLimit,
+              search: query,
+            },
+            shopId,
+          )
+          .catch(() => ({
+            data: [],
+            pagination: { total: 0 },
+          })),
+        this.getAvailableProducts(shopId, RagService.catalogContextLimit).catch(
+          () => [],
+        ),
+      ]);
 
-    const isAvailabilityQuery = this.isAvailabilityQuery(query);
-    let products = productsSearchResult.data || [];
-
-    if (isAvailabilityQuery) {
-      products = this.filterProductsByQuery(products, query);
-      const fallbackProducts = await this.getAvailableProducts(
-        shopId,
-        50,
-      ).catch(() => []);
-      const filteredFallbackProducts = this.filterProductsByQuery(
-        fallbackProducts,
-        query,
-      );
-      if (filteredFallbackProducts.length > 0) {
-        products = filteredFallbackProducts;
-      }
-    }
+    const matchedProducts = productsSearchResult.data || [];
+    const catalogProducts = this.mergeProducts(
+      matchedProducts,
+      availableProducts,
+    );
 
     this.logger.log(
-      `Found ${vectorDocs.length} vector docs, ${products.length} products`,
+      `Found ${vectorDocs.length} vector docs, ${matchedProducts.length} direct product matches, ${availableProducts.length} in-stock catalog products`,
     );
 
     const sources: Array<{
       pageContent: string;
       metadata: Record<string, any>;
     }> = [];
-    const productContextParts: string[] = [];
     const vectorContextParts: string[] = [];
+    const productContextParts: string[] = [];
 
-    for (const product of products) {
+    for (let i = 0; i < vectorDocs.length; i++) {
+      const doc = vectorDocs[i];
+      vectorContextParts.push(`[${i + 1}] ${doc.pageContent}`);
+      sources.push({
+        pageContent: doc.pageContent,
+        metadata: { ...doc.metadata, source: 'vector_store' },
+      });
+    }
+
+    for (const product of catalogProducts) {
       const productInfo = this.buildProductContext(product);
       productContextParts.push(productInfo);
       sources.push({
@@ -426,25 +281,18 @@ export class RagService {
       });
     }
 
-    for (let i = 0; i < vectorDocs.length; i++) {
-      const doc = vectorDocs[i];
-      vectorContextParts.push(`[${i + 1}] ${doc.pageContent}`);
-      sources.push({
-        pageContent: doc.pageContent,
-        metadata: { ...doc.metadata, source: 'vector_store' },
-      });
-    }
-
     const parts: string[] = [];
-    if (productContextParts.length > 0) {
-      parts.push(this.buildCatalogSummary(products));
-      parts.push(
-        '## Products from catalog:\n\n' + productContextParts.join('\n\n'),
-      );
-    }
     if (vectorContextParts.length > 0) {
       parts.push(
         '## Additional context:\n\n' + vectorContextParts.join('\n\n'),
+      );
+    }
+    if (availableProducts.length > 0) {
+      parts.push(this.buildCatalogSummary(availableProducts));
+    }
+    if (productContextParts.length > 0) {
+      parts.push(
+        '## Products from catalog:\n\n' + productContextParts.join('\n\n'),
       );
     }
 

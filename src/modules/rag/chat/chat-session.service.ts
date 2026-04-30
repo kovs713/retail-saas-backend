@@ -21,10 +21,6 @@ export class ChatSessionService {
       userId: session.userId,
       title: session.title,
       status: session.status,
-      warmStatus: session.warmStatus,
-      warmProductSnapshotAt:
-        session.warmProductSnapshotAt?.toISOString() ?? null,
-      warmProductSummary: session.warmProductSummary,
       messages: (session.messages ?? []).map((message) => ({
         id: message.id,
         role: message.role,
@@ -42,7 +38,6 @@ export class ChatSessionService {
       id: session.id,
       title: session.title,
       status: session.status,
-      warmStatus: session.warmStatus,
       lastMessageAt: session.lastMessageAt.toISOString(),
       createdAt: session.createdAt.toISOString(),
       updatedAt: session.updatedAt.toISOString(),
@@ -65,9 +60,6 @@ export class ChatSessionService {
       userId,
       title: 'New chat',
       status: 'active',
-      warmStatus: 'pending',
-      warmProductSummary: null,
-      warmProductSnapshotAt: null,
       lastMessageAt: now,
     });
 

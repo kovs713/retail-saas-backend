@@ -14,9 +14,9 @@ import {
   CreateCategoryDto,
   CreateProductDto,
   ProductDto,
-  ProductImageUploadResponseDto,
   ProductImagePresignedUploadDto,
   ProductImagePresignedUploadResponseDto,
+  ProductImageUploadResponseDto,
   UpdateCategoryDto,
   UpdateProductDto,
   UpdateStockDto,
@@ -35,12 +35,12 @@ import {
   Patch,
   Post,
   Query,
-  Req,
   Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -51,8 +51,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')

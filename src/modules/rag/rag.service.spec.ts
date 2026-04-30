@@ -234,8 +234,8 @@ describe('RagService', () => {
       expect(result.answer).toBe('Test answer');
     });
 
-    it('should fall back to in-stock catalog for generic availability queries', async () => {
-      const mockQuery = 'Что есть в магазине какие товары в наличии';
+    it('should always include in-stock catalog snapshot when search misses', async () => {
+      const mockQuery = 'чо у тя есть';
       const inStockProduct = {
         id: 'product-1',
         name: 'Milk',
@@ -257,11 +257,8 @@ describe('RagService', () => {
         })
         .mockResolvedValueOnce({
           success: true,
-          data: [
-            inStockProduct as any,
-            { ...inStockProduct, id: 'product-2', quantity: 0 },
-          ],
-          pagination: { total: 2, page: 1, limit: 50, totalPages: 1 },
+          data: [inStockProduct as any],
+          pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
         });
 
       const result = await service.query(mockQuery, mockTenantContext);
@@ -291,70 +288,13 @@ describe('RagService', () => {
         expect.stringContaining('## Catalog summary:'),
       );
       expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('In-stock products: 1'),
-      );
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Categories: Dairy (1)'),
-      );
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Price range: 120-120'),
-      );
-      expect(llmService.generateText).toHaveBeenCalledWith(
         expect.stringContaining('Product: Milk'),
       );
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.not.stringContaining('Quantity: 0'),
-      );
     });
 
-    it('should detect english availability phrasing and use in-stock fallback', async () => {
-      const mockQuery = 'What items are available in shop right now?';
-      const inStockProduct = {
-        id: 'product-1',
-        name: 'Bread',
-        sku: 'BREAD-001',
-        price: 90,
-        quantity: 4,
-        description: null,
-        barcode: null,
-        category: null,
-      };
-
-      vectorStoreService.similaritySearch.mockResolvedValue([]);
-      llmService.generateText.mockResolvedValue('Bread available');
-      productService.findAll
-        .mockResolvedValueOnce({
-          success: true,
-          data: [],
-          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: [inStockProduct as any],
-          pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
-        });
-
-      const result = await service.query(mockQuery, mockTenantContext);
-
-      expect(productService.findAll).toHaveBeenNthCalledWith(
-        2,
-        { page: 1, limit: 50 },
-        mockTenantContext,
-      );
-      expect(result.sources[0]).toEqual({
-        pageContent:
-          'Product: Bread\nSKU: BREAD-001\nPrice: 90\nQuantity: 4\nStock status: in stock',
-        metadata: {
-          source: 'postgresql',
-          productId: 'product-1',
-          type: 'product',
-        },
-      });
-    });
-
-    it('should handle typoed availability query and keep matching phone products only', async () => {
-      const mockQuery = 'is there any phones avaliable';
-      const phoneProduct = {
+    it('should merge direct product matches with in-stock catalog snapshot', async () => {
+      const mockQuery = 'iphone';
+      const directMatch = {
         id: 'product-1',
         name: 'iPhone 15',
         sku: 'IPHONE-15',
@@ -364,138 +304,7 @@ describe('RagService', () => {
         barcode: null,
         category: { name: 'Phones' },
       };
-      const nonPhoneProduct = {
-        id: 'product-2',
-        name: 'Gaming Laptop',
-        sku: 'LAPTOP-01',
-        price: 1999,
-        quantity: 2,
-        description: 'Laptop',
-        barcode: null,
-        category: { name: 'Computers' },
-      };
-
-      vectorStoreService.similaritySearch.mockResolvedValue([]);
-      llmService.generateText.mockResolvedValue('iPhone 15 available');
-      productService.findAll
-        .mockResolvedValueOnce({
-          success: true,
-          data: [],
-          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: [phoneProduct as any, nonPhoneProduct as any],
-          pagination: { total: 2, page: 1, limit: 50, totalPages: 1 },
-        });
-
-      const result = await service.query(mockQuery, mockTenantContext);
-
-      expect(productService.findAll).toHaveBeenNthCalledWith(
-        2,
-        { page: 1, limit: 50 },
-        mockTenantContext,
-      );
-      expect(result.sources).toEqual([
-        {
-          pageContent:
-            'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Phones\nStock status: in stock\nDescription: Smartphone',
-          metadata: {
-            source: 'postgresql',
-            productId: 'product-1',
-            type: 'product',
-          },
-        },
-      ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Product: iPhone 15'),
-      );
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.not.stringContaining('Gaming Laptop'),
-      );
-    });
-
-    it('should ignore accessory-only search hits and fall back to matching phones', async () => {
-      const mockQuery = 'is there any phones avaliable';
-      const accessoryProduct = {
-        id: 'product-1',
-        name: 'Phone Case',
-        sku: 'CASE-001',
-        price: 39,
-        quantity: 12,
-        description: 'Case for phones',
-        barcode: null,
-        category: { name: 'Accessories' },
-      };
-      const phoneProduct = {
-        id: 'product-2',
-        name: 'iPhone 15',
-        sku: 'IPHONE-15',
-        price: 999,
-        quantity: 5,
-        description: 'Smartphone',
-        barcode: null,
-        category: { name: 'Phones' },
-      };
-
-      vectorStoreService.similaritySearch.mockResolvedValue([]);
-      llmService.generateText.mockResolvedValue('iPhone 15 available');
-      productService.findAll
-        .mockResolvedValueOnce({
-          success: true,
-          data: [accessoryProduct as any],
-          pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: [accessoryProduct as any, phoneProduct as any],
-          pagination: { total: 2, page: 1, limit: 50, totalPages: 1 },
-        });
-
-      const result = await service.query(mockQuery, mockTenantContext);
-
-      expect(productService.findAll).toHaveBeenNthCalledWith(
-        1,
-        { page: 1, limit: 50, search: mockQuery },
-        mockTenantContext,
-      );
-      expect(productService.findAll).toHaveBeenNthCalledWith(
-        2,
-        { page: 1, limit: 50 },
-        mockTenantContext,
-      );
-      expect(result.sources).toEqual([
-        {
-          pageContent:
-            'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Phones\nStock status: in stock\nDescription: Smartphone',
-          metadata: {
-            source: 'postgresql',
-            productId: 'product-2',
-            type: 'product',
-          },
-        },
-      ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Product: iPhone 15'),
-      );
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.not.stringContaining('Phone Case'),
-      );
-    });
-
-    it('should match smartphones and phone accessories for phone-related query', async () => {
-      const mockQuery = 'is there any phones or phone-related things';
-      const smartphoneProduct = {
-        id: 'product-1',
-        name: 'iPhone 15',
-        sku: 'IPHONE-15',
-        price: 999,
-        quantity: 5,
-        description: 'Smartphone',
-        barcode: null,
-        category: { name: 'Smartphones' },
-      };
-      const accessoryProduct = {
+      const catalogProduct = {
         id: 'product-2',
         name: 'Wireless Charger',
         sku: 'CHARGER-01',
@@ -505,40 +314,33 @@ describe('RagService', () => {
         barcode: null,
         category: { name: 'Accessories' },
       };
-      const unrelatedProduct = {
-        id: 'product-3',
-        name: 'Gaming Mouse',
-        sku: 'MOUSE-01',
-        price: 79,
-        quantity: 4,
-        description: 'Mouse',
-        barcode: null,
-        category: { name: 'Peripherals' },
-      };
 
       vectorStoreService.similaritySearch.mockResolvedValue([]);
-      llmService.generateText.mockResolvedValue(
-        'iPhone 15 and charger available',
-      );
+      llmService.generateText.mockResolvedValue('iPhone 15 available');
       productService.findAll
         .mockResolvedValueOnce({
           success: true,
-          data: [],
-          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+          data: [directMatch as any],
+          pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
         })
         .mockResolvedValueOnce({
           success: true,
-          data: [
-            smartphoneProduct as any,
-            accessoryProduct as any,
-            unrelatedProduct as any,
-          ],
-          pagination: { total: 3, page: 1, limit: 50, totalPages: 1 },
+          data: [catalogProduct as any, directMatch as any],
+          pagination: { total: 2, page: 1, limit: 50, totalPages: 1 },
         });
 
       const result = await service.query(mockQuery, mockTenantContext);
 
       expect(result.sources).toEqual([
+        {
+          pageContent:
+            'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Phones\nStock status: in stock\nDescription: Smartphone',
+          metadata: {
+            source: 'postgresql',
+            productId: 'product-1',
+            type: 'product',
+          },
+        },
         {
           pageContent:
             'Product: Wireless Charger\nSKU: CHARGER-01\nPrice: 49\nQuantity: 12\nCategory: Accessories\nStock status: in stock\nDescription: Phone accessory charger',
@@ -548,24 +350,79 @@ describe('RagService', () => {
             type: 'product',
           },
         },
-        {
-          pageContent:
-            'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Smartphones\nStock status: in stock\nDescription: Smartphone',
-          metadata: {
-            source: 'postgresql',
-            productId: 'product-1',
-            type: 'product',
-          },
-        },
       ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Product: Wireless Charger'),
-      );
       expect(llmService.generateText).toHaveBeenCalledWith(
         expect.stringContaining('Product: iPhone 15'),
       );
       expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.not.stringContaining('Gaming Mouse'),
+        expect.stringContaining('Product: Wireless Charger'),
+      );
+    });
+
+    it('should provide the full catalog snapshot for follow-up product questions', async () => {
+      const mockQuery = 'что у тебя есть в магазине\nкакие смартфоны есть';
+      const iphone = {
+        id: 'product-1',
+        name: 'iPhone 15 Pro',
+        sku: 'IPHONE-15-PRO',
+        price: 1499,
+        quantity: 4,
+        category: { name: 'Audio' },
+        description: 'Flagship Apple smartphone',
+        barcode: null,
+      };
+      const galaxy = {
+        id: 'product-2',
+        name: 'Samsung Galaxy S24',
+        sku: 'GALAXY-S24',
+        price: 1299,
+        quantity: 6,
+        category: { name: 'Audio' },
+        description: 'Android smartphone',
+        barcode: null,
+      };
+      const airpods = {
+        id: 'product-3',
+        name: 'AirPods Pro',
+        sku: 'AIRPODS-PRO',
+        price: 299,
+        quantity: 10,
+        category: { name: 'Accessories' },
+        description: 'Wireless earbuds',
+        barcode: null,
+      };
+
+      vectorStoreService.similaritySearch.mockResolvedValue([]);
+      llmService.generateText.mockResolvedValue(
+        'Есть iPhone 15 Pro и Samsung Galaxy S24',
+      );
+      productService.findAll
+        .mockResolvedValueOnce({
+          success: true,
+          data: [],
+          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: [iphone as any, galaxy as any, airpods as any],
+          pagination: { total: 3, page: 1, limit: 50, totalPages: 1 },
+        });
+
+      await service.query(mockQuery, mockTenantContext);
+
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Question: что у тебя есть в магазине\nкакие смартфоны есть',
+        ),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('Product: Samsung Galaxy S24'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('Product: iPhone 15 Pro'),
+      );
+      expect(llmService.generateText).toHaveBeenCalledWith(
+        expect.stringContaining('Product: AirPods Pro'),
       );
     });
   });

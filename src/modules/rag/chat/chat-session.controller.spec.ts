@@ -58,7 +58,6 @@ describe('ChatSessionController', () => {
         id: 'session-1',
         title: 'Need phones',
         status: 'active',
-        warmStatus: 'pending',
         lastMessageAt: '2024-01-01T00:00:00.000Z',
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',

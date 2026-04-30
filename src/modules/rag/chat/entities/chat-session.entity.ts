@@ -39,15 +39,6 @@ export class ChatSession {
   @Column({ default: 'active' })
   status: 'active' | 'archived';
 
-  @Column({ default: 'pending' })
-  warmStatus: 'pending' | 'ready' | 'failed';
-
-  @Column({ type: 'timestamptz', nullable: true })
-  warmProductSnapshotAt: Date | null;
-
-  @Column({ type: 'jsonb', nullable: true })
-  warmProductSummary: Record<string, unknown> | null;
-
   @Column({ type: 'timestamptz' })
   lastMessageAt: Date;
 
