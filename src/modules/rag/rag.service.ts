@@ -25,7 +25,9 @@ export class RagService {
     page: number = 1,
     limit: number = 10,
   ): Promise<PaginationResponse<DocumentResponseDto>> {
-    const documents = await this.vectorStoreService.getDocuments(shopId);
+    const documents = (
+      await this.vectorStoreService.getDocuments(shopId)
+    ).filter((doc) => !this.isCatalogDocument(doc));
 
     const total = documents.length;
     const totalPages = Math.ceil(total / limit);
@@ -53,7 +55,9 @@ export class RagService {
     page: number = 1,
     limit: number = 10,
   ): Promise<PaginationResponse<DocumentGroupDto>> {
-    const documents = await this.vectorStoreService.getDocuments(shopId);
+    const documents = (
+      await this.vectorStoreService.getDocuments(shopId)
+    ).filter((doc) => !this.isCatalogDocument(doc));
 
     const groupsMap = new Map<string, DocumentGroupDto>();
     for (const doc of documents) {
@@ -112,6 +116,10 @@ export class RagService {
   async addDocuments(documents: Document[], shopId: string): Promise<string[]> {
     const ids = await this.vectorStoreService.addDocuments(documents, shopId);
     return ids;
+  }
+
+  async rebuildCatalogIndex(shopId: string): Promise<number> {
+    return this.productService.rebuildCatalogIndex(shopId);
   }
 
   async clearDocuments(shopId: string): Promise<void> {
@@ -321,6 +329,14 @@ export class RagService {
       });
 
     return attributes.length > 0 ? attributes.join('; ') : null;
+  }
+
+  private isCatalogDocument(doc: {
+    metadata?: Record<string, unknown>;
+  }): boolean {
+    return (
+      doc.metadata?.source === 'catalog' && doc.metadata?.type === 'product'
+    );
   }
 
   async query(

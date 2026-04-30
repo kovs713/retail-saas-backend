@@ -1,3 +1,4 @@
+import { ProductService } from '@/modules/product/product.service';
 import { ProductRepository } from '@/modules/product/repositories';
 import {
   CreateOrderDto,
@@ -23,6 +24,7 @@ export class OrderService {
   constructor(
     private readonly orderRepository: OrderRepository,
     private readonly productRepository: ProductRepository,
+    private readonly productService: ProductService,
   ) {}
 
   async create(shopId: string, createOrderDto: CreateOrderDto): Promise<Order> {
@@ -57,24 +59,33 @@ export class OrderService {
       };
     });
 
+    this.ensureSufficientStock(createOrderDto.items, productMap);
+
     const totalAmount = items.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0,
     );
 
-    const order = this.orderRepository.create({
-      shopId,
-      customerName: createOrderDto.customerName,
-      customerPhone: createOrderDto.customerPhone,
-      items,
-      totalAmount,
-      status: OrderStatus.PENDING,
-    });
+    await this.applyStockAdjustments(items, shopId, -1);
 
-    const savedOrder = await this.orderRepository.save(order);
-    this.logger.log(`Order created: ${savedOrder.id}`);
+    try {
+      const order = this.orderRepository.create({
+        shopId,
+        customerName: createOrderDto.customerName,
+        customerPhone: createOrderDto.customerPhone,
+        items,
+        totalAmount,
+        status: OrderStatus.PENDING,
+      });
 
-    return savedOrder;
+      const savedOrder = await this.orderRepository.save(order);
+      this.logger.log(`Order created: ${savedOrder.id}`);
+
+      return savedOrder;
+    } catch (error) {
+      await this.rollbackStockAdjustments(items, shopId, 1);
+      throw error;
+    }
   }
 
   async findByShopId(
@@ -129,12 +140,27 @@ export class OrderService {
 
     this.validateStatusTransition(order.status, updateStatusDto.status);
 
-    order.status = updateStatusDto.status;
+    const shouldRestoreStock = updateStatusDto.status === OrderStatus.CANCELLED;
 
-    const updatedOrder = await this.orderRepository.save(order);
-    this.logger.log(`Order ${id} status updated to ${updateStatusDto.status}`);
+    if (shouldRestoreStock) {
+      await this.applyStockAdjustments(order.items, shopId, 1);
+    }
 
-    return updatedOrder;
+    try {
+      order.status = updateStatusDto.status;
+
+      const updatedOrder = await this.orderRepository.save(order);
+      this.logger.log(
+        `Order ${id} status updated to ${updateStatusDto.status}`,
+      );
+
+      return updatedOrder;
+    } catch (error) {
+      if (shouldRestoreStock) {
+        await this.rollbackStockAdjustments(order.items, shopId, -1);
+      }
+      throw error;
+    }
   }
 
   private validateStatusTransition(
@@ -153,6 +179,73 @@ export class OrderService {
       throw new BadRequestException(
         `Cannot transition from ${currentStatus} to ${newStatus}`,
       );
+    }
+  }
+
+  private ensureSufficientStock(
+    items: CreateOrderDto['items'],
+    productMap: Map<string, { id: string; quantity?: number | null }>,
+  ): void {
+    for (const item of items) {
+      const product = productMap.get(item.productId);
+      const availableQuantity = product?.quantity ?? 0;
+
+      if (availableQuantity < item.quantity) {
+        throw new BadRequestException(
+          `Insufficient stock for product ${item.productId}`,
+        );
+      }
+    }
+  }
+
+  private async applyStockAdjustments(
+    items: Array<{ productId: string; quantity: number }>,
+    shopId: string,
+    direction: 1 | -1,
+  ): Promise<void> {
+    const appliedItems: Array<{ productId: string; quantity: number }> = [];
+
+    try {
+      for (const item of items) {
+        await this.productService.adjustStock(
+          item.productId,
+          item.quantity * direction,
+          shopId,
+        );
+        appliedItems.push(item);
+      }
+    } catch (error) {
+      const rollbackDirection: 1 | -1 = direction === 1 ? -1 : 1;
+      await this.rollbackStockAdjustments(
+        appliedItems,
+        shopId,
+        rollbackDirection,
+      );
+      throw error;
+    }
+  }
+
+  private async rollbackStockAdjustments(
+    items: Array<{ productId: string; quantity: number }>,
+    shopId: string,
+    direction: 1 | -1,
+  ): Promise<void> {
+    for (const item of items) {
+      try {
+        await this.productService.adjustStock(
+          item.productId,
+          item.quantity * direction,
+          shopId,
+        );
+      } catch (rollbackError) {
+        const error =
+          rollbackError instanceof Error
+            ? rollbackError
+            : new Error(String(rollbackError));
+        this.logger.error(
+          `Failed to rollback stock for product ${item.productId}: ${error.message}`,
+        );
+      }
     }
   }
 

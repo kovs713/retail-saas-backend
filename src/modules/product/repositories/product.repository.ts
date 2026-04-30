@@ -186,6 +186,19 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
+  async findActiveByShop(shopId: string): Promise<Product[]> {
+    return this.repository.find({
+      where: {
+        shopId,
+        deletedAt: IsNull(),
+      },
+      relations: ['category'],
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
   async countByShop(
     shopId: string,
     where?: FindOptionsWhere<Product>,

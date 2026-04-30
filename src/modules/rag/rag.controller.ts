@@ -167,6 +167,30 @@ export class RagController {
     };
   }
 
+  @Post('catalog/rebuild')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Rebuild indexed catalog documents for current tenant',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Catalog index rebuilt successfully',
+  })
+  async rebuildCatalogIndex(
+    @Tenant()
+    tenantContext: TenantContext,
+  ): Promise<AppApiResponse<{ indexedProducts: number }>> {
+    const indexedProducts = await this.ragService.rebuildCatalogIndex(
+      tenantContext.shopId,
+    );
+
+    return {
+      success: true,
+      data: { indexedProducts },
+      message: 'Catalog index rebuilt successfully',
+    };
+  }
+
   @Post('documents')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({

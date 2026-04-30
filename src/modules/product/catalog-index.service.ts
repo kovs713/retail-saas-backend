@@ -42,6 +42,13 @@ export class CatalogIndexService {
     });
   }
 
+  async clearCatalog(shopId: string): Promise<void> {
+    await this.vectorStoreService.deleteDocumentsByFilter(shopId, {
+      source: 'catalog',
+      type: 'product',
+    });
+  }
+
   private buildProductText(product: Product): string {
     const categoryName = product.category?.name;
     const attributes = this.formatMetadata(product.metadata);

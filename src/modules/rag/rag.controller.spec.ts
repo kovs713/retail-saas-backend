@@ -163,6 +163,23 @@ describe('RagController', () => {
     });
   });
 
+  describe('rebuildCatalogIndex endpoint', () => {
+    it('should trigger tenant catalog reindex', async () => {
+      service.rebuildCatalogIndex.mockResolvedValue(4);
+
+      const result = await controller.rebuildCatalogIndex(tenantContext);
+
+      expect(service.rebuildCatalogIndex).toHaveBeenCalledWith(
+        tenantContext.shopId,
+      );
+      expect(result).toEqual({
+        success: true,
+        data: { indexedProducts: 4 },
+        message: 'Catalog index rebuilt successfully',
+      });
+    });
+  });
+
   describe('addDocuments endpoint', () => {
     it('should call RagService.addDocuments with correct parameters', async () => {
       const mockDocIds = ['doc-1', 'doc-2'];

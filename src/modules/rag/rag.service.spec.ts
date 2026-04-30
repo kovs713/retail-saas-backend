@@ -133,6 +133,34 @@ describe('RagService', () => {
       expect(result.pagination?.page).toBe(1);
       expect(result.pagination?.limit).toBe(10);
     });
+
+    it('should hide indexed catalog product documents from admin listings', async () => {
+      vectorStoreService.getDocuments.mockResolvedValue([
+        {
+          pageContent: 'Catalog product',
+          metadata: { source: 'catalog', type: 'product' },
+        },
+        {
+          pageContent: 'Uploaded FAQ',
+          metadata: { source: 'upload' },
+        },
+      ]);
+
+      const result = await service.getDocuments(mockTenantContext, 1, 10);
+
+      expect(result.data).toEqual([
+        {
+          pageContent: 'Uploaded FAQ',
+          metadata: { source: 'upload' },
+        },
+      ]);
+      expect(result.pagination).toEqual({
+        total: 1,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      });
+    });
   });
 
   describe('addTexts', () => {
@@ -150,6 +178,19 @@ describe('RagService', () => {
       );
 
       expect(result).toEqual(mockIds);
+    });
+  });
+
+  describe('rebuildCatalogIndex', () => {
+    it('should delegate catalog reindex to product service', async () => {
+      productService.rebuildCatalogIndex.mockResolvedValue(3);
+
+      const result = await service.rebuildCatalogIndex(mockTenantContext);
+
+      expect(productService.rebuildCatalogIndex).toHaveBeenCalledWith(
+        mockTenantContext,
+      );
+      expect(result).toBe(3);
     });
   });
 

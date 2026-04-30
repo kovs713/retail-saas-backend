@@ -543,6 +543,17 @@ export class ProductService {
     return this.productRepository.findAvailableByShop(shopId, limit);
   }
 
+  async rebuildCatalogIndex(shopId: string): Promise<number> {
+    const products = await this.productRepository.findActiveByShop(shopId);
+
+    await this.catalogIndexService.clearCatalog(shopId);
+    for (const product of products) {
+      await this.catalogIndexService.upsertProduct(product);
+    }
+
+    return products.length;
+  }
+
   async getCategories(shopId: string): Promise<Category[]> {
     const cacheKey = this.cacheService.generateKey(
       'categories',

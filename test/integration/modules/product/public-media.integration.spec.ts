@@ -70,7 +70,10 @@ describe('PublicMedia Integration', () => {
         { provide: StorageService, useValue: createMock<StorageService>() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
         { provide: EvotorApiService, useValue: createMock<EvotorApiService>() },
-        { provide: CatalogIndexService, useValue: createMock<CatalogIndexService>() },
+        {
+          provide: CatalogIndexService,
+          useValue: createMock<CatalogIndexService>(),
+        },
       ],
     })
       .overrideGuard(ThrottlerGuard)

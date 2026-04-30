@@ -468,6 +468,30 @@ describe('ProductService', () => {
     });
   });
 
+  describe('rebuildCatalogIndex', () => {
+    it('should clear catalog docs and reindex all active products', async () => {
+      const firstProduct = createProduct({ id: 'prod_1', shopId: 'shop-1' });
+      const secondProduct = createProduct({ id: 'prod_2', shopId: 'shop-1' });
+      productRepository.findActiveByShop.mockResolvedValue([
+        firstProduct,
+        secondProduct,
+      ]);
+
+      const result = await service.rebuildCatalogIndex('shop-1');
+
+      expect(catalogIndexService.clearCatalog).toHaveBeenCalledWith('shop-1');
+      expect(catalogIndexService.upsertProduct).toHaveBeenNthCalledWith(
+        1,
+        firstProduct,
+      );
+      expect(catalogIndexService.upsertProduct).toHaveBeenNthCalledWith(
+        2,
+        secondProduct,
+      );
+      expect(result).toBe(2);
+    });
+  });
+
   describe('findOneBySku', () => {
     it('should return a product by SKU', async () => {
       const productWithSku = createProduct({

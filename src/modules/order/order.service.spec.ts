@@ -5,6 +5,7 @@ import {
   createCancelledOrder,
   createReadyOrder,
 } from '@/core/database/factories';
+import { ProductService } from '@/modules/product/product.service';
 import { ProductRepository } from '@/modules/product/repositories';
 import { OrderResponseDto, UpdateOrderStatusDto } from './dto';
 import { OrderService } from './order.service';
@@ -18,6 +19,7 @@ describe('OrderService', () => {
   let service: OrderService;
   let orderRepository: DeepMocked<OrderRepository>;
   let productRepository: DeepMocked<ProductRepository>;
+  let productService: DeepMocked<ProductService>;
 
   const mockOrder = createOrder({ id: 'order_001', shopId: 'shop_001' });
 
@@ -33,12 +35,17 @@ describe('OrderService', () => {
           provide: ProductRepository,
           useValue: createMock<ProductRepository>(),
         },
+        {
+          provide: ProductService,
+          useValue: createMock<ProductService>(),
+        },
       ],
     }).compile();
 
     service = module.get(OrderService);
     orderRepository = module.get(OrderRepository);
     productRepository = module.get(ProductRepository);
+    productService = module.get(ProductService);
   });
 
   afterEach(() => {
@@ -54,6 +61,7 @@ describe('OrderService', () => {
           sku: 'SKU-1',
           name: 'Product 1',
           price: 100,
+          quantity: 10,
         } as any,
       ]);
       orderRepository.create.mockReturnValue(mockOrder);
@@ -83,6 +91,55 @@ describe('OrderService', () => {
           items: [{ productId: 'missing-product', quantity: 1, price: 100 }],
         }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should decrement stock for each ordered item', async () => {
+      productRepository.find.mockResolvedValue([
+        {
+          id: 'product-1',
+          shopId: 'shop-1',
+          sku: 'SKU-1',
+          name: 'Product 1',
+          price: 100,
+          quantity: 5,
+        } as any,
+      ]);
+      orderRepository.create.mockReturnValue(mockOrder);
+      orderRepository.save.mockResolvedValue(mockOrder);
+
+      await service.create('shop-1', {
+        customerName: 'Alice',
+        customerPhone: '+123456789',
+        items: [{ productId: 'product-1', quantity: 2, price: 1 }],
+      });
+
+      expect(productService.adjustStock).toHaveBeenCalledWith(
+        'product-1',
+        -2,
+        'shop-1',
+      );
+    });
+
+    it('should reject orders when requested quantity exceeds stock', async () => {
+      productRepository.find.mockResolvedValue([
+        {
+          id: 'product-1',
+          shopId: 'shop-1',
+          sku: 'SKU-1',
+          name: 'Product 1',
+          price: 100,
+          quantity: 1,
+        } as any,
+      ]);
+
+      await expect(
+        service.create('shop-1', {
+          customerName: 'Alice',
+          customerPhone: '+123456789',
+          items: [{ productId: 'product-1', quantity: 2, price: 1 }],
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(productService.adjustStock).not.toHaveBeenCalled();
     });
   });
 
@@ -227,6 +284,11 @@ describe('OrderService', () => {
 
       expect(orderRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'CANCELLED' }),
+      );
+      expect(productService.adjustStock).toHaveBeenCalledWith(
+        'prod_001',
+        2,
+        'shop_001',
       );
     });
 
