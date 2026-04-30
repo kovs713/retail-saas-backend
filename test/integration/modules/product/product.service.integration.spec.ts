@@ -5,6 +5,7 @@ import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
+import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import {
   CategoryRepository,
   ProductRepository,
@@ -78,6 +79,10 @@ describe('ProductService Integration', () => {
         {
           provide: EvotorApiService,
           useValue: createMock<EvotorApiService>(),
+        },
+        {
+          provide: CatalogIndexService,
+          useValue: createMock<CatalogIndexService>(),
         },
       ],
     }).compile();

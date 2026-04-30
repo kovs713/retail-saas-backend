@@ -6,6 +6,7 @@ import { Order } from '@/modules/order/entities';
 import { Category, Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
 import { PublicMediaController } from '@/modules/product/public-media.controller';
+import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import {
   CategoryRepository,
   ProductRepository,
@@ -69,6 +70,7 @@ describe('PublicMedia Integration', () => {
         { provide: StorageService, useValue: createMock<StorageService>() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
         { provide: EvotorApiService, useValue: createMock<EvotorApiService>() },
+        { provide: CatalogIndexService, useValue: createMock<CatalogIndexService>() },
       ],
     })
       .overrideGuard(ThrottlerGuard)

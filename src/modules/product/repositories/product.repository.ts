@@ -4,13 +4,11 @@ import { Product } from '../entities';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
-  FindManyOptions,
+  Brackets,
   FindOptionsWhere,
-  ILike,
   IsNull,
   LessThan,
-  LessThanOrEqual,
-  MoreThanOrEqual,
+  MoreThan,
   Repository,
 } from 'typeorm';
 
@@ -31,50 +29,69 @@ export class ProductRepository extends Repository<Product> {
     const limit = Math.min(query.limit ?? 10, 100);
     const skip = (page - 1) * limit;
 
-    const where: FindOptionsWhere<Product> = {
-      shopId,
-      deletedAt: IsNull(),
-    };
+    const queryBuilder = this.repository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .where('product.shopId = :shopId', { shopId })
+      .andWhere('product.deletedAt IS NULL');
 
     if (query.category) {
-      where.categoryId = query.category;
+      queryBuilder.andWhere('product.categoryId = :categoryId', {
+        categoryId: query.category,
+      });
     }
 
     if (query.minPrice !== undefined) {
-      where.price = MoreThanOrEqual(query.minPrice);
+      queryBuilder.andWhere('product.price >= :minPrice', {
+        minPrice: query.minPrice,
+      });
     }
     if (query.maxPrice !== undefined) {
-      where.price = LessThanOrEqual(query.maxPrice);
+      queryBuilder.andWhere('product.price <= :maxPrice', {
+        maxPrice: query.maxPrice,
+      });
     }
 
-    let searchWhere: FindOptionsWhere<Product> | null = null;
     if (query.search) {
-      const escapedSearch = query.search.replace(/([%_\\])/g, '\\$1');
-      searchWhere = {
-        ...where,
-        name: ILike(`%${escapedSearch}%`),
-      };
+      const search = `%${this.escapeLikePattern(query.search)}%`;
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          qb.where(`product.name ILIKE :search ESCAPE '\\'`, { search })
+            .orWhere(`product.sku ILIKE :search ESCAPE '\\'`, { search })
+            .orWhere(
+              `COALESCE(product.description, '') ILIKE :search ESCAPE '\\'`,
+              { search },
+            )
+            .orWhere(
+              `COALESCE(product.barcode, '') ILIKE :search ESCAPE '\\'`,
+              { search },
+            )
+            .orWhere(`COALESCE(category.name, '') ILIKE :search ESCAPE '\\'`, {
+              search,
+            })
+            .orWhere(
+              `CAST(COALESCE(product.metadata, '{}'::jsonb) AS text) ILIKE :search ESCAPE '\\'`,
+              { search },
+            );
+        }),
+      );
     }
 
-    const searchValue = query.search ?? '';
-    const escapedSkuSearch = searchValue.replace(/([%_\\])/g, '\\$1');
-    const options: FindManyOptions<Product> = {
-      where: searchWhere
-        ? [
-            searchWhere,
-            {
-              ...where,
-              sku: ILike(`%${escapedSkuSearch}%`),
-            },
-          ]
-        : where,
-      relations: ['category'],
-      skip,
-      take: limit,
-      order: this.getOrderOptions(query.sortBy, query.sortOrder),
-    };
+    const order = this.getOrderOptions(query.sortBy, query.sortOrder);
+    const [primaryField, primaryDirection] = Object.entries(order)[0] ?? [
+      'createdAt',
+      'DESC',
+    ];
 
-    return this.repository.findAndCount(options);
+    queryBuilder.orderBy(`product.${primaryField}`, primaryDirection);
+
+    for (const [field, direction] of Object.entries(order).slice(1)) {
+      queryBuilder.addOrderBy(`product.${field}`, direction);
+    }
+
+    queryBuilder.skip(skip).take(limit);
+
+    return queryBuilder.getManyAndCount();
   }
 
   async findById(id: string, shopId: string): Promise<Product | null> {
@@ -84,6 +101,7 @@ export class ProductRepository extends Repository<Product> {
         shopId,
         deletedAt: IsNull(),
       },
+      relations: ['category'],
     });
   }
 
@@ -118,6 +136,7 @@ export class ProductRepository extends Repository<Product> {
         shopId,
         deletedAt: IsNull(),
       },
+      relations: ['category'],
     });
   }
 
@@ -130,6 +149,26 @@ export class ProductRepository extends Repository<Product> {
         barcode,
         shopId,
         deletedAt: IsNull(),
+      },
+      relations: ['category'],
+    });
+  }
+
+  async findAvailableByShop(
+    shopId: string,
+    limit: number = 100,
+  ): Promise<Product[]> {
+    return this.repository.find({
+      where: {
+        shopId,
+        quantity: MoreThan(0),
+        deletedAt: IsNull(),
+      },
+      relations: ['category'],
+      take: limit,
+      order: {
+        quantity: 'DESC',
+        createdAt: 'DESC',
       },
     });
   }
@@ -196,6 +235,7 @@ export class ProductRepository extends Repository<Product> {
         shopId,
       },
       withDeleted: true,
+      relations: ['category'],
     });
   }
 
@@ -269,5 +309,9 @@ export class ProductRepository extends Repository<Product> {
     }
 
     return order;
+  }
+
+  private escapeLikePattern(value: string): string {
+    return value.replace(/([%_\\])/g, '\\$1');
   }
 }

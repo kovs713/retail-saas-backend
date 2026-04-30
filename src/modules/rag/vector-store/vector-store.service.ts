@@ -5,6 +5,7 @@ import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { Document } from '@langchain/core/documents';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { type Where } from 'chromadb';
 import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
@@ -256,6 +257,32 @@ export class VectorStoreService {
     this.logger.log(
       `Deleted ${documents.ids.length} chunks for documentGroupId: ${documentGroupId}`,
     );
+    return documents.ids.length;
+  }
+
+  async deleteDocumentsByFilter(
+    shopId: string,
+    filter: Record<string, string | number | boolean | null>,
+  ): Promise<number> {
+    const collection = this.chromaDBClient.collection;
+
+    if (!collection) {
+      return 0;
+    }
+
+    const where: Where = this.sanitizeMetadata({ shopId, ...filter }) as Where;
+    const documents = await collection.get({ where });
+
+    if (!documents.ids?.length) {
+      return 0;
+    }
+
+    await this.chromaDBClient.delete({ ids: documents.ids });
+
+    this.logger.log(
+      `Deleted ${documents.ids.length} documents for tenant-scoped filter`,
+    );
+
     return documents.ids.length;
   }
 

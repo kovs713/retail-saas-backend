@@ -3,6 +3,7 @@ import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { StorageService } from '@/modules/storage/storage.service';
+import { CatalogIndexService } from './catalog-index.service';
 import {
   CreateCategoryDto,
   CreateProductDto,
@@ -34,6 +35,7 @@ export class ProductService {
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
     private readonly evotorApiService: EvotorApiService,
+    private readonly catalogIndexService: CatalogIndexService,
   ) {}
 
   async uploadProductImage(
@@ -204,6 +206,7 @@ export class ProductService {
     const savedProduct = await this.productRepository.save(product);
 
     await this.invalidateProductCache(shopId);
+    await this.syncCatalogProduct(savedProduct);
 
     this.logger.log(`Product created successfully with ID: ${savedProduct.id}`);
     return savedProduct;
@@ -352,6 +355,7 @@ export class ProductService {
       updateProductDto.sku,
     );
     const updatedProduct = await this.findOne(id, shopId);
+    await this.syncCatalogProduct(updatedProduct);
 
     this.logger.log(`Product updated successfully: ${updatedProduct.name}`);
     return updatedProduct;
@@ -363,6 +367,7 @@ export class ProductService {
     await this.findOne(id, shopId);
     await this.productRepository.softDeleteById(id);
     await this.invalidateProductCache(shopId, id);
+    await this.removeCatalogProduct(id, shopId);
 
     this.logger.log(`Product ${id} soft deleted successfully`);
   }
@@ -385,6 +390,8 @@ export class ProductService {
     }
 
     await this.invalidateProductCache(shopId, id);
+    const restoredProduct = await this.findOne(id, shopId);
+    await this.syncCatalogProduct(restoredProduct);
 
     this.logger.log(`Product ${id} restored successfully`);
     return { message: 'Product restored successfully' };
@@ -410,6 +417,7 @@ export class ProductService {
     await this.productRepository.updateQuantity(id, shopId, quantity);
     await this.invalidateProductCache(shopId, id);
     const updatedProduct = await this.findOne(id, shopId);
+    await this.syncCatalogProduct(updatedProduct);
 
     this.logger.log(
       `Stock updated for product ${id}: ${updatedProduct.quantity}`,
@@ -438,6 +446,7 @@ export class ProductService {
     await this.productRepository.incrementQuantity(id, shopId, adjustment);
     await this.invalidateProductCache(shopId, id);
     const updatedProduct = await this.findOne(id, shopId);
+    await this.syncCatalogProduct(updatedProduct);
 
     this.logger.log(
       `Stock adjusted for product ${id}: ${updatedProduct.quantity}`,
@@ -525,6 +534,13 @@ export class ProductService {
     await this.cacheService.set(cacheKey, products, 120);
 
     return products;
+  }
+
+  async findAvailableProducts(
+    shopId: string,
+    limit: number = 100,
+  ): Promise<Product[]> {
+    return this.productRepository.findAvailableByShop(shopId, limit);
   }
 
   async getCategories(shopId: string): Promise<Category[]> {
@@ -794,5 +810,36 @@ export class ProductService {
     imageName: string,
   ): string {
     return `/public/media/${shopSlug}/products/${productId}/${imageName}`;
+  }
+
+  private async syncCatalogProduct(product: Product): Promise<void> {
+    try {
+      await this.catalogIndexService.upsertProduct(product);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown catalog index error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Failed to sync catalog index for product ${product.id}: ${errorMessage}`,
+        errorStack,
+      );
+    }
+  }
+
+  private async removeCatalogProduct(
+    productId: string,
+    shopId: string,
+  ): Promise<void> {
+    try {
+      await this.catalogIndexService.removeProduct(productId, shopId);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown catalog index error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Failed to remove catalog index for product ${productId}: ${errorMessage}`,
+        errorStack,
+      );
+    }
   }
 }

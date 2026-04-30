@@ -245,21 +245,19 @@ describe('RagService', () => {
         description: 'Fresh milk',
         barcode: null,
         category: { name: 'Dairy' },
+        metadata: { color: 'blue', size: 42 },
       };
 
       vectorStoreService.similaritySearch.mockResolvedValue([]);
       llmService.generateText.mockResolvedValue('Milk available');
-      productService.findAll
-        .mockResolvedValueOnce({
-          success: true,
-          data: [],
-          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: [inStockProduct as any],
-          pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
-        });
+      productService.findAll.mockResolvedValueOnce({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
+      productService.findAvailableProducts.mockResolvedValue([
+        inStockProduct as any,
+      ]);
 
       const result = await service.query(mockQuery, mockTenantContext);
 
@@ -268,15 +266,14 @@ describe('RagService', () => {
         { page: 1, limit: 50, search: mockQuery },
         mockTenantContext,
       );
-      expect(productService.findAll).toHaveBeenNthCalledWith(
-        2,
-        { page: 1, limit: 50 },
+      expect(productService.findAvailableProducts).toHaveBeenCalledWith(
         mockTenantContext,
+        50,
       );
       expect(result.sources).toEqual([
         {
           pageContent:
-            'Product: Milk\nSKU: MILK-001\nPrice: 120\nQuantity: 8\nCategory: Dairy\nStock status: in stock\nDescription: Fresh milk',
+            'Product: Milk\nSKU: MILK-001\nPrice: 120\nQuantity: 8\nCategory: Dairy\nStock status: in stock\nDescription: Fresh milk\nAttributes: color: blue; size: 42',
           metadata: {
             source: 'postgresql',
             productId: 'product-1',
@@ -317,17 +314,15 @@ describe('RagService', () => {
 
       vectorStoreService.similaritySearch.mockResolvedValue([]);
       llmService.generateText.mockResolvedValue('iPhone 15 available');
-      productService.findAll
-        .mockResolvedValueOnce({
-          success: true,
-          data: [directMatch as any],
-          pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: [catalogProduct as any, directMatch as any],
-          pagination: { total: 2, page: 1, limit: 50, totalPages: 1 },
-        });
+      productService.findAll.mockResolvedValueOnce({
+        success: true,
+        data: [directMatch as any],
+        pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
+      });
+      productService.findAvailableProducts.mockResolvedValue([
+        catalogProduct as any,
+        directMatch as any,
+      ]);
 
       const result = await service.query(mockQuery, mockTenantContext);
 
@@ -396,17 +391,16 @@ describe('RagService', () => {
       llmService.generateText.mockResolvedValue(
         'Есть iPhone 15 Pro и Samsung Galaxy S24',
       );
-      productService.findAll
-        .mockResolvedValueOnce({
-          success: true,
-          data: [],
-          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: [iphone as any, galaxy as any, airpods as any],
-          pagination: { total: 3, page: 1, limit: 50, totalPages: 1 },
-        });
+      productService.findAll.mockResolvedValueOnce({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
+      productService.findAvailableProducts.mockResolvedValue([
+        iphone as any,
+        galaxy as any,
+        airpods as any,
+      ]);
 
       await service.query(mockQuery, mockTenantContext);
 
@@ -432,21 +426,16 @@ describe('RagService', () => {
       const highStock = { id: 'product-2', name: 'Rice', quantity: 12 };
       const lowStock = { id: 'product-1', name: 'Milk', quantity: 3 };
 
-      productService.findAll.mockResolvedValue({
-        success: true,
-        data: [
-          lowStock as any,
-          { id: 'product-3', name: 'Sugar', quantity: 0 } as any,
-          highStock as any,
-        ],
-        pagination: { total: 3, page: 1, limit: 100, totalPages: 1 },
-      });
+      productService.findAvailableProducts.mockResolvedValue([
+        lowStock as any,
+        highStock as any,
+      ]);
 
       const result = await service.getAvailableProducts(mockTenantContext);
 
-      expect(productService.findAll).toHaveBeenCalledWith(
-        { page: 1, limit: 100 },
+      expect(productService.findAvailableProducts).toHaveBeenCalledWith(
         mockTenantContext,
+        100,
       );
       expect(result).toEqual([highStock, lowStock]);
     });

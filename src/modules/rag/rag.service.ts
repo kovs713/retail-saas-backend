@@ -186,6 +186,7 @@ export class RagService {
 
   private buildProductContext(product: Product): string {
     const categoryName = product.category?.name;
+    const attributes = this.formatProductMetadata(product.metadata);
 
     return [
       `Product: ${product.name}`,
@@ -195,6 +196,7 @@ export class RagService {
       ...(categoryName ? [`Category: ${categoryName}`] : []),
       `Stock status: ${product.quantity > 0 ? 'in stock' : 'out of stock'}`,
       ...(product.description ? [`Description: ${product.description}`] : []),
+      ...(attributes ? [`Attributes: ${attributes}`] : []),
       ...(product.barcode ? [`Barcode: ${product.barcode}`] : []),
     ].join('\n');
   }
@@ -203,14 +205,12 @@ export class RagService {
     shopId: string,
     limit: number = 100,
   ): Promise<Product[]> {
-    const result = await this.productService.findAll(
-      { page: 1, limit },
+    const products = await this.productService.findAvailableProducts(
       shopId,
+      limit,
     );
 
-    return (result.data || [])
-      .filter((product) => product.quantity > 0)
-      .sort((left, right) => right.quantity - left.quantity);
+    return products.sort((left, right) => right.quantity - left.quantity);
   }
 
   private async buildCombinedContext(
@@ -237,9 +237,9 @@ export class RagService {
             data: [],
             pagination: { total: 0 },
           })),
-        this.getAvailableProducts(shopId, RagService.catalogContextLimit).catch(
-          () => [],
-        ),
+        this.productService
+          .findAvailableProducts(shopId, RagService.catalogContextLimit)
+          .catch(() => []),
       ]);
 
     const matchedProducts = productsSearchResult.data || [];
@@ -297,6 +297,30 @@ export class RagService {
     }
 
     return { context: parts.join('\n\n'), sources };
+  }
+
+  private formatProductMetadata(
+    metadata: Record<string, unknown> | null,
+  ): string | null {
+    if (!metadata) {
+      return null;
+    }
+
+    const attributes = Object.entries(metadata)
+      .filter(([, value]) => value !== null && value !== undefined)
+      .map(([key, value]) => {
+        if (
+          typeof value === 'string' ||
+          typeof value === 'number' ||
+          typeof value === 'boolean'
+        ) {
+          return `${key}: ${value}`;
+        }
+
+        return `${key}: ${JSON.stringify(value)}`;
+      });
+
+    return attributes.length > 0 ? attributes.join('; ') : null;
   }
 
   async query(

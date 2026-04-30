@@ -1,4 +1,5 @@
 import { createProduct } from '@/core/database/factories';
+import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { EvotorIntegration } from './entities';
@@ -15,6 +16,7 @@ describe('EvotorService', () => {
   let productRepository: DeepMocked<ProductRepository>;
   let evotorApiService: DeepMocked<EvotorApiService>;
   let shopService: DeepMocked<ShopService>;
+  let catalogIndexService: DeepMocked<CatalogIndexService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -28,6 +30,10 @@ describe('EvotorService', () => {
           provide: ProductRepository,
           useValue: createMock<ProductRepository>(),
         },
+        {
+          provide: CatalogIndexService,
+          useValue: createMock<CatalogIndexService>(),
+        },
         { provide: EvotorApiService, useValue: createMock<EvotorApiService>() },
         { provide: ShopService, useValue: createMock<ShopService>() },
       ],
@@ -38,6 +44,7 @@ describe('EvotorService', () => {
     productRepository = module.get(ProductRepository);
     evotorApiService = module.get(EvotorApiService);
     shopService = module.get(ShopService);
+    catalogIndexService = module.get(CatalogIndexService);
   });
 
   it('connects a shop to evotor mock using phone and imeis', async () => {
@@ -145,6 +152,17 @@ describe('EvotorService', () => {
       }),
     );
     expect(productRepository.softDeleteById).toHaveBeenCalledWith('prod-stale');
+    expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shopId: 'shop-1',
+        sku: 'SKU-001',
+        name: 'Remote Product',
+      }),
+    );
+    expect(catalogIndexService.removeProduct).toHaveBeenCalledWith(
+      'prod-stale',
+      'shop-1',
+    );
     expect(result.importedCount).toBe(1);
     expect(result.deletedCount).toBe(1);
     expect(integrationRepository.save).toHaveBeenCalledWith(

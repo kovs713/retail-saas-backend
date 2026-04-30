@@ -3,6 +3,7 @@ import { CacheService } from '@/core/cache/cache.service';
 import { createCategory, createProduct } from '@/core/database/factories';
 import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { StorageService } from '@/modules/storage/storage.service';
+import { CatalogIndexService } from './catalog-index.service';
 import { Product } from './entities';
 import { ProductService } from './product.service';
 import { CategoryRepository, ProductRepository } from './repositories';
@@ -25,6 +26,7 @@ describe('ProductService', () => {
   let storageService: DeepMocked<StorageService>;
   let configService: DeepMocked<ConfigService>;
   let evotorApiService: DeepMocked<EvotorApiService>;
+  let catalogIndexService: DeepMocked<CatalogIndexService>;
 
   const mockProduct: Product = createProduct({ id: 'prod_1', index: 1 });
   const mockTenantContext = createMockTenantContext();
@@ -64,6 +66,10 @@ describe('ProductService', () => {
           provide: EvotorApiService,
           useValue: createMock<EvotorApiService>(),
         },
+        {
+          provide: CatalogIndexService,
+          useValue: createMock<CatalogIndexService>(),
+        },
       ],
     }).compile();
 
@@ -74,6 +80,7 @@ describe('ProductService', () => {
     storageService = module.get(StorageService);
     configService = module.get(ConfigService);
     evotorApiService = module.get(EvotorApiService);
+    catalogIndexService = module.get(CatalogIndexService);
     configService.get.mockImplementation((key: string, defaultValue?: any) => {
       const config: Record<string, any> = {
         MEDIA_UPLOAD_PRESIGNED_TTL: 900,
@@ -101,6 +108,9 @@ describe('ProductService', () => {
       const result = await service.create(createDto, mockTenantContext);
 
       expect(result).toEqual(mockProduct);
+      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(
+        mockProduct,
+      );
     });
 
     it('should throw ConflictException when SKU exists', async () => {
@@ -155,6 +165,9 @@ describe('ProductService', () => {
         mockTenantContext,
       );
       expect(result.name).toBe('Updated');
+      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'prod_1', name: 'Updated' }),
+      );
     });
 
     it('should throw NotFoundException for non-existent product', async () => {
@@ -215,6 +228,11 @@ describe('ProductService', () => {
       productRepository.findById.mockResolvedValue(mockProduct);
       productRepository.softDeleteById.mockResolvedValue();
       await service.remove('prod_1', mockTenantContext);
+
+      expect(catalogIndexService.removeProduct).toHaveBeenCalledWith(
+        'prod_1',
+        mockTenantContext,
+      );
     });
 
     it('should throw NotFoundException for non-existent product', async () => {
@@ -234,8 +252,12 @@ describe('ProductService', () => {
         raw: [],
       };
       productRepository.restoreById.mockResolvedValue(mockRestoreResult);
+      productRepository.findById.mockResolvedValue(mockProduct);
       const result = await service.restore('prod_1', mockTenantContext);
       expect(result.message).toBe('Product restored successfully');
+      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(
+        mockProduct,
+      );
     });
 
     it('should throw NotFoundException when nothing restored', async () => {
@@ -266,6 +288,9 @@ describe('ProductService', () => {
         mockTenantContext,
       );
       expect(result.quantity).toBe(150);
+      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'prod_1', quantity: 150 }),
+      );
     });
 
     it('should scope stock update by tenant before writing', async () => {
@@ -330,6 +355,9 @@ describe('ProductService', () => {
 
       const result = await service.adjustStock('prod_1', 50, mockTenantContext);
       expect(result.quantity).toBe(150);
+      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'prod_1', quantity: 150 }),
+      );
     });
 
     it('should scope stock adjustment by tenant before writing', async () => {
@@ -414,6 +442,29 @@ describe('ProductService', () => {
         mockTenantContext,
       );
       expect(result.data).toHaveLength(1);
+    });
+  });
+
+  describe('findAvailableProducts', () => {
+    it('should return only in-stock products from the repository', async () => {
+      const availableProducts = [
+        createProduct({ id: 'prod_2', quantity: 7 }),
+        createProduct({ id: 'prod_1', quantity: 3 }),
+      ];
+      productRepository.findAvailableByShop.mockResolvedValue(
+        availableProducts,
+      );
+
+      const result = await service.findAvailableProducts(
+        mockTenantContext.shopId,
+        25,
+      );
+
+      expect(productRepository.findAvailableByShop).toHaveBeenCalledWith(
+        mockTenantContext.shopId,
+        25,
+      );
+      expect(result).toEqual(availableProducts);
     });
   });
 

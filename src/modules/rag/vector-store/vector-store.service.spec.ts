@@ -404,6 +404,48 @@ describe('VectorStoreService', () => {
     });
   });
 
+  describe('deleteDocumentsByFilter', () => {
+    it('should delete all matching ids for the tenant-scoped filter', async () => {
+      const collection = makeCollectionWithDocs({
+        ids: ['id-1', 'id-2'],
+        documents: ['one', 'two'],
+        metadatas: [
+          { shopId: mockTenantContext.shopId, type: 'product' },
+          { shopId: mockTenantContext.shopId, type: 'product' },
+        ],
+      });
+      bindCollection(collection);
+
+      const result = await service.deleteDocumentsByFilter(
+        mockTenantContext.shopId,
+        { type: 'product', productId: 'product-1' },
+      );
+
+      expect(collection.get).toHaveBeenCalledWith({
+        where: {
+          shopId: mockTenantContext.shopId,
+          type: 'product',
+          productId: 'product-1',
+        },
+      });
+      expect(chromaDBClient.delete).toHaveBeenCalledWith({
+        ids: ['id-1', 'id-2'],
+      });
+      expect(result).toBe(2);
+    });
+
+    it('should return zero when the collection is unavailable', async () => {
+      bindCollection(null);
+
+      const result = await service.deleteDocumentsByFilter(
+        mockTenantContext.shopId,
+        { type: 'product', productId: 'product-1' },
+      );
+
+      expect(result).toBe(0);
+    });
+  });
+
   describe('asRetriever', () => {
     it('should create retriever instance', () => {
       const result = service.asRetriever(mockTenantContext.shopId, { k: 5 });

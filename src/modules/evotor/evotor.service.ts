@@ -1,3 +1,6 @@
+import { LoggerService } from '@/core/logger/logger.service';
+import { Product } from '@/modules/product/entities';
+import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { ConnectEvotorDto } from './dto';
@@ -13,6 +16,8 @@ import {
 
 @Injectable()
 export class EvotorService {
+  private readonly logger = new LoggerService(EvotorService.name);
+
   constructor(
     // @InjectRepository(EvotorIntegration)
     // private readonly repository: Repository<EvotorIntegration>,
@@ -20,6 +25,7 @@ export class EvotorService {
     private readonly shopService: ShopService,
     private readonly productRepository: ProductRepository,
     private readonly evotorApiService: EvotorApiService,
+    private readonly catalogIndexService: CatalogIndexService,
   ) {}
 
   async connect(
@@ -202,6 +208,7 @@ export class EvotorService {
           });
 
       await this.productRepository.save(product);
+      await this.syncCatalogProduct(product);
       matchedProductIds.add(product.id);
       importedCount += 1;
     }
@@ -218,6 +225,7 @@ export class EvotorService {
       }
 
       await this.productRepository.softDeleteById(syncedProduct.id);
+      await this.removeCatalogProduct(syncedProduct.id, shopId);
       deletedCount += 1;
     }
 
@@ -276,5 +284,36 @@ export class EvotorService {
   private buildDemoPhone(shopId: string): string {
     const digits = shopId.replace(/\D/g, '').slice(-10).padStart(10, '0');
     return `+7${digits}`;
+  }
+
+  private async syncCatalogProduct(product: Product): Promise<void> {
+    try {
+      await this.catalogIndexService.upsertProduct(product);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown catalog index error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Failed to sync catalog index for product ${product.id}: ${errorMessage}`,
+        errorStack,
+      );
+    }
+  }
+
+  private async removeCatalogProduct(
+    productId: string,
+    shopId: string,
+  ): Promise<void> {
+    try {
+      await this.catalogIndexService.removeProduct(productId, shopId);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown catalog index error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Failed to remove catalog index for product ${productId}: ${errorMessage}`,
+        errorStack,
+      );
+    }
   }
 }
