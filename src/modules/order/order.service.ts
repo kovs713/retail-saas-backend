@@ -236,13 +236,20 @@ export class OrderService {
     items: CreateOrderDto['items'],
     productMap: Map<string, Product>,
   ): void {
-    for (const item of items) {
-      const product = productMap.get(item.productId);
-      const availableQuantity = product?.quantity ?? 0;
+    const quantityPerProduct = new Map<string, number>();
 
-      if (availableQuantity < item.quantity) {
+    for (const item of items) {
+      const currentQty = quantityPerProduct.get(item.productId) ?? 0;
+      quantityPerProduct.set(item.productId, currentQty + item.quantity);
+    }
+
+    for (const [productId, totalQty] of quantityPerProduct) {
+      const product = productMap.get(productId);
+      const availableQty = product?.quantity ?? 0;
+
+      if (availableQty < totalQty) {
         throw new BadRequestException(
-          `Insufficient stock for product ${item.productId}`,
+          `Insufficient stock for product ${productId}. Requested: ${totalQty}, Available: ${availableQty}`,
         );
       }
     }

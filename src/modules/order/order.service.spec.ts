@@ -463,7 +463,7 @@ describe('OrderService', () => {
 
     it('should reject COMPLETED -> any transition', async () => {
       mockTransactionalOrderLoad(
-        createCompletedOrder({ id: 'order_001', shopId: 'shop_001' }) as Order,
+        createCompletedOrder({ id: 'order_001', shopId: 'shop_001' }),
       );
 
       await expect(
