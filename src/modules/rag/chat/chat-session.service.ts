@@ -1,5 +1,9 @@
 import { LoggerService } from '@/core/logger/logger.service';
-import { ChatSessionDto, ChatSessionMetadataDto } from '../dto';
+import {
+  ChatMessageEntry,
+  ChatSessionDto,
+  ChatSessionMetadataDto,
+} from '../dto';
 import { ChatSession } from './entities';
 import { ChatMessageRepository, ChatSessionRepository } from './repositories';
 
@@ -31,6 +35,15 @@ export class ChatSessionService {
       createdAt: session.createdAt.toISOString(),
       updatedAt: session.updatedAt.toISOString(),
     };
+  }
+
+  private toMessageDto(session: ChatSession): ChatMessageEntry[] {
+    return (session.messages ?? []).map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      timestamp: message.createdAt.toISOString(),
+    }));
   }
 
   private toMetadataDto(session: ChatSession): ChatSessionMetadataDto {
@@ -97,6 +110,23 @@ export class ChatSessionService {
       status,
     );
     return sessions.map((session) => this.toMetadataDto(session));
+  }
+
+  async listSessionMessages(
+    sessionId: string,
+    shopId: string,
+    userId: string,
+  ): Promise<ChatMessageEntry[]> {
+    const session = await this.sessionRepository.findOwnedById(
+      sessionId,
+      shopId,
+      userId,
+    );
+    if (!session) {
+      throw new NotFoundException('Chat session not found');
+    }
+
+    return this.toMessageDto(session);
   }
 
   async appendMessage(

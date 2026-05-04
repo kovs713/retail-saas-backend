@@ -75,6 +75,31 @@ describe('ChatSessionController', () => {
     expect(result.data).toHaveLength(1);
   });
 
+  it('should list current user session messages', async () => {
+    service.listSessionMessages.mockResolvedValue([
+      {
+        id: 'message-1',
+        role: 'user',
+        content: 'Need phones',
+        timestamp: '2024-01-01T00:00:00.000Z',
+      },
+    ]);
+
+    const result = await controller.listSessionMessages(
+      'session-1',
+      tenantContext,
+      user,
+    );
+
+    expect(service.listSessionMessages).toHaveBeenCalledWith(
+      'session-1',
+      tenantContext.shopId,
+      user.sub,
+    );
+    expect(result.success).toBe(true);
+    expect(result.data).toHaveLength(1);
+  });
+
   it('should archive owned session', async () => {
     service.archiveSession.mockResolvedValue({
       id: 'session-1',
