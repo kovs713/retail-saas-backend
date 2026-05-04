@@ -1,8 +1,8 @@
 import {
-  createOrder,
-  createConfirmedOrder,
-  createCompletedOrder,
   createCancelledOrder,
+  createCompletedOrder,
+  createConfirmedOrder,
+  createOrder,
   createReadyOrder,
 } from '@/core/database/factories';
 import { Product } from '@/modules/product/entities';
@@ -55,8 +55,9 @@ describe('OrderService', () => {
     transactionOrderRepository = createMock<Repository<Order>>();
     transactionProductRepository = createMock<Repository<Product>>();
 
-    dataSource.transaction.mockImplementation(async (callback) =>
-      callback(manager),
+    dataSource.transaction.mockImplementation(
+      <T>(callback: (entityManager: EntityManager) => Promise<T>) =>
+        callback(manager),
     );
     manager.getRepository.mockImplementation((entity) => {
       if (entity === Order) {

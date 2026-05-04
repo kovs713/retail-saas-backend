@@ -7,6 +7,7 @@ import { RagService } from './rag.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { Document } from '@langchain/core/documents';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('RagService', () => {
@@ -521,7 +522,7 @@ describe('RagService', () => {
               pageContent: 'собакам любой пароды можно сухой корм с индейкой.',
               metadata: { source: 'docs' },
             },
-          ] as any;
+          ] satisfies Document[];
         }
 
         return [];
@@ -604,11 +605,11 @@ describe('RagService', () => {
         yield 'Не знаю';
       });
 
-      for await (const _chunk of service.queryStream(
+      for await (const chunk of service.queryStream(
         mockQuery,
         mockTenantContext,
       )) {
-        // consume stream
+        void chunk;
       }
 
       const [prompt, systemMessage] = llmService.generateStream.mock
