@@ -1,5 +1,5 @@
+import { Product } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
-import { ProductRepository } from '@/modules/product/repositories';
 import {
   CreateOrderDto,
   OrderResponseDto,
@@ -15,7 +15,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { In, IsNull } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 
 @Injectable()
 export class OrderService {
@@ -23,69 +23,77 @@ export class OrderService {
 
   constructor(
     private readonly orderRepository: OrderRepository,
-    private readonly productRepository: ProductRepository,
     private readonly productService: ProductService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(shopId: string, createOrderDto: CreateOrderDto): Promise<Order> {
     this.logger.log(`Creating order for shop ${shopId}`);
 
-    const productIds = createOrderDto.items.map((item) => item.productId);
-    const products = await this.productRepository.find({
-      where: {
-        id: In(productIds),
-        shopId,
-        deletedAt: IsNull(),
-      },
-    });
-
-    const productMap = new Map(
-      products.map((product) => [product.id, product]),
-    );
-
-    const items = createOrderDto.items.map((item) => {
-      const product = productMap.get(item.productId);
-
-      if (!product) {
-        throw new NotFoundException(
-          `Product ${item.productId} not found for this shop`,
+    const { order, touchedProductIds } = await this.dataSource.transaction(
+      async (manager) => {
+        const products = await this.findProductsForUpdate(
+          manager,
+          createOrderDto.items.map((item) => item.productId),
+          shopId,
         );
-      }
+        const productMap = new Map(
+          products.map((product) => [product.id, product]),
+        );
 
-      return {
-        productId: item.productId,
-        quantity: item.quantity,
-        price: Number(product.price),
-      };
-    });
+        const items = createOrderDto.items.map((item) => {
+          const product = productMap.get(item.productId);
 
-    this.ensureSufficientStock(createOrderDto.items, productMap);
+          if (!product) {
+            throw new NotFoundException(
+              `Product ${item.productId} not found for this shop`,
+            );
+          }
 
-    const totalAmount = items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
+          return {
+            productId: item.productId,
+            quantity: item.quantity,
+            price: Number(product.price),
+          };
+        });
+
+        this.ensureSufficientStock(createOrderDto.items, productMap);
+
+        for (const item of items) {
+          const product = productMap.get(item.productId)!;
+          product.quantity -= item.quantity;
+          await manager.getRepository(Product).save(product);
+        }
+
+        const totalAmount = items.reduce(
+          (sum, item) => sum + item.price * item.quantity,
+          0,
+        );
+
+        const transactionOrderRepository = manager.getRepository(Order);
+        const order = transactionOrderRepository.create({
+          shopId,
+          customerName: createOrderDto.customerName,
+          customerPhone: createOrderDto.customerPhone,
+          items,
+          totalAmount,
+          status: OrderStatus.PENDING,
+        });
+
+        const savedOrder = await transactionOrderRepository.save(order);
+
+        return {
+          order: savedOrder,
+          touchedProductIds: items.map((item) => item.productId),
+        };
+      },
     );
 
-    await this.applyStockAdjustments(items, shopId, -1);
+    await this.productService.syncCatalogProducts(touchedProductIds, shopId);
 
-    try {
-      const order = this.orderRepository.create({
-        shopId,
-        customerName: createOrderDto.customerName,
-        customerPhone: createOrderDto.customerPhone,
-        items,
-        totalAmount,
-        status: OrderStatus.PENDING,
-      });
+    this.logger.log(`Order created: ${order.id}`);
 
-      const savedOrder = await this.orderRepository.save(order);
-      this.logger.log(`Order created: ${savedOrder.id}`);
-
-      return savedOrder;
-    } catch (error) {
-      await this.rollbackStockAdjustments(items, shopId, 1);
-      throw error;
-    }
+    return order;
   }
 
   async findByShopId(
@@ -136,31 +144,73 @@ export class OrderService {
   ): Promise<Order> {
     this.logger.log(`Updating order ${id} status to ${updateStatusDto.status}`);
 
-    const order = await this.findByIdAndShopId(id, shopId);
+    if (updateStatusDto.status === OrderStatus.CANCELLED) {
+      const { order, touchedProductIds } = await this.dataSource.transaction(
+        async (manager) => {
+          const transactionOrderRepository = manager.getRepository(Order);
+          const order = await transactionOrderRepository
+            .createQueryBuilder('order')
+            .where('order.id = :id', { id })
+            .andWhere('order.shopId = :shopId', { shopId })
+            .setLock('pessimistic_write')
+            .getOne();
 
-    this.validateStatusTransition(order.status, updateStatusDto.status);
+          if (!order) {
+            throw new NotFoundException(`Order ${id} not found for this shop`);
+          }
 
-    const shouldRestoreStock = updateStatusDto.status === OrderStatus.CANCELLED;
+          this.validateStatusTransition(order.status, updateStatusDto.status);
 
-    if (shouldRestoreStock) {
-      await this.applyStockAdjustments(order.items, shopId, 1);
-    }
+          const products = await this.findProductsForUpdate(
+            manager,
+            order.items.map((item) => item.productId),
+            shopId,
+            true,
+          );
+          const productMap = new Map(
+            products.map((product) => [product.id, product]),
+          );
 
-    try {
-      order.status = updateStatusDto.status;
+          for (const item of order.items) {
+            const product = productMap.get(item.productId);
+            if (!product) {
+              throw new NotFoundException(
+                `Product ${item.productId} not found for this shop`,
+              );
+            }
 
-      const updatedOrder = await this.orderRepository.save(order);
+            product.quantity += item.quantity;
+            await manager.getRepository(Product).save(product);
+          }
+
+          order.status = updateStatusDto.status;
+          const updatedOrder = await transactionOrderRepository.save(order);
+
+          return {
+            order: updatedOrder,
+            touchedProductIds: order.items.map((item) => item.productId),
+          };
+        },
+      );
+
+      await this.productService.syncCatalogProducts(touchedProductIds, shopId);
       this.logger.log(
         `Order ${id} status updated to ${updateStatusDto.status}`,
       );
 
-      return updatedOrder;
-    } catch (error) {
-      if (shouldRestoreStock) {
-        await this.rollbackStockAdjustments(order.items, shopId, -1);
-      }
-      throw error;
+      return order;
     }
+
+    const order = await this.findByIdAndShopId(id, shopId);
+
+    this.validateStatusTransition(order.status, updateStatusDto.status);
+
+    order.status = updateStatusDto.status;
+
+    const updatedOrder = await this.orderRepository.save(order);
+    this.logger.log(`Order ${id} status updated to ${updateStatusDto.status}`);
+
+    return updatedOrder;
   }
 
   private validateStatusTransition(
@@ -184,7 +234,7 @@ export class OrderService {
 
   private ensureSufficientStock(
     items: CreateOrderDto['items'],
-    productMap: Map<string, { id: string; quantity?: number | null }>,
+    productMap: Map<string, Product>,
   ): void {
     for (const item of items) {
       const product = productMap.get(item.productId);
@@ -198,55 +248,34 @@ export class OrderService {
     }
   }
 
-  private async applyStockAdjustments(
-    items: Array<{ productId: string; quantity: number }>,
+  private async findProductsForUpdate(
+    manager: EntityManager,
+    productIds: string[],
     shopId: string,
-    direction: 1 | -1,
-  ): Promise<void> {
-    const appliedItems: Array<{ productId: string; quantity: number }> = [];
-
-    try {
-      for (const item of items) {
-        await this.productService.adjustStock(
-          item.productId,
-          item.quantity * direction,
-          shopId,
-        );
-        appliedItems.push(item);
-      }
-    } catch (error) {
-      const rollbackDirection: 1 | -1 = direction === 1 ? -1 : 1;
-      await this.rollbackStockAdjustments(
-        appliedItems,
-        shopId,
-        rollbackDirection,
-      );
-      throw error;
+    includeDeleted = false,
+  ): Promise<Product[]> {
+    if (productIds.length === 0) {
+      return [];
     }
-  }
 
-  private async rollbackStockAdjustments(
-    items: Array<{ productId: string; quantity: number }>,
-    shopId: string,
-    direction: 1 | -1,
-  ): Promise<void> {
-    for (const item of items) {
-      try {
-        await this.productService.adjustStock(
-          item.productId,
-          item.quantity * direction,
-          shopId,
-        );
-      } catch (rollbackError) {
-        const error =
-          rollbackError instanceof Error
-            ? rollbackError
-            : new Error(String(rollbackError));
-        this.logger.error(
-          `Failed to rollback stock for product ${item.productId}: ${error.message}`,
-        );
-      }
+    const repository = manager.getRepository(Product);
+    const queryBuilder = repository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category');
+
+    if (includeDeleted) {
+      queryBuilder.withDeleted();
     }
+
+    queryBuilder
+      .where('product.id IN (:...productIds)', { productIds })
+      .andWhere('product.shopId = :shopId', { shopId });
+
+    if (!includeDeleted) {
+      queryBuilder.andWhere('product.deletedAt IS NULL');
+    }
+
+    return queryBuilder.setLock('pessimistic_write').getMany();
   }
 
   toResponseDto(order: Order): OrderResponseDto {

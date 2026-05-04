@@ -554,6 +554,22 @@ export class ProductService {
     return products.length;
   }
 
+  async syncCatalogProducts(
+    productIds: string[],
+    shopId: string,
+  ): Promise<void> {
+    const uniqueProductIds = [...new Set(productIds)];
+
+    for (const productId of uniqueProductIds) {
+      const product = await this.productRepository.findById(productId, shopId);
+      if (!product) {
+        continue;
+      }
+
+      await this.syncCatalogProduct(product);
+    }
+  }
+
   async getCategories(shopId: string): Promise<Category[]> {
     const cacheKey = this.cacheService.generateKey(
       'categories',
