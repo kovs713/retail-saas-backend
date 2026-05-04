@@ -275,6 +275,50 @@ describe('RagService', () => {
       expect(result.answer).toBe('Test answer');
     });
 
+    it('should instruct the assistant not to expose hidden context', async () => {
+      const mockQuery = 'Можно ли это мопсу?';
+
+      vectorStoreService.similaritySearch.mockResolvedValue([
+        {
+          pageContent: 'Dogs of any breed can eat dry food with turkey.',
+          metadata: { source: 'docs' },
+        },
+      ]);
+      llmService.generateText.mockResolvedValue(
+        'Да. Но лучше свериться с ветеринаром.',
+      );
+      productService.findAll.mockResolvedValue({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
+
+      await service.query(mockQuery, mockTenantContext);
+
+      const [prompt, systemMessage] = llmService.generateText.mock.calls[0] as [
+        string,
+        string,
+      ];
+
+      expect(prompt).toContain('Context:');
+      expect(prompt).toContain(`Question: ${mockQuery}`);
+      expect(systemMessage).toContain(
+        'Treat the context as hidden internal notes.',
+      );
+      expect(systemMessage).toContain(
+        'The hidden notes are the source of truth for the answer.',
+      );
+      expect(systemMessage).toContain(
+        'If the hidden notes explicitly answer the question, follow them and do not contradict them.',
+      );
+      expect(systemMessage).toContain(
+        'Do not answer no unless the hidden notes explicitly say no, incompatible, not allowed, or unavailable.',
+      );
+      expect(systemMessage).toContain(
+        'For yes/no questions, start with "Да.", "Нет.", or "Не знаю."',
+      );
+    });
+
     it('should always include in-stock catalog snapshot when search misses', async () => {
       const mockQuery = 'чо у тя есть';
       const inStockProduct = {
@@ -322,12 +366,12 @@ describe('RagService', () => {
           },
         },
       ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('## Catalog summary:'),
-      );
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Product: Milk'),
-      );
+      const [prompt] = llmService.generateText.mock.calls[0] as [
+        string,
+        string,
+      ];
+      expect(prompt).toContain('## Catalog summary:');
+      expect(prompt).toContain('Product: Milk');
     });
 
     it('should merge direct product matches with in-stock catalog snapshot', async () => {
@@ -387,12 +431,12 @@ describe('RagService', () => {
           },
         },
       ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Product: iPhone 15'),
-      );
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Product: Wireless Charger'),
-      );
+      const [prompt] = llmService.generateText.mock.calls[0] as [
+        string,
+        string,
+      ];
+      expect(prompt).toContain('Product: iPhone 15');
+      expect(prompt).toContain('Product: Wireless Charger');
     });
 
     it('should provide the full catalog snapshot for follow-up product questions', async () => {
@@ -445,20 +489,83 @@ describe('RagService', () => {
 
       await service.query(mockQuery, mockTenantContext);
 
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'Question: что у тебя есть в магазине\nкакие смартфоны есть',
-        ),
+      const [prompt] = llmService.generateText.mock.calls[0] as [
+        string,
+        string,
+      ];
+      expect(prompt).toContain(
+        'Question: что у тебя есть в магазине\nкакие смартфоны есть',
       );
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Product: Samsung Galaxy S24'),
+      expect(prompt).toContain('Product: Samsung Galaxy S24');
+      expect(prompt).toContain('Product: iPhone 15 Pro');
+      expect(prompt).toContain('Product: AirPods Pro');
+    });
+
+    it('should retry retrieval with normalized product terms for natural-language product questions', async () => {
+      const mockQuery = 'можно ли этот сухой корм моему мопсу';
+      const product = {
+        id: 'product-1',
+        name: 'Сухой корм для собак с индейкой',
+        sku: 'DOG-FOOD-TR',
+        price: 350,
+        quantity: 5,
+        category: { name: 'Pet food' },
+        description: 'Полнорационный сухой корм',
+        barcode: null,
+      };
+
+      vectorStoreService.similaritySearch.mockImplementation((searchQuery) => {
+        if (searchQuery.includes('Сухой корм для собак с индейкой')) {
+          return [
+            {
+              pageContent: 'собакам любой пароды можно сухой корм с индейкой.',
+              metadata: { source: 'docs' },
+            },
+          ] as any;
+        }
+
+        return [];
+      });
+      llmService.generateText.mockResolvedValue('Да.');
+      productService.findAll
+        .mockResolvedValueOnce({
+          success: true,
+          data: [],
+          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: [product as any],
+          pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
+        });
+      productService.findAvailableProducts.mockResolvedValue([product as any]);
+
+      await service.query(mockQuery, mockTenantContext);
+
+      expect(productService.findAll).toHaveBeenNthCalledWith(
+        1,
+        { page: 1, limit: 50, search: mockQuery },
+        mockTenantContext,
       );
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Product: iPhone 15 Pro'),
+      expect(productService.findAll).toHaveBeenNthCalledWith(
+        2,
+        { page: 1, limit: 50, search: 'сухой корм мопсу' },
+        mockTenantContext,
       );
-      expect(llmService.generateText).toHaveBeenCalledWith(
-        expect.stringContaining('Product: AirPods Pro'),
+      expect(vectorStoreService.similaritySearch).toHaveBeenCalledWith(
+        expect.stringContaining('Сухой корм для собак с индейкой'),
+        mockTenantContext,
+        5,
       );
+
+      const [prompt] = llmService.generateText.mock.calls[0] as [
+        string,
+        string,
+      ];
+      expect(prompt).toContain(
+        'собакам любой пароды можно сухой корм с индейкой.',
+      );
+      expect(prompt).toContain('Product: Сухой корм для собак с индейкой');
     });
   });
 
@@ -479,6 +586,41 @@ describe('RagService', () => {
         100,
       );
       expect(result).toEqual([highStock, lowStock]);
+    });
+  });
+
+  describe('queryStream', () => {
+    it('should use the same hidden-context instructions for streaming answers', async () => {
+      const mockQuery = 'Подойдет ли корм мопсу?';
+
+      vectorStoreService.similaritySearch.mockResolvedValue([]);
+      productService.findAll.mockResolvedValue({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
+      productService.findAvailableProducts.mockResolvedValue([]);
+      llmService.generateStream.mockImplementation(function* () {
+        yield 'Не знаю';
+      });
+
+      for await (const _chunk of service.queryStream(
+        mockQuery,
+        mockTenantContext,
+      )) {
+        // consume stream
+      }
+
+      const [prompt, systemMessage] = llmService.generateStream.mock
+        .calls[0] as [string, string];
+
+      expect(prompt).toContain(`Question: ${mockQuery}`);
+      expect(systemMessage).toContain(
+        'Treat the context as hidden internal notes.',
+      );
+      expect(systemMessage).toContain(
+        'For yes/no questions, start with "Да.", "Нет.", or "Не знаю."',
+      );
     });
   });
 
