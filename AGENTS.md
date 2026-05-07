@@ -188,7 +188,11 @@ test/
 - Test data: Use factories or fixtures for consistent test data
 - Test coverage: Aim for 80%+ coverage
 - Test naming: describe() for units, it() for behaviors
-- Arrange-Act-Assert pattern
+- Unit tests use `// Arrange`, `// Act`, `// Assert` when setup/action/assertion are not trivial
+- Integration and E2E tests use `// Given`, `// When`, `// Then` for scenario readability
+- DTO, mapper, decorator, and pure util tests may omit structure comments when the test is short and obvious
+- Keep each test focused on one behavior; prefer one main assertion group over many unrelated assertions
+- Put data builders and mocks in Arrange/Given, execute exactly one behavior in Act/When, verify observable outcome in Assert/Then
 - Test only public methods
 - Test error conditions and edge cases
 - Use expect().toMatchSnapshot() for complex objects when appropriate
