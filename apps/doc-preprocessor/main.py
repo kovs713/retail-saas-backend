@@ -2,13 +2,14 @@ import json
 import re
 from enum import Enum
 from io import BytesIO
+from tempfile import NamedTemporaryFile
 
 import uvicorn
+from docling.document_converter import DocumentConverter
 from docx import Document
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from pypdf import PdfReader
 
 
 class DocumentType(str, Enum):
@@ -32,6 +33,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
+_document_converter: DocumentConverter | None = None
+
 
 def detect_type(filename: str | None, content_type: str | None) -> DocumentType:
     if filename and "." in filename:
@@ -48,13 +51,40 @@ def detect_type(filename: str | None, content_type: str | None) -> DocumentType:
         return DocumentType.docx
     if content_type == "application/json":
         return DocumentType.json
-    if content_type in {"text/plain", "text/markdown"}:
+    if content_type == "text/markdown":
+        return DocumentType.md
+    if content_type == "text/plain":
         return DocumentType.txt
 
     raise HTTPException(
         status_code=400,
         detail="Cannot detect source type. Use known extension or content type.",
     )
+
+
+def get_document_converter() -> DocumentConverter:
+    global _document_converter
+
+    if _document_converter is None:
+        _document_converter = DocumentConverter()
+
+    return _document_converter
+
+
+def extract_text_with_docling(content: bytes, source_type: DocumentType) -> str:
+    try:
+        with NamedTemporaryFile(suffix=f".{source_type.value}") as source_file:
+            source_file.write(content)
+            source_file.flush()
+
+            result = get_document_converter().convert(source_file.name)
+
+        return result.document.export_to_markdown()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Docling failed to extract text from {source_type.value} document.",
+        ) from exc
 
 
 def extract_text(content: bytes, source_type: DocumentType) -> str:
@@ -68,16 +98,10 @@ def extract_text(content: bytes, source_type: DocumentType) -> str:
         return json.dumps(payload, ensure_ascii=False)
 
     if source_type == DocumentType.docx:
-        doc = Document(BytesIO(content))
-        return "\n".join(paragraph.text for paragraph in doc.paragraphs)
+        return extract_text_with_docling(content, source_type)
 
     if source_type == DocumentType.pdf:
-        reader = PdfReader(BytesIO(content))
-        chunks: list[str] = []
-        for page in reader.pages:
-            page_text = page.extract_text() or ""
-            chunks.append(page_text)
-        return "\n".join(chunks)
+        return extract_text_with_docling(content, source_type)
 
     raise HTTPException(
         status_code=400, detail=f"Unsupported source type: {source_type.value}"
