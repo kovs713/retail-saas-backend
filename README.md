@@ -62,9 +62,7 @@ docker-compose up -d
 docker-compose ps
 
 # Seed database (optional)
-pnpm run seed:default    # Seed default tenant
 pnpm run seed:fake       # Seed fake data for testing
-pnpm run seed:clear      # Clear seeded data
 ```
 
 ### Running the Application
