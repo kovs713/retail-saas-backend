@@ -411,11 +411,17 @@ export class RagService {
       matchedProducts,
     );
     const vectorSearchResults = await Promise.all(
-      vectorSearchQueries.map((searchQuery) =>
-        this.vectorStoreService
-          .similaritySearch(searchQuery, shopId, maxResults)
-          .catch(() => []),
-      ),
+      vectorSearchQueries.map(async (searchQuery) => {
+        try {
+          return await this.vectorStoreService.similaritySearch(
+            searchQuery,
+            shopId,
+            maxResults,
+          );
+        } catch {
+          return [];
+        }
+      }),
     );
     const vectorDocs = this.deduplicateVectorDocs(
       vectorSearchResults.flat(),

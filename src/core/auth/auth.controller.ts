@@ -31,7 +31,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Response } from 'express';
+import type { Response } from 'express';
 
 @ApiTags('Auth')
 @Controller('auth')
