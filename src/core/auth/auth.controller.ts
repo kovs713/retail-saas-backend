@@ -21,6 +21,7 @@ import {
   Post,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -132,7 +133,6 @@ export class AuthController {
     );
 
     if (!refreshToken) {
-      const { UnauthorizedException } = await import('@nestjs/common');
       throw new UnauthorizedException('Refresh token not found');
     }
 
@@ -147,6 +147,23 @@ export class AuthController {
       },
       message: 'Token refreshed successfully',
     };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Logout user',
+  })
+  @ApiCookieAuth()
+  @ApiResponse({
+    status: 200,
+    description: 'Logout successful',
+  })
+  logout(
+    @Res({ passthrough: true })
+    res: Response,
+  ): void {
+    this.clearRefreshTokenCookie(res);
   }
 
   @Get('me')
@@ -175,6 +192,10 @@ export class AuthController {
       success: true,
       data: user,
     };
+  }
+
+  private clearRefreshTokenCookie(res: Response): void {
+    res.clearCookie(this.authConfig.refreshTokenCookie, { path: '/auth' });
   }
 
   private setRefreshTokenCookie(res: Response, refreshToken?: string): void {

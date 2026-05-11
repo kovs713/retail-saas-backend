@@ -239,7 +239,11 @@ export class RagService {
   }
 
   private normalizeRetrievalQuery(query: string): string | null {
-    const tokens = query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    const tokens: string[] = query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    if (tokens.length == 0) {
+      return null;
+    }
+
     const normalizedTokens = tokens.filter(
       (token) => token.length > 2 && !RagService.retrievalStopWords.has(token),
     );
