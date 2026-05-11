@@ -34,7 +34,10 @@ export class StorefrontProductDto {
   @Expose()
   images: string[] | null;
 
-  @ApiProperty({ description: 'Product availability', enum: ['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'] })
+  @ApiProperty({
+    description: 'Product availability',
+    enum: ['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'],
+  })
   @Expose()
   availability: string;
 }
@@ -102,7 +105,10 @@ export class StorefrontResponseDto {
   @Type(() => StorefrontProductDto)
   products: StorefrontProductDto[];
 
-  @ApiProperty({ description: 'Categories list', type: [StorefrontCategoryDto] })
+  @ApiProperty({
+    description: 'Categories list',
+    type: [StorefrontCategoryDto],
+  })
   @Expose()
   @Type(() => StorefrontCategoryDto)
   categories: StorefrontCategoryDto[];

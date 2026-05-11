@@ -5,7 +5,10 @@ import { DocPreprocessorModule } from '@/modules/doc-preprocessor/doc-preprocess
 import { ProductModule } from '@/modules/product/product.module';
 import { ChatGateway, ChatSessionController, ChatSessionService } from './chat';
 import { ChatMessage, ChatSession } from './chat/entities';
-import { ChatMessageRepository, ChatSessionRepository } from './chat/repositories';
+import {
+  ChatMessageRepository,
+  ChatSessionRepository,
+} from './chat/repositories';
 import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { LLMModule } from './llm/llm.module';
 import { RagController } from './rag.controller';
@@ -48,7 +51,12 @@ export class RagModule {
         ChatMessageRepository,
         WsAuthGuard,
       ],
-      exports: [RagService, ChatSessionService, ChatSessionRepository, ChatMessageRepository],
+      exports: [
+        RagService,
+        ChatSessionService,
+        ChatSessionRepository,
+        ChatMessageRepository,
+      ],
       controllers: [RagController, ChatSessionController],
     };
   }

@@ -9,20 +9,24 @@ import {
   NotFoundException,
   Param,
   ParseUUIDPipe,
-  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { lookup } from 'mime-types';
 import path from 'path';
 
 @ApiTags('Public media')
 @Controller('public/media')
 @UseGuards(ThrottlerGuard)
-@Throttle({ default: { limit: 100, ttl: 60000 } })
+@Throttle({
+  default: {
+    limit: 100,
+    ttl: 60000,
+  },
+})
 export class PublicMediaController {
   private readonly logger = new Logger(PublicMediaController.name);
 
@@ -32,12 +36,16 @@ export class PublicMediaController {
   ) {}
 
   @Get(':shopSlug/products/:productId/:imageName')
-  @ApiOperation({ summary: 'Public product image proxy endpoint' })
+  @ApiOperation({
+    summary: 'Public product image proxy endpoint',
+  })
   async getProductImage(
-    @Param('shopSlug') shopSlug: string,
-    @Param('productId', ParseUUIDPipe) productId: string,
-    @Param('imageName') imageName: string,
-    @Req() req: Request,
+    @Param('shopSlug')
+    shopSlug: string,
+    @Param('productId', ParseUUIDPipe)
+    productId: string,
+    @Param('imageName')
+    imageName: string,
     @Res() res: Response,
   ): Promise<void> {
     const safeName = path.basename(imageName);
@@ -45,15 +53,26 @@ export class PublicMediaController {
       throw new BadRequestException('Invalid image name');
     }
 
-    const product = await this.productService.findPublicByShopSlugAndId(shopSlug, productId);
+    const product = await this.productService.findPublicByShopSlugAndId(
+      shopSlug,
+      productId,
+    );
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
-    const key = this.productService.buildProductImageObjectKey(productId, safeName);
+    const key = this.productService.buildProductImageObjectKey(
+      productId,
+      safeName,
+    );
 
     let stream: NodeJS.ReadableStream;
-    let stat: { size: number; contentType: string; lastModified: Date; etag: string };
+    let stat: {
+      size: number;
+      contentType: string;
+      lastModified: Date;
+      etag: string;
+    };
     try {
       [stat, stream] = await Promise.all([
         this.storageService.statObject(key),
@@ -65,7 +84,8 @@ export class PublicMediaController {
       throw new NotFoundException('Image not found');
     }
 
-    const contentType = stat.contentType || lookup(safeName) || 'application/octet-stream';
+    const contentType =
+      stat.contentType || lookup(safeName) || 'application/octet-stream';
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('X-Content-Type-Options', 'nosniff');

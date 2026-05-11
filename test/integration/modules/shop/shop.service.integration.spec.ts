@@ -3,7 +3,10 @@ import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
 import { Location, Shop } from '@/modules/shop/entities';
-import { LocationRepository, ShopRepository } from '@/modules/shop/repositories';
+import {
+  LocationRepository,
+  ShopRepository,
+} from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
@@ -34,7 +37,14 @@ describe('ShopService Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, Location, User, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([
+          Shop,
+          Location,
+          User,
+          ChatEvent,
+          StorefrontView,
+          Order,
+        ]),
       ],
       providers: [
         ShopService,
@@ -85,15 +95,18 @@ describe('ShopService Integration', () => {
     it('should throw ConflictException for duplicate slug', async () => {
       await shopService.create({ name: 'Test Shop', slug: 'duplicate-slug' });
 
-      await expect(shopService.create({ name: 'Another Shop', slug: 'duplicate-slug' })).rejects.toThrow(
-        'Shop with this slug already exists',
-      );
+      await expect(
+        shopService.create({ name: 'Another Shop', slug: 'duplicate-slug' }),
+      ).rejects.toThrow('Shop with this slug already exists');
     });
   });
 
   describe('findBySlug', () => {
     it('should return a shop by slug', async () => {
-      await shopService.create({ name: 'Find By Slug Shop', slug: 'find-by-slug' });
+      await shopService.create({
+        name: 'Find By Slug Shop',
+        slug: 'find-by-slug',
+      });
 
       const result = await shopService.findBySlug('find-by-slug');
 
@@ -102,13 +115,18 @@ describe('ShopService Integration', () => {
     });
 
     it('should throw NotFoundException when shop not found', async () => {
-      await expect(shopService.findBySlug('non-existent')).rejects.toThrow('Shop not found');
+      await expect(shopService.findBySlug('non-existent')).rejects.toThrow(
+        'Shop not found',
+      );
     });
   });
 
   describe('findById', () => {
     it('should return a shop by id', async () => {
-      const created = await shopService.create({ name: 'Find By ID Shop', slug: 'find-by-id' });
+      const created = await shopService.create({
+        name: 'Find By ID Shop',
+        slug: 'find-by-id',
+      });
 
       const result = await shopService.findById(created.id);
 
@@ -117,7 +135,9 @@ describe('ShopService Integration', () => {
     });
 
     it('should throw NotFoundException when shop not found', async () => {
-      await expect(shopService.findById('00000000-0000-0000-0000-000000000000')).rejects.toThrow('Shop not found');
+      await expect(
+        shopService.findById('00000000-0000-0000-0000-000000000000'),
+      ).rejects.toThrow('Shop not found');
     });
   });
 
@@ -131,7 +151,11 @@ describe('ShopService Integration', () => {
       });
       const savedUser = await dataSource.getRepository(User).save(user);
 
-      await shopService.create({ name: 'Find By Owner Shop', slug: 'find-by-owner', ownerId: savedUser.id });
+      await shopService.create({
+        name: 'Find By Owner Shop',
+        slug: 'find-by-owner',
+        ownerId: savedUser.id,
+      });
 
       const result = await shopService.findByOwnerId(savedUser.id);
 
@@ -156,7 +180,10 @@ describe('ShopService Integration', () => {
 
   describe('update', () => {
     it('should update a shop successfully', async () => {
-      const created = await shopService.create({ name: 'Update Shop', slug: 'update-shop' });
+      const created = await shopService.create({
+        name: 'Update Shop',
+        slug: 'update-shop',
+      });
 
       const result = await shopService.update(created.id, {
         name: 'Updated Shop',
@@ -169,7 +196,9 @@ describe('ShopService Integration', () => {
 
     it('should throw NotFoundException for non-existent shop', async () => {
       await expect(
-        shopService.update('00000000-0000-0000-0000-000000000000', { name: 'Updated Shop' }),
+        shopService.update('00000000-0000-0000-0000-000000000000', {
+          name: 'Updated Shop',
+        }),
       ).rejects.toThrow('Shop not found');
     });
   });
@@ -184,7 +213,10 @@ describe('ShopService Integration', () => {
       });
       const savedUser = await dataSource.getRepository(User).save(user);
 
-      const created = await shopService.create({ name: 'Update Owner Shop', slug: 'update-owner-shop' });
+      const created = await shopService.create({
+        name: 'Update Owner Shop',
+        slug: 'update-owner-shop',
+      });
 
       const result = await shopService.updateOwner(created.id, savedUser.id);
 
@@ -200,33 +232,52 @@ describe('ShopService Integration', () => {
       });
       const savedUser = await dataSource.getRepository(User).save(user);
 
-      await expect(shopService.updateOwner('00000000-0000-0000-0000-000000000000', savedUser.id)).rejects.toThrow(
-        'Shop not found',
-      );
+      await expect(
+        shopService.updateOwner(
+          '00000000-0000-0000-0000-000000000000',
+          savedUser.id,
+        ),
+      ).rejects.toThrow('Shop not found');
     });
   });
 
   describe('updateMediaUrls', () => {
     it('should update logo URL only', async () => {
-      const created = await shopService.create({ name: 'Media Shop', slug: 'media-shop' });
+      const created = await shopService.create({
+        name: 'Media Shop',
+        slug: 'media-shop',
+      });
 
-      const result = await shopService.updateMediaUrls(created.id, 'https://example.com/logo.png');
+      const result = await shopService.updateMediaUrls(
+        created.id,
+        'https://example.com/logo.png',
+      );
 
       expect(result.logoUrl).toBe('https://example.com/logo.png');
       expect(result.bannerUrl).toBeNull();
     });
 
     it('should update banner URL only', async () => {
-      const created = await shopService.create({ name: 'Media Shop', slug: 'media-shop-2' });
+      const created = await shopService.create({
+        name: 'Media Shop',
+        slug: 'media-shop-2',
+      });
 
-      const result = await shopService.updateMediaUrls(created.id, undefined, 'https://example.com/banner.png');
+      const result = await shopService.updateMediaUrls(
+        created.id,
+        undefined,
+        'https://example.com/banner.png',
+      );
 
       expect(result.logoUrl).toBeNull();
       expect(result.bannerUrl).toBe('https://example.com/banner.png');
     });
 
     it('should update both logo and banner URLs', async () => {
-      const created = await shopService.create({ name: 'Media Shop', slug: 'media-shop-3' });
+      const created = await shopService.create({
+        name: 'Media Shop',
+        slug: 'media-shop-3',
+      });
 
       const result = await shopService.updateMediaUrls(
         created.id,
@@ -240,14 +291,20 @@ describe('ShopService Integration', () => {
 
     it('should throw NotFoundException for non-existent shop', async () => {
       await expect(
-        shopService.updateMediaUrls('00000000-0000-0000-0000-000000000000', 'https://example.com/logo.png'),
+        shopService.updateMediaUrls(
+          '00000000-0000-0000-0000-000000000000',
+          'https://example.com/logo.png',
+        ),
       ).rejects.toThrow('Shop not found');
     });
   });
 
   describe('toggleActive', () => {
     it('should toggle shop from active to inactive', async () => {
-      const created = await shopService.create({ name: 'Toggle Shop', slug: 'toggle-shop' });
+      const created = await shopService.create({
+        name: 'Toggle Shop',
+        slug: 'toggle-shop',
+      });
       expect(created.isActive).toBe(true);
 
       const result = await shopService.toggleActive(created.id);
@@ -256,7 +313,10 @@ describe('ShopService Integration', () => {
     });
 
     it('should toggle shop from inactive to active', async () => {
-      const created = await shopService.create({ name: 'Toggle Shop 2', slug: 'toggle-shop-2' });
+      const created = await shopService.create({
+        name: 'Toggle Shop 2',
+        slug: 'toggle-shop-2',
+      });
 
       await shopService.toggleActive(created.id);
       const result = await shopService.toggleActive(created.id);
@@ -265,7 +325,9 @@ describe('ShopService Integration', () => {
     });
 
     it('should throw NotFoundException for non-existent shop', async () => {
-      await expect(shopService.toggleActive('00000000-0000-0000-0000-000000000000')).rejects.toThrow('Shop not found');
+      await expect(
+        shopService.toggleActive('00000000-0000-0000-0000-000000000000'),
+      ).rejects.toThrow('Shop not found');
     });
   });
 });

@@ -21,6 +21,7 @@ export class StorageModule {
             accessKey: configService.getOrThrow<string>('S3_USERNAME'),
             secretKey: configService.getOrThrow<string>('S3_PASSWORD'),
             userSSL: configService.getOrThrow<string>('S3_USE_SSL') === 'true',
+            bucket: configService.getOrThrow<string>('S3_BUCKET'),
           }),
         },
         {

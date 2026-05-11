@@ -1,18 +1,32 @@
 import { Pagination, PaginationResponse } from '@/common/dto';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
+import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { StorageService } from '@/modules/storage/storage.service';
-import { CreateCategoryDto, CreateProductDto, UpdateCategoryDto, UpdateProductDto } from './dto';
+import { CatalogIndexService } from './catalog-index.service';
+import {
+  CreateCategoryDto,
+  CreateProductDto,
+  UpdateCategoryDto,
+  UpdateProductDto,
+} from './dto';
 import { Category, Product } from './entities';
 import { CategoryRepository, ProductRepository } from './repositories';
 
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FindOptionsWhere, QueryDeepPartialEntity } from 'typeorm';
 
 @Injectable()
 export class ProductService {
-  private readonly logger: LoggerService = new LoggerService(ProductService.name);
+  private readonly logger: LoggerService = new LoggerService(
+    ProductService.name,
+  );
 
   constructor(
     private readonly productRepository: ProductRepository,
@@ -20,14 +34,25 @@ export class ProductService {
     private readonly cacheService: CacheService,
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
+    private readonly evotorApiService: EvotorApiService,
+    private readonly catalogIndexService: CatalogIndexService,
   ) {}
 
   async uploadProductImage(
     productId: string,
     file: Express.Multer.File,
     shopId: string,
-  ): Promise<{ key: string; publicUrl: string; contentType: string; size: number; etag: string }> {
-    const product = await this.productRepository.findByIdWithShop(productId, shopId);
+  ): Promise<{
+    key: string;
+    publicUrl: string;
+    contentType: string;
+    size: number;
+    etag: string;
+  }> {
+    const product = await this.productRepository.findByIdWithShop(
+      productId,
+      shopId,
+    );
 
     if (!product || !product.shop) {
       throw new NotFoundException('Product not found');
@@ -35,11 +60,20 @@ export class ProductService {
 
     const safeFileName = this.sanitizeImageFileName(file.originalname);
     const key = this.buildProductImageKey(productId, safeFileName);
-    const publicUrl = this.buildPublicProductImageUrl(product.shop.slug, productId, safeFileName);
-    const etag = await this.storageService.putObject(key, file.buffer, file.size, {
-      'Content-Type': file.mimetype,
-      'Cache-Control': 'public, max-age=31536000, immutable',
-    });
+    const publicUrl = this.buildPublicProductImageUrl(
+      product.shop.slug,
+      productId,
+      safeFileName,
+    );
+    const etag = await this.storageService.putObject(
+      key,
+      file.buffer,
+      file.size,
+      {
+        'Content-Type': file.mimetype,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    );
 
     product.images = this.appendImageUrl(product.images, publicUrl);
     await this.productRepository.save(product);
@@ -59,7 +93,10 @@ export class ProductService {
     fileName: string,
     shopId: string,
   ): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
-    const product = await this.productRepository.findByIdWithShop(productId, shopId);
+    const product = await this.productRepository.findByIdWithShop(
+      productId,
+      shopId,
+    );
 
     if (!product || !product.shop) {
       throw new NotFoundException('Product not found');
@@ -67,14 +104,28 @@ export class ProductService {
 
     const safeFileName = this.sanitizeImageFileName(fileName);
     const key = this.buildProductImageKey(productId, safeFileName);
-    const expirySeconds = this.configService.get<number>('MEDIA_UPLOAD_PRESIGNED_TTL', 900);
-    const uploadUrl = await this.storageService.getPresignedPutUrl(key, expirySeconds);
-    const publicUrl = this.buildPublicProductImageUrl(product.shop.slug, productId, safeFileName);
+    const expirySeconds = this.configService.get<number>(
+      'MEDIA_UPLOAD_PRESIGNED_TTL',
+      900,
+    );
+    const uploadUrl = await this.storageService.getPresignedPutUrl(
+      key,
+      expirySeconds,
+    );
+    const publicUrl = this.buildPublicProductImageUrl(
+      product.shop.slug,
+      productId,
+      safeFileName,
+    );
 
     return { uploadUrl, publicUrl, key };
   }
 
-  async deleteImage(productId: string, imageName: string, shopId: string): Promise<void> {
+  async deleteImage(
+    productId: string,
+    imageName: string,
+    shopId: string,
+  ): Promise<void> {
     const product = await this.productRepository.findById(productId, shopId);
     if (!product) {
       throw new NotFoundException('Product not found');
@@ -86,7 +137,10 @@ export class ProductService {
     await this.storageService.deleteObject(key);
   }
 
-  async findPublicByShopSlugAndId(shopSlug: string, productId: string): Promise<Product | null> {
+  async findPublicByShopSlugAndId(
+    shopSlug: string,
+    productId: string,
+  ): Promise<Product | null> {
     return this.productRepository.findByIdAndShopSlug(productId, shopSlug);
   }
 
@@ -125,13 +179,23 @@ export class ProductService {
     return this.buildProductImageKey(productId, imageName);
   }
 
-  async create(createProductDto: CreateProductDto, shopId: string): Promise<Product> {
-    this.logger.log(`Creating product with SKU: ${createProductDto.sku} for shop: ${shopId}`);
+  async create(
+    createProductDto: CreateProductDto,
+    shopId: string,
+  ): Promise<Product> {
+    this.logger.log(
+      `Creating product with SKU: ${createProductDto.sku} for shop: ${shopId}`,
+    );
 
-    const existingProduct = await this.productRepository.existsBySkuAndShop(createProductDto.sku, shopId);
+    const existingProduct = await this.productRepository.existsBySkuAndShop(
+      createProductDto.sku,
+      shopId,
+    );
 
     if (existingProduct) {
-      this.logger.warn(`Product with SKU ${createProductDto.sku} already exists in organization ${shopId}`);
+      this.logger.warn(
+        `Product with SKU ${createProductDto.sku} already exists in organization ${shopId}`,
+      );
       throw new ConflictException('Product with this SKU already exists');
     }
 
@@ -142,12 +206,16 @@ export class ProductService {
     const savedProduct = await this.productRepository.save(product);
 
     await this.invalidateProductCache(shopId);
+    await this.syncCatalogProduct(savedProduct);
 
     this.logger.log(`Product created successfully with ID: ${savedProduct.id}`);
     return savedProduct;
   }
 
-  async findAll(query: Pagination, shopId: string): Promise<PaginationResponse<Product>> {
+  async findAll(
+    query: Pagination,
+    shopId: string,
+  ): Promise<PaginationResponse<Product>> {
     const cacheKey = this.cacheService.generateKey(
       'products',
       'list',
@@ -158,7 +226,8 @@ export class ProductService {
       query.search || '',
     );
 
-    const cached = await this.cacheService.get<PaginationResponse<Product>>(cacheKey);
+    const cached =
+      await this.cacheService.get<PaginationResponse<Product>>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -172,7 +241,9 @@ export class ProductService {
 
     const [data, total] = await this.productRepository.findAll(shopId, query);
 
-    this.logger.log(`Found ${data.length} products (total: ${total}, page: ${page})`);
+    this.logger.log(
+      `Found ${data.length} products (total: ${total}, page: ${page})`,
+    );
 
     const result: PaginationResponse<Product> = {
       success: true,
@@ -202,7 +273,9 @@ export class ProductService {
     const product = await this.productRepository.findById(id, shopId);
 
     if (!product) {
-      this.logger.warn(`Product with ID ${id} not found in organization ${shopId}`);
+      this.logger.warn(
+        `Product with ID ${id} not found in organization ${shopId}`,
+      );
       throw new NotFoundException('Product not found');
     }
 
@@ -213,7 +286,12 @@ export class ProductService {
   }
 
   async findOneBySku(sku: string, shopId: string): Promise<Product> {
-    const cacheKey = this.cacheService.generateKey('product', 'sku', shopId, sku);
+    const cacheKey = this.cacheService.generateKey(
+      'product',
+      'sku',
+      shopId,
+      sku,
+    );
     const cached = await this.cacheService.get<Product>(cacheKey);
     if (cached) {
       return cached;
@@ -224,7 +302,9 @@ export class ProductService {
     const product = await this.productRepository.findBySku(sku, shopId);
 
     if (!product) {
-      this.logger.warn(`Product with SKU ${sku} not found in organization ${shopId}`);
+      this.logger.warn(
+        `Product with SKU ${sku} not found in organization ${shopId}`,
+      );
       throw new NotFoundException('Product not found');
     }
 
@@ -234,23 +314,48 @@ export class ProductService {
     return product;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto, shopId: string): Promise<Product> {
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+    shopId: string,
+  ): Promise<Product> {
     this.logger.log(`Updating product ID: ${id} for shop: ${shopId}`);
 
     const product = await this.findOne(id, shopId);
+    const previousSku = product.sku;
 
     if (updateProductDto.sku && updateProductDto.sku !== product.sku) {
-      const existingProduct = await this.productRepository.existsBySkuAndShop(updateProductDto.sku, shopId);
+      const existingProduct = await this.productRepository.existsBySkuAndShop(
+        updateProductDto.sku,
+        shopId,
+      );
 
       if (existingProduct) {
-        this.logger.warn(`Product with SKU ${updateProductDto.sku} already exists in organization ${shopId}`);
+        this.logger.warn(
+          `Product with SKU ${updateProductDto.sku} already exists in organization ${shopId}`,
+        );
         throw new ConflictException('Product with this SKU already exists');
       }
     }
 
-    await this.productRepository.update(id, updateProductDto as QueryDeepPartialEntity<Product>);
-    await this.invalidateProductCache(shopId, id);
+    if (this.shouldSyncManagedProduct(product, updateProductDto)) {
+      await this.evotorApiService.upsertProducts(product.externalStoreId!, [
+        this.buildManagedProductPayload(product, updateProductDto),
+      ]);
+    }
+
+    await this.productRepository.update(
+      id,
+      updateProductDto as QueryDeepPartialEntity<Product>,
+    );
+    await this.invalidateProductCache(
+      shopId,
+      id,
+      previousSku,
+      updateProductDto.sku,
+    );
     const updatedProduct = await this.findOne(id, shopId);
+    await this.syncCatalogProduct(updatedProduct);
 
     this.logger.log(`Product updated successfully: ${updatedProduct.name}`);
     return updatedProduct;
@@ -262,6 +367,7 @@ export class ProductService {
     await this.findOne(id, shopId);
     await this.productRepository.softDeleteById(id);
     await this.invalidateProductCache(shopId, id);
+    await this.removeCatalogProduct(id, shopId);
 
     this.logger.log(`Product ${id} soft deleted successfully`);
   }
@@ -284,60 +390,112 @@ export class ProductService {
     }
 
     await this.invalidateProductCache(shopId, id);
+    const restoredProduct = await this.findOne(id, shopId);
+    await this.syncCatalogProduct(restoredProduct);
 
     this.logger.log(`Product ${id} restored successfully`);
     return { message: 'Product restored successfully' };
   }
 
-  async updateStock(id: string, quantity: number, shopId: string): Promise<Product> {
-    this.logger.log(`Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${shopId}`);
+  async updateStock(
+    id: string,
+    quantity: number,
+    shopId: string,
+  ): Promise<Product> {
+    this.logger.log(
+      `Updating stock for product ID: ${id}, quantity: ${quantity} for shop: ${shopId}`,
+    );
 
-    await this.findOne(id, shopId);
+    const product = await this.findOne(id, shopId);
+
+    if (this.shouldSyncManagedProduct(product, { quantity })) {
+      await this.evotorApiService.upsertProducts(product.externalStoreId!, [
+        this.buildManagedProductPayload(product, { quantity }),
+      ]);
+    }
+
     await this.productRepository.updateQuantity(id, shopId, quantity);
     await this.invalidateProductCache(shopId, id);
     const updatedProduct = await this.findOne(id, shopId);
+    await this.syncCatalogProduct(updatedProduct);
 
-    this.logger.log(`Stock updated for product ${id}: ${updatedProduct.quantity}`);
+    this.logger.log(
+      `Stock updated for product ${id}: ${updatedProduct.quantity}`,
+    );
     return updatedProduct;
   }
 
-  async adjustStock(id: string, adjustment: number, shopId: string): Promise<Product> {
-    this.logger.log(`Adjusting stock for product ID: ${id}, adjustment: ${adjustment} for shop: ${shopId}`);
+  async adjustStock(
+    id: string,
+    adjustment: number,
+    shopId: string,
+  ): Promise<Product> {
+    this.logger.log(
+      `Adjusting stock for product ID: ${id}, adjustment: ${adjustment} for shop: ${shopId}`,
+    );
 
-    await this.findOne(id, shopId);
+    const product = await this.findOne(id, shopId);
+    const nextQuantity = product.quantity + adjustment;
+
+    if (this.shouldSyncManagedProduct(product, { quantity: nextQuantity })) {
+      await this.evotorApiService.upsertProducts(product.externalStoreId!, [
+        this.buildManagedProductPayload(product, { quantity: nextQuantity }),
+      ]);
+    }
+
     await this.productRepository.incrementQuantity(id, shopId, adjustment);
     await this.invalidateProductCache(shopId, id);
     const updatedProduct = await this.findOne(id, shopId);
+    await this.syncCatalogProduct(updatedProduct);
 
-    this.logger.log(`Stock adjusted for product ${id}: ${updatedProduct.quantity}`);
+    this.logger.log(
+      `Stock adjusted for product ${id}: ${updatedProduct.quantity}`,
+    );
     return updatedProduct;
   }
 
-  async count(shopId: string, where?: FindOptionsWhere<Product>): Promise<number> {
+  async count(
+    shopId: string,
+    where?: FindOptionsWhere<Product>,
+  ): Promise<number> {
     const count = await this.productRepository.countByShop(shopId, where);
     this.logger.log(`Product count for organization ${shopId}: ${count}`);
     return count;
   }
 
   async countByCategory(categoryId: string, shopId: string): Promise<number> {
-    const count = await this.productRepository.countByCategory(shopId, categoryId);
-    this.logger.log(`Product count for category ${categoryId} in organization ${shopId}: ${count}`);
+    const count = await this.productRepository.countByCategory(
+      shopId,
+      categoryId,
+    );
+    this.logger.log(
+      `Product count for category ${categoryId} in organization ${shopId}: ${count}`,
+    );
     return count;
   }
 
   async findByBarcode(barcode: string, shopId: string): Promise<Product> {
-    const cacheKey = this.cacheService.generateKey('product', 'barcode', shopId, barcode);
+    const cacheKey = this.cacheService.generateKey(
+      'product',
+      'barcode',
+      shopId,
+      barcode,
+    );
     const cached = await this.cacheService.get<Product>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    this.logger.log(`Finding product by barcode: ${barcode} for shop: ${shopId}`);
+    this.logger.log(
+      `Finding product by barcode: ${barcode} for shop: ${shopId}`,
+    );
 
     const product = await this.productRepository.findByBarcode(barcode, shopId);
 
     if (!product) {
-      this.logger.warn(`Product with barcode ${barcode} not found in organization ${shopId}`);
+      this.logger.warn(
+        `Product with barcode ${barcode} not found in organization ${shopId}`,
+      );
       throw new NotFoundException('Product not found');
     }
 
@@ -347,16 +505,29 @@ export class ProductService {
     return product;
   }
 
-  async findLowStock(threshold: number = 10, shopId: string): Promise<Product[]> {
-    const cacheKey = this.cacheService.generateKey('products', 'low-stock', shopId, threshold);
+  async findLowStock(
+    threshold: number = 10,
+    shopId: string,
+  ): Promise<Product[]> {
+    const cacheKey = this.cacheService.generateKey(
+      'products',
+      'low-stock',
+      shopId,
+      threshold,
+    );
     const cached = await this.cacheService.get<Product[]>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    this.logger.log(`Finding products with low stock (threshold: ${threshold}) for shop: ${shopId}`);
+    this.logger.log(
+      `Finding products with low stock (threshold: ${threshold}) for shop: ${shopId}`,
+    );
 
-    const products = await this.productRepository.findLowStock(shopId, threshold);
+    const products = await this.productRepository.findLowStock(
+      shopId,
+      threshold,
+    );
 
     this.logger.log(`Found ${products.length} products with low stock`);
 
@@ -365,8 +536,46 @@ export class ProductService {
     return products;
   }
 
+  async findAvailableProducts(
+    shopId: string,
+    limit: number = 100,
+  ): Promise<Product[]> {
+    return this.productRepository.findAvailableByShop(shopId, limit);
+  }
+
+  async rebuildCatalogIndex(shopId: string): Promise<number> {
+    const products = await this.productRepository.findActiveByShop(shopId);
+
+    await this.catalogIndexService.clearCatalog(shopId);
+    for (const product of products) {
+      await this.catalogIndexService.upsertProduct(product);
+    }
+
+    return products.length;
+  }
+
+  async syncCatalogProducts(
+    productIds: string[],
+    shopId: string,
+  ): Promise<void> {
+    const uniqueProductIds = [...new Set(productIds)];
+
+    for (const productId of uniqueProductIds) {
+      const product = await this.productRepository.findById(productId, shopId);
+      if (!product) {
+        continue;
+      }
+
+      await this.syncCatalogProduct(product);
+    }
+  }
+
   async getCategories(shopId: string): Promise<Category[]> {
-    const cacheKey = this.cacheService.generateKey('categories', 'shop', shopId);
+    const cacheKey = this.cacheService.generateKey(
+      'categories',
+      'shop',
+      shopId,
+    );
     const cached = await this.cacheService.get<Category[]>(cacheKey);
     if (cached) {
       return cached;
@@ -383,12 +592,20 @@ export class ProductService {
     return categories;
   }
 
-  async createCategory(shopId: string, createCategoryDto: CreateCategoryDto): Promise<Category> {
+  async createCategory(
+    shopId: string,
+    createCategoryDto: CreateCategoryDto,
+  ): Promise<Category> {
     try {
-      const existingCategory = await this.categoryRepository.findBySlug(shopId, createCategoryDto.slug);
+      const existingCategory = await this.categoryRepository.findBySlug(
+        shopId,
+        createCategoryDto.slug,
+      );
 
       if (existingCategory) {
-        throw new ConflictException(`Category with slug "${createCategoryDto.slug}" already exists for this shop`);
+        throw new ConflictException(
+          `Category with slug "${createCategoryDto.slug}" already exists for this shop`,
+        );
       }
 
       const category = this.categoryRepository.create({
@@ -398,32 +615,51 @@ export class ProductService {
 
       const savedCategory = await this.categoryRepository.save(category);
       await this.invalidateCategoryCache(shopId);
-      this.logger.log(`Category created successfully with ID: ${savedCategory.id}`);
+      this.logger.log(
+        `Category created successfully with ID: ${savedCategory.id}`,
+      );
       return savedCategory;
     } catch (error: unknown) {
       if (error instanceof ConflictException) {
         throw error;
       }
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`Failed to create category: ${errorMessage}`, errorStack);
+      this.logger.error(
+        `Failed to create category: ${errorMessage}`,
+        errorStack,
+      );
       throw error;
     }
   }
 
-  async updateCategory(id: string, shopId: string, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
+  async updateCategory(
+    id: string,
+    shopId: string,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<Category> {
     try {
-      const category = await this.categoryRepository.findByIdAndShop(id, shopId);
+      const category = await this.categoryRepository.findByIdAndShop(
+        id,
+        shopId,
+      );
 
       if (!category) {
         throw new NotFoundException(`Category with ID "${id}" not found`);
       }
 
       if (updateCategoryDto.slug) {
-        const existingCategory = await this.categoryRepository.existsBySlugAndShop(shopId, updateCategoryDto.slug);
+        const existingCategory =
+          await this.categoryRepository.existsBySlugAndShop(
+            shopId,
+            updateCategoryDto.slug,
+          );
 
         if (existingCategory) {
-          throw new ConflictException(`Category with slug "${updateCategoryDto.slug}" already exists for this shop`);
+          throw new ConflictException(
+            `Category with slug "${updateCategoryDto.slug}" already exists for this shop`,
+          );
         }
       }
 
@@ -433,12 +669,19 @@ export class ProductService {
       this.logger.log(`Category updated successfully: ${updated.name}`);
       return updated;
     } catch (error: unknown) {
-      if (error instanceof NotFoundException || error instanceof ConflictException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ConflictException
+      ) {
         throw error;
       }
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`Failed to update category: ${errorMessage}`, errorStack);
+      this.logger.error(
+        `Failed to update category: ${errorMessage}`,
+        errorStack,
+      );
       throw error;
     }
   }
@@ -453,31 +696,48 @@ export class ProductService {
         throw new NotFoundException(`Category with ID "${id}" not found`);
       }
 
-      const productsWithCategory = await this.productRepository.countByCategory(shopId, id);
+      const productsWithCategory = await this.productRepository.countByCategory(
+        shopId,
+        id,
+      );
 
       if (productsWithCategory > 0) {
-        throw new ConflictException(`Cannot delete category with ${productsWithCategory} associated products`);
+        throw new ConflictException(
+          `Cannot delete category with ${productsWithCategory} associated products`,
+        );
       }
 
       await this.categoryRepository.remove(category);
       await this.invalidateCategoryCache(shopId);
       this.logger.log(`Category ${id} deleted successfully`);
     } catch (error: unknown) {
-      if (error instanceof NotFoundException || error instanceof ConflictException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ConflictException
+      ) {
         throw error;
       }
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`Failed to delete category: ${errorMessage}`, errorStack);
+      this.logger.error(
+        `Failed to delete category: ${errorMessage}`,
+        errorStack,
+      );
       throw error;
     }
   }
 
   private async invalidateCategoryCache(shopId: string): Promise<void> {
-    await this.cacheService.del(this.cacheService.generateKey('categories', 'shop', shopId));
+    await this.cacheService.del(
+      this.cacheService.generateKey('categories', 'shop', shopId),
+    );
   }
 
-  private getOrderOptions(sortBy?: string, sortOrder?: 'ASC' | 'DESC'): Record<string, 'ASC' | 'DESC'> {
+  private getOrderOptions(
+    sortBy?: string,
+    sortOrder?: 'ASC' | 'DESC',
+  ): Record<string, 'ASC' | 'DESC'> {
     const order: Record<string, 'ASC' | 'DESC'> = { createdAt: 'DESC' };
 
     if (sortBy) {
@@ -487,12 +747,58 @@ export class ProductService {
     return order;
   }
 
-  private async invalidateProductCache(shopId: string, productId?: string): Promise<void> {
+  private async invalidateProductCache(
+    shopId: string,
+    productId?: string,
+    previousSku?: string,
+    nextSku?: string,
+  ): Promise<void> {
     if (productId) {
-      await this.cacheService.del(this.cacheService.generateKey('product', 'id', productId));
-      await this.cacheService.del(this.cacheService.generateKey('product', 'sku', shopId, productId));
+      await this.cacheService.del(
+        this.cacheService.generateKey('product', 'id', productId),
+      );
+    }
+    if (previousSku) {
+      await this.cacheService.del(
+        this.cacheService.generateKey('product', 'sku', shopId, previousSku),
+      );
+    }
+    if (nextSku && nextSku !== previousSku) {
+      await this.cacheService.del(
+        this.cacheService.generateKey('product', 'sku', shopId, nextSku),
+      );
     }
     await this.cacheService.delPattern(`products:list:${shopId}:*`);
+  }
+
+  private shouldSyncManagedProduct(
+    product: Product,
+    updateProductDto: UpdateProductDto,
+  ): boolean {
+    if (
+      product.externalSource !== 'evotor' ||
+      !product.externalStoreId ||
+      !product.externalId
+    ) {
+      return false;
+    }
+
+    return ['sku', 'name', 'price', 'quantity'].some(
+      (field) => field in updateProductDto,
+    );
+  }
+
+  private buildManagedProductPayload(
+    product: Product,
+    updateProductDto: UpdateProductDto,
+  ) {
+    return {
+      id: product.externalId!,
+      article_number: updateProductDto.sku ?? product.sku,
+      name: updateProductDto.name ?? product.name,
+      price: updateProductDto.price ?? product.price,
+      quantity: updateProductDto.quantity ?? product.quantity,
+    };
   }
 
   private sanitizeImageFileName(fileName: string): string {
@@ -511,16 +817,56 @@ export class ProductService {
     return trimmed;
   }
 
-  private appendImageUrl(images: string[] | null | undefined, publicUrl: string): string[] {
+  private appendImageUrl(
+    images: string[] | null | undefined,
+    publicUrl: string,
+  ): string[] {
     const nextImages = images ?? [];
-    return nextImages.includes(publicUrl) ? nextImages : [...nextImages, publicUrl];
+    return nextImages.includes(publicUrl)
+      ? nextImages
+      : [...nextImages, publicUrl];
   }
 
   private buildProductImageKey(productId: string, imageName: string): string {
     return `products/${productId}/images/${imageName}`;
   }
 
-  private buildPublicProductImageUrl(shopSlug: string, productId: string, imageName: string): string {
+  private buildPublicProductImageUrl(
+    shopSlug: string,
+    productId: string,
+    imageName: string,
+  ): string {
     return `/public/media/${shopSlug}/products/${productId}/${imageName}`;
+  }
+
+  private async syncCatalogProduct(product: Product): Promise<void> {
+    try {
+      await this.catalogIndexService.upsertProduct(product);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown catalog index error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Failed to sync catalog index for product ${product.id}: ${errorMessage}`,
+        errorStack,
+      );
+    }
+  }
+
+  private async removeCatalogProduct(
+    productId: string,
+    shopId: string,
+  ): Promise<void> {
+    try {
+      await this.catalogIndexService.removeProduct(productId, shopId);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown catalog index error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Failed to remove catalog index for product ${productId}: ${errorMessage}`,
+        errorStack,
+      );
+    }
   }
 }

@@ -27,6 +27,11 @@ export function createShop(overrides: ShopOverrides = {}): Shop {
   };
 }
 
-export function createShops(count: number, overrides: Omit<ShopOverrides, 'index'> = {}): Shop[] {
-  return Array.from({ length: count }, (_, i) => createShop({ ...overrides, index: i + 1 }));
+export function createShops(
+  count: number,
+  overrides: Omit<ShopOverrides, 'index'> = {},
+): Shop[] {
+  return Array.from({ length: count }, (_, i) =>
+    createShop({ ...overrides, index: i + 1 }),
+  );
 }

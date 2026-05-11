@@ -51,7 +51,10 @@ describe('ProductDto', () => {
     });
 
     it('should return undefined for non-date non-string values', () => {
-      const product = createMockProduct({ createdAt: 12345 as any, updatedAt: 12345 as any });
+      const product = createMockProduct({
+        createdAt: 12345 as any,
+        updatedAt: 12345 as any,
+      });
 
       const dto = ProductDto.fromEntity(product);
 

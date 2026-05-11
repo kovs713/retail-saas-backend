@@ -1,6 +1,14 @@
 import { ChatSession } from './chat-session.entity';
 
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity('chat_messages')
 @Index(['sessionId', 'createdAt'])
@@ -12,7 +20,11 @@ export class ChatMessage {
   @Index()
   sessionId: string;
 
-  @ManyToOne(() => ChatSession, (session) => session.messages, { eager: false, nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => ChatSession, (session) => session.messages, {
+    eager: false,
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'sessionId' })
   session: ChatSession;
 

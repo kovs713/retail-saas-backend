@@ -1,9 +1,15 @@
+export interface EvotorOptions {
+  baseUrl: string;
+  token: string;
+}
+
 export interface MinioOptions {
   host: string;
   port: number;
   accessKey: string;
   secretKey: string;
   userSSL: boolean;
+  bucket: string;
 }
 
 export interface RagChatOptions {

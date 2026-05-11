@@ -1,4 +1,9 @@
-import { createMany, generateId, generateUniqueName, generateUniqueSlug } from './shared.utils';
+import {
+  createMany,
+  generateId,
+  generateUniqueName,
+  generateUniqueSlug,
+} from './shared.utils';
 
 describe('shared.utils', () => {
   describe('generateId', () => {

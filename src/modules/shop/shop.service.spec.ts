@@ -68,8 +68,12 @@ describe('ShopService', () => {
     it('should throw ConflictException when shop slug exists', async () => {
       repository.existsBySlug.mockResolvedValue(true);
 
-      await expect(service.create(createDto)).rejects.toThrow(ConflictException);
-      await expect(service.create(createDto)).rejects.toThrow('Shop with this slug already exists');
+      await expect(service.create(createDto)).rejects.toThrow(
+        ConflictException,
+      );
+      await expect(service.create(createDto)).rejects.toThrow(
+        'Shop with this slug already exists',
+      );
     });
   });
 
@@ -85,8 +89,12 @@ describe('ShopService', () => {
     it('should throw NotFoundException when shop not found', async () => {
       repository.findBySlug.mockResolvedValue(null);
 
-      await expect(service.findBySlug('non-existent')).rejects.toThrow(NotFoundException);
-      await expect(service.findBySlug('non-existent')).rejects.toThrow('Shop not found');
+      await expect(service.findBySlug('non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(service.findBySlug('non-existent')).rejects.toThrow(
+        'Shop not found',
+      );
     });
   });
 
@@ -102,8 +110,12 @@ describe('ShopService', () => {
     it('should throw NotFoundException when shop not found', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.findById('non-existent')).rejects.toThrow(NotFoundException);
-      await expect(service.findById('non-existent')).rejects.toThrow('Shop not found');
+      await expect(service.findById('non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(service.findById('non-existent')).rejects.toThrow(
+        'Shop not found',
+      );
     });
   });
 
@@ -148,14 +160,20 @@ describe('ShopService', () => {
 
       await service.update('shop_001', { slug: 'updated-shop' });
 
-      expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('shop', 'slug', 'test-shop'));
-      expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('shop', 'slug', 'updated-shop'));
+      expect(cacheService.del).toHaveBeenCalledWith(
+        cacheService.generateKey('shop', 'slug', 'test-shop'),
+      );
+      expect(cacheService.del).toHaveBeenCalledWith(
+        cacheService.generateKey('shop', 'slug', 'updated-shop'),
+      );
     });
 
     it('should throw NotFoundException for non-existent shop', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.update('non-existent', updateDto)).rejects.toThrow(NotFoundException);
+      await expect(service.update('non-existent', updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -175,23 +193,35 @@ describe('ShopService', () => {
 
       await service.updateOwner('shop_001', 'new-owner');
 
-      expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('shop', 'owner', 'owner_001'));
-      expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('shop', 'owner', 'new-owner'));
+      expect(cacheService.del).toHaveBeenCalledWith(
+        cacheService.generateKey('shop', 'owner', 'owner_001'),
+      );
+      expect(cacheService.del).toHaveBeenCalledWith(
+        cacheService.generateKey('shop', 'owner', 'new-owner'),
+      );
     });
 
     it('should throw NotFoundException for non-existent shop', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.updateOwner('non-existent', 'new-owner')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.updateOwner('non-existent', 'new-owner'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('updateMediaUrls', () => {
     it('should update logo URL only', async () => {
       repository.findById.mockResolvedValue({ ...mockShop });
-      repository.save.mockResolvedValue({ ...mockShop, logoUrl: 'https://example.com/logo.png' });
+      repository.save.mockResolvedValue({
+        ...mockShop,
+        logoUrl: 'https://example.com/logo.png',
+      });
 
-      const result = await service.updateMediaUrls('shop_001', 'https://example.com/logo.png');
+      const result = await service.updateMediaUrls(
+        'shop_001',
+        'https://example.com/logo.png',
+      );
 
       expect(result.logoUrl).toBe('https://example.com/logo.png');
       expect(result.bannerUrl).toBeNull();
@@ -200,9 +230,16 @@ describe('ShopService', () => {
     it('should update banner URL only', async () => {
       const shopWithNullLogo = { ...mockShop, logoUrl: null };
       repository.findById.mockResolvedValue(shopWithNullLogo);
-      repository.save.mockResolvedValue({ ...shopWithNullLogo, bannerUrl: 'https://example.com/banner.png' });
+      repository.save.mockResolvedValue({
+        ...shopWithNullLogo,
+        bannerUrl: 'https://example.com/banner.png',
+      });
 
-      const result = await service.updateMediaUrls('shop_001', undefined, 'https://example.com/banner.png');
+      const result = await service.updateMediaUrls(
+        'shop_001',
+        undefined,
+        'https://example.com/banner.png',
+      );
 
       expect(result.logoUrl).toBeNull();
       expect(result.bannerUrl).toBe('https://example.com/banner.png');
@@ -229,7 +266,9 @@ describe('ShopService', () => {
     it('should throw NotFoundException for non-existent shop', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.updateMediaUrls('non-existent', 'logo.png')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.updateMediaUrls('non-existent', 'logo.png'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -258,7 +297,9 @@ describe('ShopService', () => {
     it('should throw NotFoundException for non-existent shop', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.toggleActive('non-existent')).rejects.toThrow(NotFoundException);
+      await expect(service.toggleActive('non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

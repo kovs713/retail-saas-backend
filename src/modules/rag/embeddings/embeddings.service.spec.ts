@@ -10,7 +10,9 @@ describe('EmbeddingsService', () => {
 
   beforeEach(() => {
     configService = createMock<ConfigService>();
-    configService.get.mockImplementation((key: string, defaultValue?: string) => defaultValue);
+    configService.get.mockImplementation(
+      (key: string, defaultValue?: string) => defaultValue,
+    );
 
     service = new EmbeddingsService(configService);
   });
@@ -21,11 +23,13 @@ describe('EmbeddingsService', () => {
 
   describe('initialization', () => {
     it('should initialize with default model from env', () => {
-      configService.get.mockImplementation((key: string, defaultValue?: string) => {
-        if (key === 'EMBEDDINGS_MODEL') return 'custom-model';
-        if (key === 'OLLAMA_BASE_URL') return 'http://custom-url:11435';
-        return defaultValue;
-      });
+      configService.get.mockImplementation(
+        (key: string, defaultValue?: string) => {
+          if (key === 'EMBEDDINGS_MODEL') return 'custom-model';
+          if (key === 'OLLAMA_BASE_URL') return 'http://custom-url:11435';
+          return defaultValue;
+        },
+      );
 
       const serviceWithCustomConfig = new EmbeddingsService(configService);
 
@@ -33,9 +37,11 @@ describe('EmbeddingsService', () => {
     });
 
     it('should use default model if env not set', () => {
-      configService.get.mockImplementation((key: string, defaultValue?: string) => {
-        return defaultValue;
-      });
+      configService.get.mockImplementation(
+        (key: string, defaultValue?: string) => {
+          return defaultValue;
+        },
+      );
 
       const serviceWithDefaults = new EmbeddingsService(configService);
 
@@ -43,9 +49,11 @@ describe('EmbeddingsService', () => {
     });
 
     it('should use default Ollama URL if env not set', () => {
-      configService.get.mockImplementation((key: string, defaultValue?: string) => {
-        return defaultValue;
-      });
+      configService.get.mockImplementation(
+        (key: string, defaultValue?: string) => {
+          return defaultValue;
+        },
+      );
 
       const serviceWithDefaults = new EmbeddingsService(configService);
 
@@ -68,7 +76,10 @@ describe('EmbeddingsService', () => {
 
       const serviceWithModel = new EmbeddingsService(configService);
 
-      expect(configService.get).toHaveBeenCalledWith('EMBEDDINGS_MODEL', 'embeddinggemma');
+      expect(configService.get).toHaveBeenCalledWith(
+        'EMBEDDINGS_MODEL',
+        'embeddinggemma',
+      );
       expect(serviceWithModel.model).toBe('test-model');
     });
 
@@ -80,7 +91,10 @@ describe('EmbeddingsService', () => {
 
       new EmbeddingsService(configService);
 
-      expect(configService.get).toHaveBeenCalledWith('OLLAMA_BASE_URL', 'http://localhost:11435');
+      expect(configService.get).toHaveBeenCalledWith(
+        'OLLAMA_BASE_URL',
+        'http://localhost:11435',
+      );
     });
   });
 });

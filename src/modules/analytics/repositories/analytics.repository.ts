@@ -14,7 +14,9 @@ export class AnalyticsRepository {
   ) {}
 
   async createChatEvent(chatEvent: Partial<ChatEvent>): Promise<ChatEvent> {
-    return this.chatEventRepository.save(this.chatEventRepository.create(chatEvent));
+    return this.chatEventRepository.save(
+      this.chatEventRepository.create(chatEvent),
+    );
   }
 
   async getChatEventsByShopId(shopId: string): Promise<ChatEvent[]> {
@@ -36,7 +38,10 @@ export class AnalyticsRepository {
       .getMany();
   }
 
-  async getTopQuestions(shopId: string, limit: number = 10) {
+  async getTopQuestions(
+    shopId: string,
+    limit: number = 10,
+  ): Promise<ChatEvent[]> {
     return this.chatEventRepository
       .createQueryBuilder('chat_event')
       .select('chat_event.userQuery', 'question')
@@ -48,8 +53,12 @@ export class AnalyticsRepository {
       .getRawMany();
   }
 
-  async createStorefrontView(storefrontView: Partial<StorefrontView>): Promise<StorefrontView> {
-    return this.storefrontViewRepository.save(this.storefrontViewRepository.create(storefrontView));
+  async createStorefrontView(
+    storefrontView: Partial<StorefrontView>,
+  ): Promise<StorefrontView> {
+    return this.storefrontViewRepository.save(
+      this.storefrontViewRepository.create(storefrontView),
+    );
   }
 
   async getStorefrontViewsByShopId(shopId: string): Promise<StorefrontView[]> {
@@ -63,7 +72,11 @@ export class AnalyticsRepository {
     });
   }
 
-  async getStorefrontViewCount(shopId: string, from: Date, to: Date) {
+  async getStorefrontViewCount(
+    shopId: string,
+    from: Date,
+    to: Date,
+  ): Promise<number> {
     return this.storefrontViewRepository
       .createQueryBuilder('storefront_view')
       .where('storefront_view.shopId = :shopId', { shopId })

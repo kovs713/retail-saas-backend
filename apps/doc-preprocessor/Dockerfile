@@ -1,25 +1,27 @@
 FROM python:3.13-slim AS builder
 
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_CREATE=false \
-    POETRY_CACHE_DIR='/tmp/poetry_cache'
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_CACHE_DIR=/tmp/uv_cache
 
-RUN pip install poetry==2.3.3
+RUN pip install --no-cache-dir uv==0.11.9
 
 WORKDIR /app
 
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock ./
 
-RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
+RUN uv sync --frozen --no-dev && rm -rf $UV_CACHE_DIR
 
 FROM python:3.13-slim AS runtime
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
 EXPOSE 4000
 
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app/.venv /app/.venv
 
 COPY . .
 

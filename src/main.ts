@@ -5,7 +5,12 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
-import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from './modules/rag/dto';
+import {
+  ChatChunkEventDto,
+  ChatCompleteEventDto,
+  ChatErrorEventDto,
+  ChatMessageDto,
+} from './modules/rag/dto';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
@@ -18,7 +23,10 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
 
-  const corsOrigins = configService.getOrThrow<string>('CORS_ORIGINS', 'http://localhost:5173');
+  const corsOrigins = configService.getOrThrow<string>(
+    'CORS_ORIGINS',
+    'http://localhost:5173',
+  );
 
   app.enableCors({
     origin: corsOrigins.split(',').map((o) => o.trim()),
@@ -61,7 +69,12 @@ async function bootstrap() {
   const document = documentFactory();
 
   SwaggerModule.createDocument(app, config, {
-    extraModels: [ChatMessageDto, ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto],
+    extraModels: [
+      ChatMessageDto,
+      ChatChunkEventDto,
+      ChatCompleteEventDto,
+      ChatErrorEventDto,
+    ],
   });
 
   const wsPath = '/api/chat';
@@ -107,13 +120,22 @@ async function bootstrap() {
                   value: {
                     sessionId: 'abc-123',
                     answer: 'We have electronics and clothing.',
-                    sources: [{ content: 'Catalog page 1', metadata: { source: 'catalog' } }],
+                    sources: [
+                      {
+                        content: 'Catalog page 1',
+                        metadata: { source: 'catalog' },
+                      },
+                    ],
                     timestamp: '2024-01-01T00:00:00.000Z',
                   },
                 },
                 error: {
                   summary: 'Error response',
-                  value: { message: 'Rate limit exceeded', code: 'RATE_LIMITED', retryAfter: 60 },
+                  value: {
+                    message: 'Rate limit exceeded',
+                    code: 'RATE_LIMITED',
+                    retryAfter: 60,
+                  },
                 },
               },
             },

@@ -7,7 +7,10 @@ export class ChatMessageDto {
   @IsString()
   sessionId?: string;
 
-  @ApiProperty({ description: 'Message to send', example: 'What products do you have?' })
+  @ApiProperty({
+    description: 'Message to send',
+    example: 'What products do you have?',
+  })
   @IsString()
   message: string;
 

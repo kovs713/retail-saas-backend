@@ -13,7 +13,11 @@ export class ChatSessionRepository extends Repository<ChatSession> {
     super(ChatSession, repository.manager);
   }
 
-  async findOwnedById(sessionId: string, shopId: string, userId: string): Promise<ChatSession | null> {
+  async findOwnedById(
+    sessionId: string,
+    shopId: string,
+    userId: string,
+  ): Promise<ChatSession | null> {
     return this.repository.findOne({
       where: {
         id: sessionId,

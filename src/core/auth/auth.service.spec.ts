@@ -1,6 +1,8 @@
+import { RegistrationStatus } from '@/common/enums';
+import { AuthConfig } from '@/common/types';
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { AuthConfig } from '@/common/types';
+import { RegistrationApplicationService } from '@/modules/registration-application/registration-application.service';
 import { Shop } from '@/modules/shop/entities';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
@@ -8,18 +10,21 @@ import { UserService } from '@/modules/user/user.service';
 import { AuthService, AuthTokensResult } from './auth.service';
 
 import { createMock } from '@golevelup/ts-jest';
-import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { DataSource, EntityManager, Repository } from 'typeorm';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let dataSource: DataSource;
   let jwtService: JwtService;
   let userService: UserService;
   let shopService: ShopService;
   let cacheService: CacheService;
+  let registrationApplicationService: RegistrationApplicationService;
 
   const mockAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockToken';
 
@@ -66,8 +71,8 @@ describe('AuthService', () => {
           useValue: mockAuthConfig,
         },
         {
-          provide: DataSource,
-          useValue: createMock<DataSource>(),
+          provide: RegistrationApplicationService,
+          useValue: createMock<RegistrationApplicationService>(),
         },
         {
           provide: JwtService,
@@ -89,11 +94,13 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    dataSource = module.get<DataSource>(DataSource);
     jwtService = module.get<JwtService>(JwtService);
     userService = module.get<UserService>(UserService);
     shopService = module.get<ShopService>(ShopService);
     cacheService = module.get<CacheService>(CacheService);
+    registrationApplicationService = module.get<RegistrationApplicationService>(
+      RegistrationApplicationService,
+    );
   });
 
   afterEach(() => {
@@ -109,9 +116,15 @@ describe('AuthService', () => {
     it('should return accessToken and user info', async () => {
       jest.spyOn(userService, 'findByEmail').mockResolvedValue(mockUser as any);
       jest.spyOn(userService, 'validatePassword').mockResolvedValue(true);
-      jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(mockShop as any);
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockRefreshToken);
+      jest
+        .spyOn(shopService, 'findByOwnerId')
+        .mockResolvedValue(mockShop as any);
+      jest
+        .spyOn(jwtService, 'signAsync')
+        .mockResolvedValueOnce(mockAccessToken);
+      jest
+        .spyOn(jwtService, 'signAsync')
+        .mockResolvedValueOnce(mockRefreshToken);
 
       const result = await service.signIn(mockSignInDto as any);
 
@@ -123,9 +136,13 @@ describe('AuthService', () => {
     });
 
     it('should throw NotFoundException when user not found', async () => {
-      jest.spyOn(userService, 'findByEmail').mockRejectedValue(new NotFoundException('User not found'));
+      jest
+        .spyOn(userService, 'findByEmail')
+        .mockRejectedValue(new NotFoundException('User not found'));
 
-      await expect(service.signIn(mockSignInDto as any)).rejects.toThrow(NotFoundException);
+      await expect(service.signIn(mockSignInDto as any)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw UnauthorizedException when password invalid', async () => {
@@ -139,8 +156,12 @@ describe('AuthService', () => {
       jest.spyOn(userService, 'findByEmail').mockResolvedValue(mockUser as any);
       jest.spyOn(userService, 'validatePassword').mockResolvedValue(true);
       jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(null);
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockRefreshToken);
+      jest
+        .spyOn(jwtService, 'signAsync')
+        .mockResolvedValueOnce(mockAccessToken);
+      jest
+        .spyOn(jwtService, 'signAsync')
+        .mockResolvedValueOnce(mockRefreshToken);
 
       const result = await service.signIn(mockSignInDto as any);
 
@@ -159,51 +180,40 @@ describe('AuthService', () => {
       shopSlug: 'new-shop',
     };
 
-    it('should register user and create shop successfully', async () => {
-      const createdUser = { ...mockUser, email: mockRegisterDto.email, id: mockUser.id };
-      const createdShop = { ...mockShop, ownerId: createdUser.id };
-
-      const shopRepository = createMock<Repository<Shop>>({
-        create: jest.fn().mockImplementation((value: Shop) => value),
-        save: jest.fn().mockResolvedValueOnce(mockShop).mockResolvedValueOnce(createdShop),
-      });
-
-      const userRepository = createMock<Repository<User>>({
-        create: jest.fn().mockImplementation((value: Shop) => value),
-        save: jest.fn().mockResolvedValue(createdUser),
-      });
-
-      const mockEntityManager = createMock<EntityManager>({
-        getRepository: jest.fn().mockReturnValueOnce(shopRepository).mockReturnValueOnce(userRepository),
-      });
-
-      jest
-        .spyOn(dataSource, 'transaction')
-        .mockImplementation((handler: (em: EntityManager) => Promise<unknown>) => handler(mockEntityManager));
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockRefreshToken);
+    it('should create registration application successfully', async () => {
+      jest.spyOn(registrationApplicationService, 'create').mockResolvedValue({
+        id: 'application-123',
+        email: mockRegisterDto.email,
+        shopName: mockRegisterDto.shopName,
+        shopSlug: mockRegisterDto.shopSlug,
+        status: RegistrationStatus.PENDING,
+      } as any);
 
       const result = await service.register(mockRegisterDto);
 
-      expect(result.accessToken).toBe(mockAccessToken);
-      expect(result.refreshToken).toBe(mockRefreshToken);
-      expect(result.user).toBeDefined();
-      expect(result.user.id).toBe(mockUser.id);
+      expect(result.id).toBe('application-123');
+      expect(result.email).toBe(mockRegisterDto.email);
+      expect(result.shopName).toBe(mockRegisterDto.shopName);
+      expect(result.shopSlug).toBe(mockRegisterDto.shopSlug);
+      expect(result.status).toBe(RegistrationStatus.PENDING);
     });
 
-    it('should throw ConflictException when transaction hits unique constraint', async () => {
-      jest.spyOn(dataSource, 'transaction').mockRejectedValue(
-        Object.assign(new Error('duplicate key'), {
-          driverError: { code: '23505' },
-        }),
-      );
+    it('should throw ConflictException when registration application exists', async () => {
+      jest
+        .spyOn(registrationApplicationService, 'create')
+        .mockRejectedValue(
+          new ConflictException('Email or shop slug already exists'),
+        );
 
-      await expect(service.register(mockRegisterDto as any)).rejects.toThrow(ConflictException);
+      await expect(service.register(mockRegisterDto as any)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
   describe('refreshToken', () => {
-    const mockRefreshTokenString = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refreshToken';
+    const mockRefreshTokenString =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refreshToken';
 
     it('should return new accessToken, refreshToken, and user info', async () => {
       const mockPayload = {
@@ -216,9 +226,15 @@ describe('AuthService', () => {
       jest.spyOn(cacheService, 'get').mockResolvedValue(mockRefreshTokenString);
       jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockPayload);
       jest.spyOn(userService, 'findById').mockResolvedValue(mockUser as any);
-      jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(mockShop as any);
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce(mockAccessToken);
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValueOnce('new-refresh-token');
+      jest
+        .spyOn(shopService, 'findByOwnerId')
+        .mockResolvedValue(mockShop as any);
+      jest
+        .spyOn(jwtService, 'signAsync')
+        .mockResolvedValueOnce(mockAccessToken);
+      jest
+        .spyOn(jwtService, 'signAsync')
+        .mockResolvedValueOnce('new-refresh-token');
 
       const result = await service.refreshToken(mockRefreshTokenString);
 
@@ -234,15 +250,23 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when refresh token invalid', async () => {
-      jest.spyOn(jwtService, 'verifyAsync').mockRejectedValue(new Error('Invalid token'));
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockRejectedValue(new Error('Invalid token'));
 
-      await expect(service.refreshToken(mockRefreshTokenString)).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.refreshToken(mockRefreshTokenString),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException when refresh token expired', async () => {
-      jest.spyOn(jwtService, 'verifyAsync').mockRejectedValue(new Error('Token expired'));
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockRejectedValue(new Error('Token expired'));
 
-      await expect(service.refreshToken(mockRefreshTokenString)).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.refreshToken(mockRefreshTokenString),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException when user not found', async () => {
@@ -254,16 +278,22 @@ describe('AuthService', () => {
       };
 
       jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockPayload);
-      jest.spyOn(userService, 'findById').mockRejectedValue(new NotFoundException('User not found'));
+      jest
+        .spyOn(userService, 'findById')
+        .mockRejectedValue(new NotFoundException('User not found'));
 
-      await expect(service.refreshToken(mockRefreshTokenString)).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.refreshToken(mockRefreshTokenString),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 
   describe('getProfile', () => {
     it('should return user info', async () => {
       jest.spyOn(userService, 'findById').mockResolvedValue(mockUser as any);
-      jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(mockShop as any);
+      jest
+        .spyOn(shopService, 'findByOwnerId')
+        .mockResolvedValue(mockShop as any);
 
       const result = await service.getProfile('user-123');
 
@@ -271,14 +301,20 @@ describe('AuthService', () => {
     });
 
     it('should throw NotFoundException when user not found', async () => {
-      jest.spyOn(userService, 'findById').mockRejectedValue(new NotFoundException('User not found'));
+      jest
+        .spyOn(userService, 'findById')
+        .mockRejectedValue(new NotFoundException('User not found'));
 
-      await expect(service.getProfile('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.getProfile('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should return empty shopId when user has no shop', async () => {
       const userWithoutShop = { ...mockUser, shopId: null };
-      jest.spyOn(userService, 'findById').mockResolvedValue(userWithoutShop as any);
+      jest
+        .spyOn(userService, 'findById')
+        .mockResolvedValue(userWithoutShop as any);
       jest.spyOn(shopService, 'findByOwnerId').mockResolvedValue(null);
 
       const result = await service.getProfile('user-123');
@@ -291,7 +327,9 @@ describe('AuthService', () => {
     it('should delete refresh token from cache', async () => {
       await service.revokeRefreshToken('user-123');
 
-      expect(cacheService.del).toHaveBeenCalledWith(cacheService.generateKey('refreshToken', 'user-123'));
+      expect(cacheService.del).toHaveBeenCalledWith(
+        cacheService.generateKey('refreshToken', 'user-123'),
+      );
     });
   });
 });

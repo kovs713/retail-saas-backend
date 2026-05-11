@@ -1,30 +1,40 @@
-import { MinioClient } from '@/common/types';
+import { MinioClient, MinioConfig, MinioOptions } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import type { Client } from 'minio';
 import { Readable } from 'stream';
 
 @Injectable()
 export class StorageService {
-  private readonly logger: LoggerService = new LoggerService(StorageService.name);
+  private readonly logger: LoggerService = new LoggerService(
+    StorageService.name,
+  );
   private readonly bucket: string;
 
   constructor(
-    @Inject(MinioClient) private readonly minioClient: Client,
-    private readonly configService: ConfigService,
+    @Inject(MinioClient)
+    private readonly minioClient: Client,
+    @Inject(MinioConfig)
+    private readonly minioConfig: MinioOptions,
   ) {
-    this.bucket = this.configService.getOrThrow<string>('S3_BUCKET');
+    this.bucket = this.minioConfig.bucket;
   }
 
   async getPresignedPutUrl(key: string, expirySeconds = 3600): Promise<string> {
     try {
-      const url = await this.minioClient.presignedPutObject(this.bucket, key, expirySeconds);
+      const url = await this.minioClient.presignedPutObject(
+        this.bucket,
+        key,
+        expirySeconds,
+      );
       this.logger.log(`Generated presigned PUT URL for: ${key}`);
       return url;
     } catch (error) {
-      this.logger.error(`Failed to generate presigned PUT URL for: ${key}`, this.stringifyError(error));
+      this.logger.error(
+        `Failed to generate presigned PUT URL for: ${key}`,
+        this.stringifyError(error),
+      );
       throw error;
     }
   }
@@ -36,11 +46,22 @@ export class StorageService {
     metaData?: Record<string, string>,
   ): Promise<string> {
     try {
-      const uploadResult = await this.minioClient.putObject(this.bucket, key, payload, size, metaData);
+      const uploadResult = await this.minioClient.putObject(
+        this.bucket,
+        key,
+        payload,
+        size,
+        metaData,
+      );
       this.logger.log(`Uploaded object successfully: ${key}`);
-      return typeof uploadResult === 'string' ? uploadResult : uploadResult.etag;
+      return typeof uploadResult === 'string'
+        ? uploadResult
+        : uploadResult.etag;
     } catch (error) {
-      this.logger.error(`Failed to upload object: ${key}`, this.stringifyError(error));
+      this.logger.error(
+        `Failed to upload object: ${key}`,
+        this.stringifyError(error),
+      );
       throw error;
     }
   }
@@ -50,24 +71,37 @@ export class StorageService {
       return await this.minioClient.getObject(this.bucket, key);
     } catch (error) {
       this.handleNotFound(error, key);
-      this.logger.error(`Failed to get object stream for: ${key}`, this.stringifyError(error));
+      this.logger.error(
+        `Failed to get object stream for: ${key}`,
+        this.stringifyError(error),
+      );
       throw error;
     }
   }
 
-  async statObject(key: string): Promise<{ size: number; contentType: string; lastModified: Date; etag: string }> {
+  async statObject(key: string): Promise<{
+    size: number;
+    contentType: string;
+    lastModified: Date;
+    etag: string;
+  }> {
     try {
       const stat = await this.minioClient.statObject(this.bucket, key);
 
       return {
         size: Number(stat.size),
-        contentType: (stat.metaData?.['content-type'] as string) || 'application/octet-stream',
+        contentType:
+          (stat.metaData?.['content-type'] as string) ||
+          'application/octet-stream',
         lastModified: stat.lastModified,
         etag: stat.etag || '',
       };
     } catch (error) {
       this.handleNotFound(error, key);
-      this.logger.error(`Failed to get metadata for file: ${key}`, this.stringifyError(error));
+      this.logger.error(
+        `Failed to get metadata for file: ${key}`,
+        this.stringifyError(error),
+      );
       throw error;
     }
   }
@@ -78,14 +112,21 @@ export class StorageService {
       this.logger.log(`File deleted successfully: ${key}`);
     } catch (error) {
       this.handleNotFound(error, key);
-      this.logger.error(`Failed to delete file: ${key}`, this.stringifyError(error));
+      this.logger.error(
+        `Failed to delete file: ${key}`,
+        this.stringifyError(error),
+      );
       throw error;
     }
   }
 
   private handleNotFound(error: unknown, key: string): void {
     const code = this.extractErrorCode(error);
-    if (code === 'NotFound' || code === 'NoSuchKey' || code === 'NoSuchObject') {
+    if (
+      code === 'NotFound' ||
+      code === 'NoSuchKey' ||
+      code === 'NoSuchObject'
+    ) {
       throw new NotFoundException(`File not found: ${key}`);
     }
   }

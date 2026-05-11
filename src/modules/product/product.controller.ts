@@ -1,5 +1,9 @@
 import { Roles, Tenant } from '@/common/decorators';
-import { ApiResponse as AppApiResponse, Pagination, PaginationResponse } from '@/common/dto';
+import {
+  ApiResponse as AppApiResponse,
+  Pagination,
+  PaginationResponse,
+} from '@/common/dto';
 import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { TenantContext } from '@/common/types';
@@ -10,9 +14,9 @@ import {
   CreateCategoryDto,
   CreateProductDto,
   ProductDto,
-  ProductImageUploadResponseDto,
   ProductImagePresignedUploadDto,
   ProductImagePresignedUploadResponseDto,
+  ProductImageUploadResponseDto,
   UpdateCategoryDto,
   UpdateProductDto,
   UpdateStockDto,
@@ -31,12 +35,12 @@ import {
   Patch,
   Post,
   Query,
-  Req,
   Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -47,8 +51,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')
@@ -56,8 +59,18 @@ import type { Request, Response } from 'express';
 @UseGuards(AuthGuard, RolesGuard)
 export class ProductController {
   private readonly logger = new LoggerService(ProductController.name);
-  private static readonly allowedImageExtensions = new Set(['jpg', 'jpeg', 'png', 'webp']);
-  private static readonly allowedImageMimeTypes = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+  private static readonly allowedImageExtensions = new Set([
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+  ]);
+  private static readonly allowedImageMimeTypes = new Set([
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+  ]);
   private static readonly maxUploadSizeBytes = 10 * 1024 * 1024;
 
   constructor(private readonly productService: ProductService) {}
@@ -65,22 +78,37 @@ export class ProductController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new product' })
-  @ApiResponse({ status: 201, description: 'Product created successfully', type: ProductDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Product created successfully',
+    type: ProductDto,
+  })
   @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
   @ApiResponse({ status: 409, description: 'Conflict - SKU already exists' })
   async create(
     @Body() createProductDto: CreateProductDto,
     @Tenant() tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
-    this.logger.log(`Creating product with SKU: ${createProductDto.sku} for organization: ${tenantContext.shopId}`);
-    const product = await this.productService.create(createProductDto, tenantContext.shopId);
+    this.logger.log(
+      `Creating product with SKU: ${createProductDto.sku} for organization: ${tenantContext.shopId}`,
+    );
+    const product = await this.productService.create(
+      createProductDto,
+      tenantContext.shopId,
+    );
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Product created successfully with ID: ${product.id}`);
-    return { success: true, data: response, message: 'Product created successfully' };
+    return {
+      success: true,
+      data: response,
+      message: 'Product created successfully',
+    };
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all products with pagination and filters' })
+  @ApiOperation({
+    summary: 'Get all products with pagination and filters',
+  })
   @ApiResponse({
     status: 200,
     description: 'Products retrieved successfully',
@@ -89,9 +117,16 @@ export class ProductController {
     @Query() query: Pagination,
     @Tenant() tenantContext: TenantContext,
   ): Promise<PaginationResponse<ProductDto>> {
-    this.logger.log(`Finding products with query: page=${query.page}, limit=${query.limit}`);
-    const result = await this.productService.findAll(query, tenantContext.shopId);
-    this.logger.log(`Found ${result.data?.length || 0} products (total: ${result.pagination?.total})`);
+    this.logger.log(
+      `Finding products with query: page=${query.page}, limit=${query.limit}`,
+    );
+    const result = await this.productService.findAll(
+      query,
+      tenantContext.shopId,
+    );
+    this.logger.log(
+      `Found ${result.data?.length || 0} products (total: ${result.pagination?.total})`,
+    );
     return {
       success: true,
       data: result.data?.map((product) => ProductDto.fromEntity(product)) ?? [],
@@ -100,66 +135,145 @@ export class ProductController {
   }
 
   @Get('stats')
-  @ApiOperation({ summary: 'Get product statistics' })
-  @ApiResponse({ status: 200, description: 'Statistics retrieved successfully' })
+  @ApiOperation({
+    summary: 'Get product statistics',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Statistics retrieved successfully',
+  })
   async getStats(
-    @Tenant() tenantContext: TenantContext,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<{ totalProducts: number; lowStockCount: number }>> {
     this.logger.log('Getting product statistics');
     const totalProducts = await this.productService.count(tenantContext.shopId);
-    const lowStockProducts = await this.productService.findLowStock(10, tenantContext.shopId);
-    this.logger.log(`Statistics: ${totalProducts} total, ${lowStockProducts.length} low stock`);
-    return { success: true, data: { totalProducts, lowStockCount: lowStockProducts.length } };
+    const lowStockProducts = await this.productService.findLowStock(
+      10,
+      tenantContext.shopId,
+    );
+    this.logger.log(
+      `Statistics: ${totalProducts} total, ${lowStockProducts.length} low stock`,
+    );
+    return {
+      success: true,
+      data: { totalProducts, lowStockCount: lowStockProducts.length },
+    };
   }
 
   @Get('low-stock')
-  @ApiOperation({ summary: 'Get products with low stock' })
-  @ApiQuery({ name: 'threshold', required: false, type: Number, example: 10 })
-  @ApiResponse({ status: 200, description: 'Low stock products retrieved', type: [ProductDto] })
+  @ApiOperation({
+    summary: 'Get products with low stock',
+  })
+  @ApiQuery({
+    name: 'threshold',
+    required: false,
+    type: Number,
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Low stock products retrieved',
+    type: [ProductDto],
+  })
   async getLowStock(
-    @Query('threshold') threshold: number = 10,
-    @Tenant() tenantContext: TenantContext,
+    @Query('threshold')
+    threshold: number = 10,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto[]>> {
-    this.logger.log(`Finding products with low stock (threshold: ${threshold})`);
-    const products = await this.productService.findLowStock(threshold, tenantContext.shopId);
+    this.logger.log(
+      `Finding products with low stock (threshold: ${threshold})`,
+    );
+    const products = await this.productService.findLowStock(
+      threshold,
+      tenantContext.shopId,
+    );
     const response = products.map((product) => ProductDto.fromEntity(product));
     this.logger.log(`Found ${products.length} products with low stock`);
     return { success: true, data: response };
   }
 
   @Get('categories')
-  @ApiOperation({ summary: 'Get all categories for a shop' })
-  @ApiResponse({ status: 200, description: 'Categories retrieved successfully', type: [CategoryDto] })
-  async getCategories(@Tenant() tenantContext: TenantContext): Promise<AppApiResponse<CategoryDto[]>> {
+  @ApiOperation({
+    summary: 'Get all categories for a shop',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Categories retrieved successfully',
+    type: [CategoryDto],
+  })
+  async getCategories(
+    @Tenant()
+    tenantContext: TenantContext,
+  ): Promise<AppApiResponse<CategoryDto[]>> {
     this.logger.log(`Finding categories for shop: ${tenantContext.shopId}`);
-    const categories = await this.productService.getCategories(tenantContext.shopId);
+    const categories = await this.productService.getCategories(
+      tenantContext.shopId,
+    );
     const response = CategoryDto.fromEntities(categories);
     this.logger.log(`Found ${categories.length} categories`);
     return { success: true, data: response };
   }
 
   @Get('barcode/:barcode')
-  @ApiOperation({ summary: 'Find product by barcode' })
-  @ApiParam({ name: 'barcode', type: String, description: 'Product barcode' })
-  @ApiResponse({ status: 200, description: 'Product found', type: ProductDto })
-  @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiOperation({
+    summary: 'Find product by barcode',
+  })
+  @ApiParam({
+    name: 'barcode',
+    type: String,
+    description: 'Product barcode',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product found',
+    type: ProductDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
   async findByBarcode(
-    @Param('barcode') barcode: string,
-    @Tenant() tenantContext: TenantContext,
+    @Param('barcode')
+    barcode: string,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Finding product by barcode: ${barcode}`);
-    const product = await this.productService.findByBarcode(barcode, tenantContext.shopId);
+    const product = await this.productService.findByBarcode(
+      barcode,
+      tenantContext.shopId,
+    );
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Product found: ${product.name}`);
     return { success: true, data: response };
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a product by ID' })
-  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
-  @ApiResponse({ status: 200, description: 'Product retrieved successfully', type: ProductDto })
-  @ApiResponse({ status: 404, description: 'Product not found' })
-  async findOne(@Param('id') id: string, @Tenant() tenantContext: TenantContext): Promise<AppApiResponse<ProductDto>> {
+  @ApiOperation({
+    summary: 'Get a product by ID',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Product ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product retrieved successfully',
+    type: ProductDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
+  async findOne(
+    @Param('id')
+    id: string,
+    @Tenant()
+    tenantContext: TenantContext,
+  ): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Finding product by ID: ${id}`);
     const product = await this.productService.findOne(id, tenantContext.shopId);
     const response = ProductDto.fromEntity(product);
@@ -168,46 +282,111 @@ export class ProductController {
   }
 
   @Get('sku/:sku')
-  @ApiOperation({ summary: 'Get a product by SKU' })
-  @ApiParam({ name: 'sku', type: String, description: 'Product SKU' })
-  @ApiResponse({ status: 200, description: 'Product retrieved successfully', type: ProductDto })
-  @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiOperation({
+    summary: 'Get a product by SKU',
+  })
+  @ApiParam({
+    name: 'sku',
+    type: String,
+    description: 'Product SKU',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product retrieved successfully',
+    type: ProductDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
   async findOneBySku(
-    @Param('sku') sku: string,
-    @Tenant() tenantContext: TenantContext,
+    @Param('sku')
+    sku: string,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Finding product by SKU: ${sku}`);
-    const product = await this.productService.findOneBySku(sku, tenantContext.shopId);
+    const product = await this.productService.findOneBySku(
+      sku,
+      tenantContext.shopId,
+    );
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Product found: ${product.name}`);
     return { success: true, data: response };
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a product' })
-  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
-  @ApiResponse({ status: 200, description: 'Product updated successfully', type: ProductDto })
-  @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
-  @ApiResponse({ status: 409, description: 'Conflict - SKU already exists' })
+  @ApiOperation({
+    summary: 'Update a product',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Product ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product updated successfully',
+    type: ProductDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Invalid input',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - SKU already exists',
+  })
   async update(
-    @Param('id') id: string,
-    @Body() updateProductDto: UpdateProductDto,
-    @Tenant() tenantContext: TenantContext,
+    @Param('id')
+    id: string,
+    @Body()
+    updateProductDto: UpdateProductDto,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
     this.logger.log(`Updating product ID: ${id}`);
-    const product = await this.productService.update(id, updateProductDto, tenantContext.shopId);
+    const product = await this.productService.update(
+      id,
+      updateProductDto,
+      tenantContext.shopId,
+    );
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Product updated successfully: ${product.name}`);
-    return { success: true, data: response, message: 'Product updated successfully' };
+    return {
+      success: true,
+      data: response,
+      message: 'Product updated successfully',
+    };
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Soft delete a product' })
-  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
-  @ApiResponse({ status: 200, description: 'Product deleted successfully' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
-  async remove(@Param('id') id: string, @Tenant() tenantContext: TenantContext): Promise<AppApiResponse<void>> {
+  @ApiOperation({
+    summary: 'Soft delete a product',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Product ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product deleted successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
+  async remove(
+    @Param('id')
+    id: string,
+    @Tenant()
+    tenantContext: TenantContext,
+  ): Promise<AppApiResponse<void>> {
     this.logger.log(`Soft deleting product ID: ${id}`);
     await this.productService.remove(id, tenantContext.shopId);
     this.logger.log(`Product ${id} deleted successfully`);
@@ -215,13 +394,27 @@ export class ProductController {
   }
 
   @Post(':id/restore')
-  @ApiOperation({ summary: 'Restore a soft deleted product' })
-  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
-  @ApiResponse({ status: 200, description: 'Product restored successfully' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiOperation({
+    summary: 'Restore a soft deleted product',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Product ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product restored successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
   async restore(
-    @Param('id') id: string,
-    @Tenant() tenantContext: TenantContext,
+    @Param('id')
+    id: string,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<{ message: string }>> {
     this.logger.log(`Restoring product ID: ${id}`);
     const result = await this.productService.restore(id, tenantContext.shopId);
@@ -230,62 +423,134 @@ export class ProductController {
   }
 
   @Patch(':id/stock')
-  @ApiOperation({ summary: 'Update product stock quantity' })
-  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
-  @ApiResponse({ status: 200, description: 'Stock updated successfully', type: ProductDto })
+  @ApiOperation({
+    summary: 'Update product stock quantity',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Product ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Stock updated successfully',
+    type: ProductDto,
+  })
   @ApiResponse({ status: 404, description: 'Product not found' })
   async updateStock(
-    @Param('id') id: string,
-    @Body() updateStockDto: UpdateStockDto,
-    @Tenant() tenantContext: TenantContext,
+    @Param('id')
+    id: string,
+    @Body()
+    updateStockDto: UpdateStockDto,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
-    this.logger.log(`Updating stock for product ID: ${id}, quantity: ${updateStockDto.quantity}`);
-    const product = await this.productService.updateStock(id, updateStockDto.quantity, tenantContext.shopId);
+    this.logger.log(
+      `Updating stock for product ID: ${id}, quantity: ${updateStockDto.quantity}`,
+    );
+    const product = await this.productService.updateStock(
+      id,
+      updateStockDto.quantity,
+      tenantContext.shopId,
+    );
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Stock updated for product ${id}: ${product.quantity}`);
-    return { success: true, data: response, message: 'Stock updated successfully' };
+    return {
+      success: true,
+      data: response,
+      message: 'Stock updated successfully',
+    };
   }
 
   @Patch(':id/stock/adjust')
-  @ApiOperation({ summary: 'Adjust product stock (increase or decrease)' })
-  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
-  @ApiResponse({ status: 200, description: 'Stock adjusted successfully', type: ProductDto })
-  @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiOperation({
+    summary: 'Adjust product stock (increase or decrease)',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Product ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Stock adjusted successfully',
+    type: ProductDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
   async adjustStock(
-    @Param('id') id: string,
-    @Body() adjustStockDto: AdjustStockDto,
-    @Tenant() tenantContext: TenantContext,
+    @Param('id')
+    id: string,
+    @Body()
+    adjustStockDto: AdjustStockDto,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductDto>> {
-    this.logger.log(`Adjusting stock for product ID: ${id}, adjustment: ${adjustStockDto.adjustment}`);
-    const product = await this.productService.adjustStock(id, adjustStockDto.adjustment, tenantContext.shopId);
+    this.logger.log(
+      `Adjusting stock for product ID: ${id}, adjustment: ${adjustStockDto.adjustment}`,
+    );
+    const product = await this.productService.adjustStock(
+      id,
+      adjustStockDto.adjustment,
+      tenantContext.shopId,
+    );
     const response = ProductDto.fromEntity(product);
     this.logger.log(`Stock adjusted for product ${id}: ${product.quantity}`);
-    return { success: true, data: response, message: 'Stock adjusted successfully' };
+    return {
+      success: true,
+      data: response,
+      message: 'Stock adjusted successfully',
+    };
   }
 
   @Post(':id/images/presigned-upload')
-  @ApiOperation({ summary: 'Generate presigned upload URL for product image', deprecated: true })
-  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
+  @ApiOperation({
+    summary: 'Generate presigned upload URL for product image',
+    deprecated: true,
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Product ID',
+  })
   @ApiResponse({
     status: 201,
     description: 'Presigned upload generated successfully',
     type: ProductImagePresignedUploadResponseDto,
   })
-  @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
   async createImageUploadUrl(
-    @Param('id') id: string,
-    @Body() body: ProductImagePresignedUploadDto,
-    @Tenant() tenantContext: TenantContext,
+    @Param('id')
+    id: string,
+    @Body()
+    body: ProductImagePresignedUploadDto,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductImagePresignedUploadResponseDto>> {
-    const result = await this.productService.createImageUploadUrl(id, body.fileName, tenantContext.shopId);
+    const result = await this.productService.createImageUploadUrl(
+      id,
+      body.fileName,
+      tenantContext.shopId,
+    );
     return { success: true, data: result };
   }
 
   @Post(':id/images')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Upload product image and persist public URL' })
+  @ApiOperation({
+    summary: 'Upload product image and persist public URL',
+  })
   @ApiConsumes('multipart/form-data')
-  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Product ID',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -295,34 +560,78 @@ export class ProductController {
       },
     },
   })
-  @ApiResponse({ status: 201, description: 'Product image uploaded successfully', type: ProductImageUploadResponseDto })
-  @ApiResponse({ status: 400, description: 'Invalid file or request payload' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiResponse({
+    status: 201,
+    description: 'Product image uploaded successfully',
+    type: ProductImageUploadResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid file or request payload',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
   async uploadImage(
-    @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
-    @Tenant() tenantContext: TenantContext,
+    @Param('id')
+    id: string,
+    @UploadedFile()
+    file: Express.Multer.File,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<ProductImageUploadResponseDto>> {
     this.validateUploadedImage(file);
-    const result = await this.productService.uploadProductImage(id, file, tenantContext.shopId);
-    return { success: true, data: result, message: 'Product image uploaded successfully' };
+    const result = await this.productService.uploadProductImage(
+      id,
+      file,
+      tenantContext.shopId,
+    );
+    return {
+      success: true,
+      data: result,
+      message: 'Product image uploaded successfully',
+    };
   }
 
   @Get(':id/images/:imageName')
   @Roles(Role.OWNER, Role.ADMIN)
-  @ApiOperation({ summary: 'Stream private product image for owner/admin' })
-  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
-  @ApiParam({ name: 'imageName', type: String, description: 'Image filename' })
-  @ApiResponse({ status: 200, description: 'Private product image streamed successfully' })
-  @ApiResponse({ status: 404, description: 'Product or image not found' })
+  @ApiOperation({
+    summary: 'Stream private product image for owner/admin',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Product ID',
+  })
+  @ApiParam({
+    name: 'imageName',
+    type: String,
+    description: 'Image filename',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Private product image streamed successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product or image not found',
+  })
   async getPrivateImage(
-    @Param('id') id: string,
-    @Param('imageName') imageName: string,
-    @Tenant() tenantContext: TenantContext,
-    @Req() _req: Request,
-    @Res() res: Response,
+    @Param('id')
+    id: string,
+    @Param('imageName')
+    imageName: string,
+    @Tenant()
+    tenantContext: TenantContext,
+    @Res()
+    res: Response,
   ): Promise<void> {
-    const result = await this.productService.getPrivateImageStream(id, imageName, tenantContext.shopId);
+    const result = await this.productService.getPrivateImageStream(
+      id,
+      imageName,
+      tenantContext.shopId,
+    );
 
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -335,15 +644,34 @@ export class ProductController {
 
   @Delete(':id/images/:imageName')
   @Roles(Role.OWNER, Role.ADMIN)
-  @ApiOperation({ summary: 'Delete product image by filename' })
-  @ApiParam({ name: 'id', type: String, description: 'Product ID' })
-  @ApiParam({ name: 'imageName', type: String, description: 'Image filename' })
-  @ApiResponse({ status: 200, description: 'Product image deleted successfully' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiOperation({
+    summary: 'Delete product image by filename',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Product ID',
+  })
+  @ApiParam({
+    name: 'imageName',
+    type: String,
+    description: 'Image filename',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product image deleted successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
   async deleteImage(
-    @Param('id') id: string,
-    @Param('imageName') imageName: string,
-    @Tenant() tenantContext: TenantContext,
+    @Param('id')
+    id: string,
+    @Param('imageName')
+    imageName: string,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<void>> {
     await this.productService.deleteImage(id, imageName, tenantContext.shopId);
     return { success: true, message: 'Product image deleted successfully' };
@@ -351,49 +679,122 @@ export class ProductController {
 
   @Post('categories')
   @Roles(Role.OWNER)
-  @ApiOperation({ summary: 'Create a new category' })
-  @ApiResponse({ status: 201, description: 'Category created successfully', type: CategoryDto })
-  @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
-  @ApiResponse({ status: 409, description: 'Conflict - Category slug already exists' })
+  @ApiOperation({
+    summary: 'Create a new category',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Category created successfully',
+    type: CategoryDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Invalid input',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - Category slug already exists',
+  })
   async createCategory(
-    @Body() createCategoryDto: CreateCategoryDto,
-    @Tenant() tenantContext: TenantContext,
+    @Body()
+    createCategoryDto: CreateCategoryDto,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<CategoryDto>> {
-    this.logger.log(`Creating category: ${createCategoryDto.name} for shop: ${tenantContext.shopId}`);
-    const category = await this.productService.createCategory(tenantContext.shopId, createCategoryDto);
+    this.logger.log(
+      `Creating category: ${createCategoryDto.name} for shop: ${tenantContext.shopId}`,
+    );
+    const category = await this.productService.createCategory(
+      tenantContext.shopId,
+      createCategoryDto,
+    );
     const response = CategoryDto.fromEntity(category);
     this.logger.log(`Category created successfully with ID: ${category.id}`);
-    return { success: true, data: response, message: 'Category created successfully' };
+    return {
+      success: true,
+      data: response,
+      message: 'Category created successfully',
+    };
   }
 
   @Patch('categories/:id')
   @Roles(Role.OWNER)
-  @ApiOperation({ summary: 'Update a category' })
-  @ApiParam({ name: 'id', type: String, description: 'Category ID' })
-  @ApiResponse({ status: 200, description: 'Category updated successfully', type: CategoryDto })
-  @ApiResponse({ status: 400, description: 'Bad request - Invalid input' })
-  @ApiResponse({ status: 404, description: 'Category not found' })
-  @ApiResponse({ status: 409, description: 'Conflict - Category slug already exists' })
+  @ApiOperation({
+    summary: 'Update a category',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Category ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Category updated successfully',
+    type: CategoryDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Invalid input',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Category not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - Category slug already exists',
+  })
   async updateCategory(
-    @Param('id') id: string,
-    @Body() updateCategoryDto: UpdateCategoryDto,
-    @Tenant() tenantContext: TenantContext,
+    @Param('id')
+    id: string,
+    @Body()
+    updateCategoryDto: UpdateCategoryDto,
+    @Tenant()
+    tenantContext: TenantContext,
   ): Promise<AppApiResponse<CategoryDto>> {
     this.logger.log(`Updating category ID: ${id}`);
-    const category = await this.productService.updateCategory(id, tenantContext.shopId, updateCategoryDto);
+    const category = await this.productService.updateCategory(
+      id,
+      tenantContext.shopId,
+      updateCategoryDto,
+    );
     const response = CategoryDto.fromEntity(category);
     this.logger.log(`Category updated successfully: ${category.name}`);
-    return { success: true, data: response, message: 'Category updated successfully' };
+    return {
+      success: true,
+      data: response,
+      message: 'Category updated successfully',
+    };
   }
 
   @Delete('categories/:id')
   @Roles(Role.OWNER)
-  @ApiOperation({ summary: 'Delete a category' })
-  @ApiParam({ name: 'id', type: String, description: 'Category ID' })
-  @ApiResponse({ status: 200, description: 'Category deleted successfully' })
-  @ApiResponse({ status: 404, description: 'Category not found' })
-  @ApiResponse({ status: 409, description: 'Conflict - Category has associated products' })
-  async deleteCategory(@Param('id') id: string, @Tenant() tenantContext: TenantContext): Promise<AppApiResponse<void>> {
+  @ApiOperation({
+    summary: 'Delete a category',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Category ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Category deleted successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Category not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - Category has associated products',
+  })
+  async deleteCategory(
+    @Param('id')
+    id: string,
+    @Tenant()
+    tenantContext: TenantContext,
+  ): Promise<AppApiResponse<void>> {
     this.logger.log(`Deleting category ID: ${id}`);
     await this.productService.deleteCategory(id, tenantContext.shopId);
     this.logger.log(`Category ${id} deleted successfully`);

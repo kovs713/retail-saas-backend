@@ -7,6 +7,7 @@ import { RagService } from './rag.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
+import { Document } from '@langchain/core/documents';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('RagService', () => {
@@ -46,7 +47,8 @@ describe('RagService', () => {
 
     service = module.get<RagService>(RagService);
     llmService = module.get<DeepMocked<LLMService>>(LLMService);
-    vectorStoreService = module.get<DeepMocked<VectorStoreService>>(VectorStoreService);
+    vectorStoreService =
+      module.get<DeepMocked<VectorStoreService>>(VectorStoreService);
     productService = module.get<DeepMocked<ProductService>>(ProductService);
   });
 
@@ -66,7 +68,10 @@ describe('RagService', () => {
 
       vectorStoreService.addDocuments.mockResolvedValue(mockIds);
 
-      const result = await service.addDocuments(mockDocuments, mockTenantContext);
+      const result = await service.addDocuments(
+        mockDocuments,
+        mockTenantContext,
+      );
 
       expect(result).toEqual(mockIds);
     });
@@ -82,7 +87,9 @@ describe('RagService', () => {
 
       vectorStoreService.addDocuments.mockRejectedValue(mockError);
 
-      await expect(service.addDocuments(mockDocuments, mockTenantContext)).rejects.toThrow('Vector store error');
+      await expect(
+        service.addDocuments(mockDocuments, mockTenantContext),
+      ).rejects.toThrow('Vector store error');
     });
   });
 
@@ -114,7 +121,9 @@ describe('RagService', () => {
           totalPages: 1,
         },
       });
-      expect(vectorStoreService.getDocuments).toHaveBeenCalledWith(mockTenantContext);
+      expect(vectorStoreService.getDocuments).toHaveBeenCalledWith(
+        mockTenantContext,
+      );
     });
 
     it('should use default pagination values', async () => {
@@ -124,6 +133,34 @@ describe('RagService', () => {
 
       expect(result.pagination?.page).toBe(1);
       expect(result.pagination?.limit).toBe(10);
+    });
+
+    it('should hide indexed catalog product documents from admin listings', async () => {
+      vectorStoreService.getDocuments.mockResolvedValue([
+        {
+          pageContent: 'Catalog product',
+          metadata: { source: 'catalog', type: 'product' },
+        },
+        {
+          pageContent: 'Uploaded FAQ',
+          metadata: { source: 'upload' },
+        },
+      ]);
+
+      const result = await service.getDocuments(mockTenantContext, 1, 10);
+
+      expect(result.data).toEqual([
+        {
+          pageContent: 'Uploaded FAQ',
+          metadata: { source: 'upload' },
+        },
+      ]);
+      expect(result.pagination).toEqual({
+        total: 1,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      });
     });
   });
 
@@ -135,9 +172,26 @@ describe('RagService', () => {
 
       vectorStoreService.addTexts.mockResolvedValue(mockIds);
 
-      const result = await service.addTexts(mockTexts, mockTenantContext, mockMetadatas);
+      const result = await service.addTexts(
+        mockTexts,
+        mockTenantContext,
+        mockMetadatas,
+      );
 
       expect(result).toEqual(mockIds);
+    });
+  });
+
+  describe('rebuildCatalogIndex', () => {
+    it('should delegate catalog reindex to product service', async () => {
+      productService.rebuildCatalogIndex.mockResolvedValue(3);
+
+      const result = await service.rebuildCatalogIndex(mockTenantContext);
+
+      expect(productService.rebuildCatalogIndex).toHaveBeenCalledWith(
+        mockTenantContext,
+      );
+      expect(result).toBe(3);
     });
   });
 
@@ -176,7 +230,8 @@ describe('RagService', () => {
 
     it('should handle empty results', async () => {
       const mockQuery = 'Non-existent topic';
-      const mockEmptyAnswer = "I don't have enough information to answer this question based on the available context.";
+      const mockEmptyAnswer =
+        "I don't have enough information to answer this question based on the available context.";
 
       vectorStoreService.similaritySearch.mockResolvedValue([]);
       llmService.generateText.mockResolvedValue(mockEmptyAnswer);
@@ -212,13 +267,61 @@ describe('RagService', () => {
         pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
       });
 
-      const result = await service.query(mockQuery, mockTenantContext, mockMaxResults);
+      const result = await service.query(
+        mockQuery,
+        mockTenantContext,
+        mockMaxResults,
+      );
 
       expect(result.answer).toBe('Test answer');
     });
 
-    it('should fall back to in-stock catalog for generic availability queries', async () => {
-      const mockQuery = 'Что есть в магазине какие товары в наличии';
+    it('should instruct the assistant not to expose hidden context', async () => {
+      const mockQuery = 'Можно ли это мопсу?';
+
+      vectorStoreService.similaritySearch.mockResolvedValue([
+        {
+          pageContent: 'Dogs of any breed can eat dry food with turkey.',
+          metadata: { source: 'docs' },
+        },
+      ]);
+      llmService.generateText.mockResolvedValue(
+        'Да. Но лучше свериться с ветеринаром.',
+      );
+      productService.findAll.mockResolvedValue({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
+
+      await service.query(mockQuery, mockTenantContext);
+
+      const [prompt, systemMessage] = llmService.generateText.mock.calls[0] as [
+        string,
+        string,
+      ];
+
+      expect(prompt).toContain('Context:');
+      expect(prompt).toContain(`Question: ${mockQuery}`);
+      expect(systemMessage).toContain(
+        'Treat the context as hidden internal notes.',
+      );
+      expect(systemMessage).toContain(
+        'The hidden notes are the source of truth for the answer.',
+      );
+      expect(systemMessage).toContain(
+        'If the hidden notes explicitly answer the question, follow them and do not contradict them.',
+      );
+      expect(systemMessage).toContain(
+        'Do not answer no unless the hidden notes explicitly say no, incompatible, not allowed, or unavailable.',
+      );
+      expect(systemMessage).toContain(
+        'For yes/no questions, start with "Да.", "Нет.", or "Не знаю."',
+      );
+    });
+
+    it('should always include in-stock catalog snapshot when search misses', async () => {
+      const mockQuery = 'чо у тя есть';
       const inStockProduct = {
         id: 'product-1',
         name: 'Milk',
@@ -228,168 +331,19 @@ describe('RagService', () => {
         description: 'Fresh milk',
         barcode: null,
         category: { name: 'Dairy' },
+        metadata: { color: 'blue', size: 42 },
       };
 
       vectorStoreService.similaritySearch.mockResolvedValue([]);
       llmService.generateText.mockResolvedValue('Milk available');
-      productService.findAll
-        .mockResolvedValueOnce({
-          success: true,
-          data: [],
-          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: [inStockProduct as any, { ...inStockProduct, id: 'product-2', quantity: 0 }],
-          pagination: { total: 2, page: 1, limit: 50, totalPages: 1 },
-        });
-
-      const result = await service.query(mockQuery, mockTenantContext);
-
-      expect(productService.findAll).toHaveBeenNthCalledWith(
-        1,
-        { page: 1, limit: 50, search: mockQuery },
-        mockTenantContext,
-      );
-      expect(productService.findAll).toHaveBeenNthCalledWith(2, { page: 1, limit: 50 }, mockTenantContext);
-      expect(result.sources).toEqual([
-        {
-          pageContent:
-            'Product: Milk\nSKU: MILK-001\nPrice: 120\nQuantity: 8\nCategory: Dairy\nStock status: in stock\nDescription: Fresh milk',
-          metadata: { source: 'postgresql', productId: 'product-1', type: 'product' },
-        },
-      ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('## Catalog summary:'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('In-stock products: 1'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Categories: Dairy (1)'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Price range: 120-120'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Product: Milk'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.not.stringContaining('Quantity: 0'));
-    });
-
-    it('should detect english availability phrasing and use in-stock fallback', async () => {
-      const mockQuery = 'What items are available in shop right now?';
-      const inStockProduct = {
-        id: 'product-1',
-        name: 'Bread',
-        sku: 'BREAD-001',
-        price: 90,
-        quantity: 4,
-        description: null,
-        barcode: null,
-        category: null,
-      };
-
-      vectorStoreService.similaritySearch.mockResolvedValue([]);
-      llmService.generateText.mockResolvedValue('Bread available');
-      productService.findAll
-        .mockResolvedValueOnce({
-          success: true,
-          data: [],
-          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: [inStockProduct as any],
-          pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
-        });
-
-      const result = await service.query(mockQuery, mockTenantContext);
-
-      expect(productService.findAll).toHaveBeenNthCalledWith(2, { page: 1, limit: 50 }, mockTenantContext);
-      expect(result.sources[0]).toEqual({
-        pageContent: 'Product: Bread\nSKU: BREAD-001\nPrice: 90\nQuantity: 4\nStock status: in stock',
-        metadata: { source: 'postgresql', productId: 'product-1', type: 'product' },
+      productService.findAll.mockResolvedValueOnce({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
       });
-    });
-
-    it('should handle typoed availability query and keep matching phone products only', async () => {
-      const mockQuery = 'is there any phones avaliable';
-      const phoneProduct = {
-        id: 'product-1',
-        name: 'iPhone 15',
-        sku: 'IPHONE-15',
-        price: 999,
-        quantity: 5,
-        description: 'Smartphone',
-        barcode: null,
-        category: { name: 'Phones' },
-      };
-      const nonPhoneProduct = {
-        id: 'product-2',
-        name: 'Gaming Laptop',
-        sku: 'LAPTOP-01',
-        price: 1999,
-        quantity: 2,
-        description: 'Laptop',
-        barcode: null,
-        category: { name: 'Computers' },
-      };
-
-      vectorStoreService.similaritySearch.mockResolvedValue([]);
-      llmService.generateText.mockResolvedValue('iPhone 15 available');
-      productService.findAll
-        .mockResolvedValueOnce({
-          success: true,
-          data: [],
-          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: [phoneProduct as any, nonPhoneProduct as any],
-          pagination: { total: 2, page: 1, limit: 50, totalPages: 1 },
-        });
-
-      const result = await service.query(mockQuery, mockTenantContext);
-
-      expect(productService.findAll).toHaveBeenNthCalledWith(2, { page: 1, limit: 50 }, mockTenantContext);
-      expect(result.sources).toEqual([
-        {
-          pageContent:
-            'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Phones\nStock status: in stock\nDescription: Smartphone',
-          metadata: { source: 'postgresql', productId: 'product-1', type: 'product' },
-        },
+      productService.findAvailableProducts.mockResolvedValue([
+        inStockProduct as any,
       ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Product: iPhone 15'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.not.stringContaining('Gaming Laptop'));
-    });
-
-    it('should ignore accessory-only search hits and fall back to matching phones', async () => {
-      const mockQuery = 'is there any phones avaliable';
-      const accessoryProduct = {
-        id: 'product-1',
-        name: 'Phone Case',
-        sku: 'CASE-001',
-        price: 39,
-        quantity: 12,
-        description: 'Case for phones',
-        barcode: null,
-        category: { name: 'Accessories' },
-      };
-      const phoneProduct = {
-        id: 'product-2',
-        name: 'iPhone 15',
-        sku: 'IPHONE-15',
-        price: 999,
-        quantity: 5,
-        description: 'Smartphone',
-        barcode: null,
-        category: { name: 'Phones' },
-      };
-
-      vectorStoreService.similaritySearch.mockResolvedValue([]);
-      llmService.generateText.mockResolvedValue('iPhone 15 available');
-      productService.findAll
-        .mockResolvedValueOnce({
-          success: true,
-          data: [accessoryProduct as any],
-          pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: [accessoryProduct as any, phoneProduct as any],
-          pagination: { total: 2, page: 1, limit: 50, totalPages: 1 },
-        });
 
       const result = await service.query(mockQuery, mockTenantContext);
 
@@ -398,21 +352,32 @@ describe('RagService', () => {
         { page: 1, limit: 50, search: mockQuery },
         mockTenantContext,
       );
-      expect(productService.findAll).toHaveBeenNthCalledWith(2, { page: 1, limit: 50 }, mockTenantContext);
+      expect(productService.findAvailableProducts).toHaveBeenCalledWith(
+        mockTenantContext,
+        50,
+      );
       expect(result.sources).toEqual([
         {
           pageContent:
-            'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Phones\nStock status: in stock\nDescription: Smartphone',
-          metadata: { source: 'postgresql', productId: 'product-2', type: 'product' },
+            'Product: Milk\nSKU: MILK-001\nPrice: 120\nQuantity: 8\nCategory: Dairy\nStock status: in stock\nDescription: Fresh milk\nAttributes: color: blue; size: 42',
+          metadata: {
+            source: 'postgresql',
+            productId: 'product-1',
+            type: 'product',
+          },
         },
       ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Product: iPhone 15'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.not.stringContaining('Phone Case'));
+      const [prompt] = llmService.generateText.mock.calls[0] as [
+        string,
+        string,
+      ];
+      expect(prompt).toContain('## Catalog summary:');
+      expect(prompt).toContain('Product: Milk');
     });
 
-    it('should match smartphones and phone accessories for phone-related query', async () => {
-      const mockQuery = 'is there any phones or phone-related things';
-      const smartphoneProduct = {
+    it('should merge direct product matches with in-stock catalog snapshot', async () => {
+      const mockQuery = 'iphone';
+      const directMatch = {
         id: 'product-1',
         name: 'iPhone 15',
         sku: 'IPHONE-15',
@@ -420,9 +385,9 @@ describe('RagService', () => {
         quantity: 5,
         description: 'Smartphone',
         barcode: null,
-        category: { name: 'Smartphones' },
+        category: { name: 'Phones' },
       };
-      const accessoryProduct = {
+      const catalogProduct = {
         id: 'product-2',
         name: 'Wireless Charger',
         sku: 'CHARGER-01',
@@ -432,19 +397,137 @@ describe('RagService', () => {
         barcode: null,
         category: { name: 'Accessories' },
       };
-      const unrelatedProduct = {
-        id: 'product-3',
-        name: 'Gaming Mouse',
-        sku: 'MOUSE-01',
-        price: 79,
+
+      vectorStoreService.similaritySearch.mockResolvedValue([]);
+      llmService.generateText.mockResolvedValue('iPhone 15 available');
+      productService.findAll.mockResolvedValueOnce({
+        success: true,
+        data: [directMatch as any],
+        pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
+      });
+      productService.findAvailableProducts.mockResolvedValue([
+        catalogProduct as any,
+        directMatch as any,
+      ]);
+
+      const result = await service.query(mockQuery, mockTenantContext);
+
+      expect(result.sources).toEqual([
+        {
+          pageContent:
+            'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Phones\nStock status: in stock\nDescription: Smartphone',
+          metadata: {
+            source: 'postgresql',
+            productId: 'product-1',
+            type: 'product',
+          },
+        },
+        {
+          pageContent:
+            'Product: Wireless Charger\nSKU: CHARGER-01\nPrice: 49\nQuantity: 12\nCategory: Accessories\nStock status: in stock\nDescription: Phone accessory charger',
+          metadata: {
+            source: 'postgresql',
+            productId: 'product-2',
+            type: 'product',
+          },
+        },
+      ]);
+      const [prompt] = llmService.generateText.mock.calls[0] as [
+        string,
+        string,
+      ];
+      expect(prompt).toContain('Product: iPhone 15');
+      expect(prompt).toContain('Product: Wireless Charger');
+    });
+
+    it('should provide the full catalog snapshot for follow-up product questions', async () => {
+      const mockQuery = 'что у тебя есть в магазине\nкакие смартфоны есть';
+      const iphone = {
+        id: 'product-1',
+        name: 'iPhone 15 Pro',
+        sku: 'IPHONE-15-PRO',
+        price: 1499,
         quantity: 4,
-        description: 'Mouse',
+        category: { name: 'Audio' },
+        description: 'Flagship Apple smartphone',
         barcode: null,
-        category: { name: 'Peripherals' },
+      };
+      const galaxy = {
+        id: 'product-2',
+        name: 'Samsung Galaxy S24',
+        sku: 'GALAXY-S24',
+        price: 1299,
+        quantity: 6,
+        category: { name: 'Audio' },
+        description: 'Android smartphone',
+        barcode: null,
+      };
+      const airpods = {
+        id: 'product-3',
+        name: 'AirPods Pro',
+        sku: 'AIRPODS-PRO',
+        price: 299,
+        quantity: 10,
+        category: { name: 'Accessories' },
+        description: 'Wireless earbuds',
+        barcode: null,
       };
 
       vectorStoreService.similaritySearch.mockResolvedValue([]);
-      llmService.generateText.mockResolvedValue('iPhone 15 and charger available');
+      llmService.generateText.mockResolvedValue(
+        'Есть iPhone 15 Pro и Samsung Galaxy S24',
+      );
+      productService.findAll.mockResolvedValueOnce({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
+      productService.findAvailableProducts.mockResolvedValue([
+        iphone as any,
+        galaxy as any,
+        airpods as any,
+      ]);
+
+      await service.query(mockQuery, mockTenantContext);
+
+      const [prompt] = llmService.generateText.mock.calls[0] as [
+        string,
+        string,
+      ];
+      expect(prompt).toContain(
+        'Question: что у тебя есть в магазине\nкакие смартфоны есть',
+      );
+      expect(prompt).toContain('Product: Samsung Galaxy S24');
+      expect(prompt).toContain('Product: iPhone 15 Pro');
+      expect(prompt).toContain('Product: AirPods Pro');
+    });
+
+    it('should retry retrieval with normalized product terms for natural-language product questions', async () => {
+      const mockQuery = 'можно ли этот сухой корм моему мопсу';
+      const product = {
+        id: 'product-1',
+        name: 'Сухой корм для собак с индейкой',
+        sku: 'DOG-FOOD-TR',
+        price: 350,
+        quantity: 5,
+        category: { name: 'Pet food' },
+        description: 'Полнорационный сухой корм',
+        barcode: null,
+      };
+
+      vectorStoreService.similaritySearch.mockImplementation((searchQuery) => {
+        if (searchQuery.includes('Сухой корм для собак с индейкой')) {
+          return [
+            {
+              pageContent: 'собакам любой пароды можно сухой корм с индейкой.',
+              metadata: { source: 'docs' },
+            },
+          ] satisfies Document[];
+        }
+
+        return [];
+      });
+      llmService.generateText.mockResolvedValue('Да.');
       productService.findAll
         .mockResolvedValueOnce({
           success: true,
@@ -453,27 +536,37 @@ describe('RagService', () => {
         })
         .mockResolvedValueOnce({
           success: true,
-          data: [smartphoneProduct as any, accessoryProduct as any, unrelatedProduct as any],
-          pagination: { total: 3, page: 1, limit: 50, totalPages: 1 },
+          data: [product as any],
+          pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
         });
+      productService.findAvailableProducts.mockResolvedValue([product as any]);
 
-      const result = await service.query(mockQuery, mockTenantContext);
+      await service.query(mockQuery, mockTenantContext);
 
-      expect(result.sources).toEqual([
-        {
-          pageContent:
-            'Product: Wireless Charger\nSKU: CHARGER-01\nPrice: 49\nQuantity: 12\nCategory: Accessories\nStock status: in stock\nDescription: Phone accessory charger',
-          metadata: { source: 'postgresql', productId: 'product-2', type: 'product' },
-        },
-        {
-          pageContent:
-            'Product: iPhone 15\nSKU: IPHONE-15\nPrice: 999\nQuantity: 5\nCategory: Smartphones\nStock status: in stock\nDescription: Smartphone',
-          metadata: { source: 'postgresql', productId: 'product-1', type: 'product' },
-        },
-      ]);
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Product: Wireless Charger'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.stringContaining('Product: iPhone 15'));
-      expect(llmService.generateText).toHaveBeenCalledWith(expect.not.stringContaining('Gaming Mouse'));
+      expect(productService.findAll).toHaveBeenNthCalledWith(
+        1,
+        { page: 1, limit: 50, search: mockQuery },
+        mockTenantContext,
+      );
+      expect(productService.findAll).toHaveBeenNthCalledWith(
+        2,
+        { page: 1, limit: 50, search: 'сухой корм мопсу' },
+        mockTenantContext,
+      );
+      expect(vectorStoreService.similaritySearch).toHaveBeenCalledWith(
+        expect.stringContaining('Сухой корм для собак с индейкой'),
+        mockTenantContext,
+        5,
+      );
+
+      const [prompt] = llmService.generateText.mock.calls[0] as [
+        string,
+        string,
+      ];
+      expect(prompt).toContain(
+        'собакам любой пароды можно сухой корм с индейкой.',
+      );
+      expect(prompt).toContain('Product: Сухой корм для собак с индейкой');
     });
   });
 
@@ -482,16 +575,53 @@ describe('RagService', () => {
       const highStock = { id: 'product-2', name: 'Rice', quantity: 12 };
       const lowStock = { id: 'product-1', name: 'Milk', quantity: 3 };
 
-      productService.findAll.mockResolvedValue({
-        success: true,
-        data: [lowStock as any, { id: 'product-3', name: 'Sugar', quantity: 0 } as any, highStock as any],
-        pagination: { total: 3, page: 1, limit: 100, totalPages: 1 },
-      });
+      productService.findAvailableProducts.mockResolvedValue([
+        lowStock as any,
+        highStock as any,
+      ]);
 
       const result = await service.getAvailableProducts(mockTenantContext);
 
-      expect(productService.findAll).toHaveBeenCalledWith({ page: 1, limit: 100 }, mockTenantContext);
+      expect(productService.findAvailableProducts).toHaveBeenCalledWith(
+        mockTenantContext,
+        100,
+      );
       expect(result).toEqual([highStock, lowStock]);
+    });
+  });
+
+  describe('queryStream', () => {
+    it('should use the same hidden-context instructions for streaming answers', async () => {
+      const mockQuery = 'Подойдет ли корм мопсу?';
+
+      vectorStoreService.similaritySearch.mockResolvedValue([]);
+      productService.findAll.mockResolvedValue({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+      });
+      productService.findAvailableProducts.mockResolvedValue([]);
+      llmService.generateStream.mockImplementation(function* () {
+        yield 'Не знаю';
+      });
+
+      for await (const chunk of service.queryStream(
+        mockQuery,
+        mockTenantContext,
+      )) {
+        void chunk;
+      }
+
+      const [prompt, systemMessage] = llmService.generateStream.mock
+        .calls[0] as [string, string];
+
+      expect(prompt).toContain(`Question: ${mockQuery}`);
+      expect(systemMessage).toContain(
+        'Treat the context as hidden internal notes.',
+      );
+      expect(systemMessage).toContain(
+        'For yes/no questions, start with "Да.", "Нет.", or "Не знаю."',
+      );
     });
   });
 
@@ -505,7 +635,9 @@ describe('RagService', () => {
       const mockDocsWithScores: [any, number][] = [[mockDocument, 0.95]];
       const mockAnswer = 'Test answer with scores';
 
-      vectorStoreService.similaritySearchWithScore.mockResolvedValue(mockDocsWithScores);
+      vectorStoreService.similaritySearchWithScore.mockResolvedValue(
+        mockDocsWithScores,
+      );
       vectorStoreService.similaritySearch.mockResolvedValue([mockDocument]);
       llmService.generateText.mockResolvedValue(mockAnswer);
       productService.findAll.mockResolvedValue({
@@ -514,7 +646,10 @@ describe('RagService', () => {
         pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
       });
 
-      const result = await service.queryWithScores(mockQuery, mockTenantContext);
+      const result = await service.queryWithScores(
+        mockQuery,
+        mockTenantContext,
+      );
 
       expect(result).toEqual({
         answer: mockAnswer,

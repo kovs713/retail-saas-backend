@@ -1,4 +1,8 @@
-import { createDeletedProduct, createProduct, createProducts } from './product.factory';
+import {
+  createDeletedProduct,
+  createProduct,
+  createProducts,
+} from './product.factory';
 
 describe('product.factory', () => {
   describe('createProduct', () => {

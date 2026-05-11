@@ -5,9 +5,11 @@ import { TypeOrmConfigService } from './core/database/config';
 import { LoggerModule } from './core/logger/logger.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { DocPreprocessorModule } from './modules/doc-preprocessor/doc-preprocessor.module';
+import { EvotorModule } from './modules/evotor/evotor.module';
 import { OrderModule } from './modules/order/order.module';
 import { ProductModule } from './modules/product/product.module';
 import { RagModule } from './modules/rag/rag.module';
+import { RegistrationApplicationModule } from './modules/registration-application/registration-application.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { UserModule } from './modules/user/user.module';
@@ -36,7 +38,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
               limit: configService.getOrThrow<number>('THROTTLE_LIMIT'),
             },
           ],
-          storage: new ThrottlerStorageRedisService(`redis://${host}:${port}`, { password }),
+          storage: new ThrottlerStorageRedisService(`redis://${host}:${port}`, {
+            password,
+          }),
         };
       },
     }),
@@ -49,9 +53,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
     AnalyticsModule,
     DocPreprocessorModule,
+    EvotorModule,
     OrderModule,
     ProductModule,
     RagModule.forRoot(),
+    RegistrationApplicationModule,
     ShopModule,
     StorageModule.forRoot(),
     UserModule,

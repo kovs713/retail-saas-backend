@@ -1,3 +1,4 @@
+export const EvotorConfig = Symbol('EVOTOR_CONFIG');
 export const DocPreprocessorConfig = Symbol('DOC_PREPROCESSOR_CONFIG');
 export const RagChatConfig = Symbol('RAG_CHAT_CONFIG');
 export const ChromaDBClient = Symbol('CHROMADB_CLIENT');

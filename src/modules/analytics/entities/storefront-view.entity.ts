@@ -1,6 +1,12 @@
 import { Shop } from '@/modules/shop/entities';
 
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity('storefront_views')
 export class StorefrontView {

@@ -1,9 +1,19 @@
 import { CacheService } from '@/core/cache/cache.service';
-import { CreateLocationDto, CreateShopDto, UpdateLocationDto, UpdateShopDto } from './dto';
+import {
+  CreateLocationDto,
+  CreateShopDto,
+  UpdateLocationDto,
+  UpdateShopDto,
+} from './dto';
 import { Location, Shop } from './entities';
 import { LocationRepository, ShopRepository } from './repositories';
 
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 @Injectable()
 export class ShopService {
@@ -16,7 +26,9 @@ export class ShopService {
   ) {}
 
   async create(createShopDto: CreateShopDto): Promise<Shop> {
-    const existingShop = await this.shopRepository.existsBySlug(createShopDto.slug);
+    const existingShop = await this.shopRepository.existsBySlug(
+      createShopDto.slug,
+    );
 
     if (existingShop) {
       throw new ConflictException('Shop with this slug already exists');
@@ -115,7 +127,11 @@ export class ShopService {
     return updated;
   }
 
-  async updateMediaUrls(id: string, logoUrl?: string, bannerUrl?: string): Promise<Shop> {
+  async updateMediaUrls(
+    id: string,
+    logoUrl?: string,
+    bannerUrl?: string,
+  ): Promise<Shop> {
     const shop = await this.findById(id);
 
     if (logoUrl) {
@@ -146,12 +162,18 @@ export class ShopService {
     return updated;
   }
 
-  async createLocation(shopId: string, dto: CreateLocationDto): Promise<Location> {
+  async createLocation(
+    shopId: string,
+    dto: CreateLocationDto,
+  ): Promise<Location> {
     await this.verifyShopExists(shopId);
 
-    const activeCount = await this.locationRepository.countActiveByShopId(shopId);
+    const activeCount =
+      await this.locationRepository.countActiveByShopId(shopId);
     if (activeCount >= this.MAX_ACTIVE_LOCATIONS) {
-      throw new BadRequestException(`Maximum ${this.MAX_ACTIVE_LOCATIONS} active locations per shop`);
+      throw new BadRequestException(
+        `Maximum ${this.MAX_ACTIVE_LOCATIONS} active locations per shop`,
+      );
     }
 
     if (dto.isDefault) {
@@ -174,14 +196,21 @@ export class ShopService {
   async findLocation(shopId: string, id: string): Promise<Location> {
     await this.verifyShopExists(shopId);
 
-    const location = await this.locationRepository.findByIdAndShopId(id, shopId);
+    const location = await this.locationRepository.findByIdAndShopId(
+      id,
+      shopId,
+    );
     if (!location) {
       throw new NotFoundException('Location not found');
     }
     return location;
   }
 
-  async updateLocation(shopId: string, id: string, dto: UpdateLocationDto): Promise<Location> {
+  async updateLocation(
+    shopId: string,
+    id: string,
+    dto: UpdateLocationDto,
+  ): Promise<Location> {
     const location = await this.findLocation(shopId, id);
 
     if (dto.isDefault && !location.isDefault) {
@@ -189,7 +218,8 @@ export class ShopService {
     }
 
     if (dto.isActive === false && location.isDefault) {
-      const oldest = await this.locationRepository.findOldestActiveByShopId(shopId);
+      const oldest =
+        await this.locationRepository.findOldestActiveByShopId(shopId);
       if (oldest && oldest.id !== id) {
         oldest.isDefault = true;
         await this.locationRepository.save(oldest);
@@ -204,7 +234,8 @@ export class ShopService {
     const location = await this.findLocation(shopId, id);
 
     if (location.isDefault) {
-      const oldest = await this.locationRepository.findOldestActiveByShopId(shopId);
+      const oldest =
+        await this.locationRepository.findOldestActiveByShopId(shopId);
       if (oldest && oldest.id !== id) {
         oldest.isDefault = true;
         await this.locationRepository.save(oldest);
@@ -222,8 +253,12 @@ export class ShopService {
     }
   }
 
-  private async unsetDefaultLocations(shopId: string, excludeId?: string): Promise<void> {
-    const currentDefault = await this.locationRepository.findDefaultByShopId(shopId);
+  private async unsetDefaultLocations(
+    shopId: string,
+    excludeId?: string,
+  ): Promise<void> {
+    const currentDefault =
+      await this.locationRepository.findDefaultByShopId(shopId);
     if (currentDefault && currentDefault.id !== excludeId) {
       currentDefault.isDefault = false;
       await this.locationRepository.save(currentDefault);
@@ -232,20 +267,35 @@ export class ShopService {
 
   private async invalidateShopCache(
     shopId: string,
-    keys?: { slug?: string; previousSlug?: string; ownerId?: string | null; previousOwnerId?: string | null },
+    keys?: {
+      slug?: string;
+      previousSlug?: string;
+      ownerId?: string | null;
+      previousOwnerId?: string | null;
+    },
   ): Promise<void> {
-    await this.cacheService.del(this.cacheService.generateKey('shop', 'id', shopId));
+    await this.cacheService.del(
+      this.cacheService.generateKey('shop', 'id', shopId),
+    );
     if (keys?.slug) {
-      await this.cacheService.del(this.cacheService.generateKey('shop', 'slug', keys.slug));
+      await this.cacheService.del(
+        this.cacheService.generateKey('shop', 'slug', keys.slug),
+      );
     }
     if (keys?.previousSlug && keys.previousSlug !== keys.slug) {
-      await this.cacheService.del(this.cacheService.generateKey('shop', 'slug', keys.previousSlug));
+      await this.cacheService.del(
+        this.cacheService.generateKey('shop', 'slug', keys.previousSlug),
+      );
     }
     if (keys?.ownerId) {
-      await this.cacheService.del(this.cacheService.generateKey('shop', 'owner', keys.ownerId));
+      await this.cacheService.del(
+        this.cacheService.generateKey('shop', 'owner', keys.ownerId),
+      );
     }
     if (keys?.previousOwnerId && keys.previousOwnerId !== keys.ownerId) {
-      await this.cacheService.del(this.cacheService.generateKey('shop', 'owner', keys.previousOwnerId));
+      await this.cacheService.del(
+        this.cacheService.generateKey('shop', 'owner', keys.previousOwnerId),
+      );
     }
   }
 }

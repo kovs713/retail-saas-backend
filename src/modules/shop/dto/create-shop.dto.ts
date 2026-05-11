@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsNotEmpty, IsObject, IsOptional, IsString, IsUrl } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUrl,
+} from 'class-validator';
 
 export class CreateShopDto {
   @ApiProperty({ description: 'Shop name', example: 'My Shop' })
@@ -12,7 +19,10 @@ export class CreateShopDto {
   @IsString()
   slug: string;
 
-  @ApiPropertyOptional({ description: 'Shop description', example: 'Best shop in town' })
+  @ApiPropertyOptional({
+    description: 'Shop description',
+    example: 'Best shop in town',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -35,12 +45,18 @@ export class CreateShopDto {
   @IsObject()
   workingHours?: Record<string, string>;
 
-  @ApiPropertyOptional({ description: 'Logo URL', example: 'https://example.com/logo.png' })
+  @ApiPropertyOptional({
+    description: 'Logo URL',
+    example: 'https://example.com/logo.png',
+  })
   @IsOptional()
   @IsUrl()
   logoUrl?: string;
 
-  @ApiPropertyOptional({ description: 'Banner URL', example: 'https://example.com/banner.jpg' })
+  @ApiPropertyOptional({
+    description: 'Banner URL',
+    example: 'https://example.com/banner.jpg',
+  })
   @IsOptional()
   @IsUrl()
   bannerUrl?: string;
@@ -50,7 +66,10 @@ export class CreateShopDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'Owner user ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiPropertyOptional({
+    description: 'Owner user ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsOptional()
   @IsString()
   ownerId?: string;

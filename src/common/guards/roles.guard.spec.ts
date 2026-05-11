@@ -77,7 +77,9 @@ describe('RolesGuard', () => {
     });
 
     it('should return true when user has one of multiple required roles', async () => {
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.OWNER, Role.EMPLOYEE]);
+      jest
+        .spyOn(reflector, 'getAllAndOverride')
+        .mockReturnValue([Role.OWNER, Role.EMPLOYEE]);
       jwtService.verifyAsync.mockResolvedValue({
         email: 'test@example.com',
         role: Role.EMPLOYEE,
@@ -107,16 +109,24 @@ describe('RolesGuard', () => {
 
       mockRequest.headers.authorization = 'Bearer valid-token';
 
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(ForbiddenException);
-      await expect(guard.canActivate(mockContext)).rejects.toThrow('Insufficient permissions');
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        'Insufficient permissions',
+      );
     });
 
     it('should throw ForbiddenException when token is missing', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.OWNER]);
       mockRequest.headers.authorization = undefined;
 
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(ForbiddenException);
-      await expect(guard.canActivate(mockContext)).rejects.toThrow('Missing token');
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        'Missing token',
+      );
     });
 
     it('should throw ForbiddenException when token verification fails', async () => {
@@ -127,23 +137,33 @@ describe('RolesGuard', () => {
       });
       mockRequest.headers.authorization = 'Bearer invalid-token';
 
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(ForbiddenException);
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should throw ForbiddenException when authorization header format is wrong', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.OWNER]);
       mockRequest.headers.authorization = 'InvalidFormat';
 
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(ForbiddenException);
-      await expect(guard.canActivate(mockContext)).rejects.toThrow('Missing token');
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        'Missing token',
+      );
     });
 
     it('should throw ForbiddenException when token type is not Bearer', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.OWNER]);
       mockRequest.headers.authorization = 'Basic some-token';
 
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(ForbiddenException);
-      await expect(guard.canActivate(mockContext)).rejects.toThrow('Missing token');
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        'Missing token',
+      );
     });
   });
 });

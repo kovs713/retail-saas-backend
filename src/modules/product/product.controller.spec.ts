@@ -7,8 +7,7 @@ import { ProductService } from './product.service';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { createMock as createExpressMock } from '@golevelup/ts-jest';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { Readable } from 'stream';
 
 describe('ProductController', () => {
@@ -101,15 +100,22 @@ describe('ProductController', () => {
     });
 
     it('should handle NotFoundException', async () => {
-      service.findOne.mockRejectedValue(new NotFoundException('Product not found'));
-      await expect(controller.findOne('non-existent', tenantContext)).rejects.toThrow(NotFoundException);
+      service.findOne.mockRejectedValue(
+        new NotFoundException('Product not found'),
+      );
+      await expect(
+        controller.findOne('non-existent', tenantContext),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('findOneBySku', () => {
     it('should return a product by SKU', async () => {
       service.findOneBySku.mockResolvedValue(mockProduct);
-      const result = await controller.findOneBySku(mockProduct.sku, tenantContext);
+      const result = await controller.findOneBySku(
+        mockProduct.sku,
+        tenantContext,
+      );
       expect(result.data).toBeDefined();
       expect(result.data?.sku).toBe(mockProduct.sku);
     });
@@ -118,17 +124,23 @@ describe('ProductController', () => {
   describe('update', () => {
     it('should update a product', async () => {
       service.update.mockResolvedValue({ ...mockProduct, name: 'Updated' });
-      const result = await controller.update('prod_1', { name: 'Updated' }, tenantContext);
+      const result = await controller.update(
+        'prod_1',
+        { name: 'Updated' },
+        tenantContext,
+      );
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       expect(result.message).toBe('Product updated successfully');
     });
 
     it('should handle NotFoundException', async () => {
-      service.update.mockRejectedValue(new NotFoundException('Product not found'));
-      await expect(controller.update('non-existent', { name: 'Updated' }, tenantContext)).rejects.toThrow(
-        NotFoundException,
+      service.update.mockRejectedValue(
+        new NotFoundException('Product not found'),
       );
+      await expect(
+        controller.update('non-existent', { name: 'Updated' }, tenantContext),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -154,7 +166,11 @@ describe('ProductController', () => {
   describe('updateStock', () => {
     it('should update stock', async () => {
       service.updateStock.mockResolvedValue({ ...mockProduct, quantity: 150 });
-      const result = await controller.updateStock('prod_1', { quantity: 150 }, tenantContext);
+      const result = await controller.updateStock(
+        'prod_1',
+        { quantity: 150 },
+        tenantContext,
+      );
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       expect(result.data!.quantity).toBe(150);
@@ -164,7 +180,11 @@ describe('ProductController', () => {
   describe('adjustStock', () => {
     it('should adjust stock', async () => {
       service.adjustStock.mockResolvedValue({ ...mockProduct, quantity: 150 });
-      const result = await controller.adjustStock('prod_1', { adjustment: 50 }, tenantContext);
+      const result = await controller.adjustStock(
+        'prod_1',
+        { adjustment: 50 },
+        tenantContext,
+      );
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       expect(result.data!.quantity).toBe(150);
@@ -179,7 +199,11 @@ describe('ProductController', () => {
         key: 'products/prod_1/images/photo.jpg',
       });
 
-      const result = await controller.createImageUploadUrl('prod_1', { fileName: 'photo.jpg' }, tenantContext);
+      const result = await controller.createImageUploadUrl(
+        'prod_1',
+        { fileName: 'photo.jpg' },
+        tenantContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.data?.uploadUrl).toBe('https://upload-url');
@@ -203,33 +227,57 @@ describe('ProductController', () => {
         etag: 'etag-1',
       });
 
-      const result = await controller.uploadImage('prod_1', file, tenantContext);
+      const result = await controller.uploadImage(
+        'prod_1',
+        file,
+        tenantContext,
+      );
 
       expect(result.success).toBe(true);
-      expect(result.data?.publicUrl).toBe('/public/media/shop-1/products/prod_1/photo.jpg');
-      expect(service.uploadProductImage).toHaveBeenCalledWith('prod_1', file, tenantContext.shopId);
+      expect(result.data?.publicUrl).toBe(
+        '/public/media/shop-1/products/prod_1/photo.jpg',
+      );
+      expect(service.uploadProductImage).toHaveBeenCalledWith(
+        'prod_1',
+        file,
+        tenantContext.shopId,
+      );
     });
   });
 
   describe('getPrivateImage', () => {
     it('should stream image for authenticated owner/admin', async () => {
-      const req = createExpressMock<Request>();
-      const res = createExpressMock<Response>();
-      const stream = new Readable({ read() {} });
-      jest.spyOn(stream, 'pipe').mockReturnValue(res as any);
+      const mockSetHeader = jest.fn();
+      const res = {
+        setHeader: mockSetHeader,
+        statusCode: 200,
+        get: () => {},
+      } as unknown as Response;
 
+      const mockStream = new Readable({ read() {} });
+      const pipeSpy = jest
+        .spyOn(mockStream, 'pipe')
+        .mockReturnValue(res as any);
       service.getPrivateImageStream.mockResolvedValue({
-        stream,
+        stream: mockStream,
         contentType: 'image/jpeg',
         etag: 'etag-1',
-        lastModified: new Date('2025-01-01T00:00:00.000Z'),
+        lastModified: new Date('2025-01-01'),
       });
 
-      await controller.getPrivateImage('prod_1', 'photo.jpg', tenantContext, req, res);
+      await controller.getPrivateImage(
+        'prod_1',
+        'photo.jpg',
+        tenantContext,
+        res,
+      );
 
-      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, max-age=0, must-revalidate');
-      expect(stream.pipe).toHaveBeenCalledWith(res);
+      expect(mockSetHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
+      expect(mockSetHeader).toHaveBeenCalledWith(
+        'Cache-Control',
+        'private, max-age=0, must-revalidate',
+      );
+      expect(pipeSpy).toHaveBeenCalledWith(res);
     });
   });
 
@@ -237,7 +285,11 @@ describe('ProductController', () => {
     it('should delete product image', async () => {
       service.deleteImage.mockResolvedValue();
 
-      const result = await controller.deleteImage('prod_1', 'photo.jpg', tenantContext);
+      const result = await controller.deleteImage(
+        'prod_1',
+        'photo.jpg',
+        tenantContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Product image deleted successfully');
@@ -254,8 +306,12 @@ describe('ProductController', () => {
     });
 
     it('should handle NotFoundException', async () => {
-      service.findByBarcode.mockRejectedValue(new NotFoundException('Product not found'));
-      await expect(controller.findByBarcode('invalid', tenantContext)).rejects.toThrow(NotFoundException);
+      service.findByBarcode.mockRejectedValue(
+        new NotFoundException('Product not found'),
+      );
+      await expect(
+        controller.findByBarcode('invalid', tenantContext),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

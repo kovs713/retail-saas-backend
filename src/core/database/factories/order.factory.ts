@@ -5,7 +5,9 @@ import { createMany, generateId } from './shared.utils';
 
 const DEFAULT_ITEMS = [{ productId: 'prod_001', quantity: 2, price: 100 }];
 
-export function createOrder(overrides: Partial<Order> & { index?: number } = {}): Order {
+export function createOrder(
+  overrides: Partial<Order> & { index?: number } = {},
+): Order {
   const { index = 1, ...fields } = overrides;
   const items = overrides.items ?? DEFAULT_ITEMS;
   const now = new Date();
@@ -23,16 +25,27 @@ export function createOrder(overrides: Partial<Order> & { index?: number } = {})
   } as Order;
 }
 
-export function createOrders(count: number, overrides: Partial<Order> = {}): Order[] {
+export function createOrders(
+  count: number,
+  overrides: Partial<Order> = {},
+): Order[] {
   return createMany(count, (i) => createOrder({ ...overrides, index: i }));
 }
 
-export function createOrderWithStatus(status: Order['status'], overrides: Partial<Order> = {}): Order {
+export function createOrderWithStatus(
+  status: Order['status'],
+  overrides: Partial<Order> = {},
+): Order {
   return createOrder({ ...overrides, status });
 }
 
-export const createPendingOrder = (o: Partial<Order> = {}) => createOrderWithStatus(OrderStatus.PENDING, o);
-export const createConfirmedOrder = (o: Partial<Order> = {}) => createOrderWithStatus(OrderStatus.CONFIRMED, o);
-export const createReadyOrder = (o: Partial<Order> = {}) => createOrderWithStatus(OrderStatus.READY, o);
-export const createCompletedOrder = (o: Partial<Order> = {}) => createOrderWithStatus(OrderStatus.COMPLETED, o);
-export const createCancelledOrder = (o: Partial<Order> = {}) => createOrderWithStatus(OrderStatus.CANCELLED, o);
+export const createPendingOrder = (o: Partial<Order> = {}) =>
+  createOrderWithStatus(OrderStatus.PENDING, o);
+export const createConfirmedOrder = (o: Partial<Order> = {}) =>
+  createOrderWithStatus(OrderStatus.CONFIRMED, o);
+export const createReadyOrder = (o: Partial<Order> = {}) =>
+  createOrderWithStatus(OrderStatus.READY, o);
+export const createCompletedOrder = (o: Partial<Order> = {}) =>
+  createOrderWithStatus(OrderStatus.COMPLETED, o);
+export const createCancelledOrder = (o: Partial<Order> = {}) =>
+  createOrderWithStatus(OrderStatus.CANCELLED, o);

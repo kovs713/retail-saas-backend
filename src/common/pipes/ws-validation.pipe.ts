@@ -21,7 +21,9 @@ export class WsValidationPipe<T extends object> implements PipeTransform {
     const errors = await validate(dto);
 
     if (errors.length > 0) {
-      const messages = errors.flatMap((err) => Object.values(err.constraints ?? {}));
+      const messages = errors.flatMap((err) =>
+        Object.values(err.constraints ?? {}),
+      );
       throw new WsException({
         message: 'Validation failed',
         code: 'VALIDATION_ERROR',
@@ -32,7 +34,9 @@ export class WsValidationPipe<T extends object> implements PipeTransform {
     return dto;
   }
 
-  private isConstructor(fn: unknown): fn is new (...args: unknown[]) => unknown {
+  private isConstructor(
+    fn: unknown,
+  ): fn is new (...args: unknown[]) => unknown {
     return typeof fn === 'function' && !!fn.prototype;
   }
 }

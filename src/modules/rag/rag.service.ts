@@ -12,73 +12,74 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class RagService {
   private readonly logger: LoggerService = new LoggerService(RagService.name);
-  private static readonly availabilityMarkers = [
-    'in stock',
-    'available',
-    'avaliable',
-    'inventory',
-    'catalog',
-    'catalogue',
-    'is there any',
-    'do you have',
-    'what do you have',
-    'what products',
-    'what items',
-    'what is available',
-    'available in shop',
-    'phone-related',
-    'что есть',
-    'какие товары',
-    'в наличии',
-    'ассортимент',
-    'каталог',
-    'налич',
-  ];
-  private static readonly ignoredQueryTerms = new Set([
-    'is',
-    'there',
-    'any',
+  private static readonly catalogContextLimit = 50;
+  private static readonly retrievalStopWords = new Set([
+    'a',
+    'an',
     'are',
-    'in',
+    'can',
+    'for',
+    'is',
+    'my',
     'the',
-    'shop',
-    'right',
-    'now',
+    'this',
     'what',
-    'do',
-    'you',
-    'have',
-    'items',
-    'item',
-    'thing',
-    'things',
-    'related',
-    'products',
-    'product',
-    'available',
-    'avaliable',
-    'stock',
-    'inventory',
-    'catalog',
-    'catalogue',
-    'есть',
-    'что',
-    'какие',
-    'товары',
-    'товар',
-    'магазине',
-    'магазин',
-    'наличии',
-    'наличие',
-    'наличии',
+    'with',
+    'без',
+    'был',
+    'бы',
     'в',
+    'во',
+    'для',
+    'есть',
+    'же',
+    'и',
+    'или',
+    'к',
+    'как',
+    'какая',
+    'какие',
+    'какой',
+    'какую',
+    'ли',
+    'мне',
+    'моего',
+    'моей',
+    'моем',
+    'моему',
+    'моим',
+    'мой',
+    'моя',
+    'может',
+    'можно',
+    'мою',
+    'мы',
+    'на',
+    'наш',
+    'наша',
+    'не',
+    'но',
+    'о',
+    'об',
+    'он',
+    'она',
+    'они',
+    'с',
+    'со',
+    'такой',
+    'твоя',
+    'твой',
+    'тебе',
+    'у',
+    'этим',
+    'это',
+    'этого',
+    'этой',
+    'этом',
+    'этот',
+    'эту',
+    'я',
   ]);
-  private static readonly relatedTermExpansions: Record<string, string[]> = {
-    phone: ['smartphone', 'iphone', 'mobile', 'cellphone', 'handset'],
-    smartphone: ['phone', 'iphone', 'mobile', 'cellphone', 'handset'],
-    accessory: ['accessories', 'charger', 'case', 'cable', 'headphone'],
-    accessories: ['accessory', 'charger', 'case', 'cable', 'headphone'],
-  };
 
   constructor(
     private readonly llmService: LLMService,
@@ -91,7 +92,9 @@ export class RagService {
     page: number = 1,
     limit: number = 10,
   ): Promise<PaginationResponse<DocumentResponseDto>> {
-    const documents = await this.vectorStoreService.getDocuments(shopId);
+    const documents = (
+      await this.vectorStoreService.getDocuments(shopId)
+    ).filter((doc) => !this.isCatalogDocument(doc));
 
     const total = documents.length;
     const totalPages = Math.ceil(total / limit);
@@ -119,7 +122,9 @@ export class RagService {
     page: number = 1,
     limit: number = 10,
   ): Promise<PaginationResponse<DocumentGroupDto>> {
-    const documents = await this.vectorStoreService.getDocuments(shopId);
+    const documents = (
+      await this.vectorStoreService.getDocuments(shopId)
+    ).filter((doc) => !this.isCatalogDocument(doc));
 
     const groupsMap = new Map<string, DocumentGroupDto>();
     for (const doc of documents) {
@@ -129,7 +134,10 @@ export class RagService {
       }
 
       if (!groupsMap.has(groupId)) {
-        const source = (doc.metadata?.source as string) || (doc.metadata?.filename as string) || 'unknown';
+        const source =
+          (doc.metadata?.source as string) ||
+          (doc.metadata?.filename as string) ||
+          'unknown';
         groupsMap.set(groupId, {
           documentGroupId: groupId,
           source,
@@ -177,109 +185,106 @@ export class RagService {
     return ids;
   }
 
-  async clearDocuments(shopId: string): Promise<void> {
-    await this.vectorStoreService.deleteDocuments(shopId);
-    this.logger.warn('clearDocuments not fully implemented for LangChain Chroma wrapper');
+  async rebuildCatalogIndex(shopId: string): Promise<number> {
+    return this.productService.rebuildCatalogIndex(shopId);
   }
 
-  async deleteDocumentGroup(documentGroupId: string, shopId: string): Promise<number> {
-    const deletedCount = await this.vectorStoreService.deleteDocumentGroup(documentGroupId, shopId);
-    this.logger.log(`Deleted ${deletedCount} chunks for documentGroupId: ${documentGroupId}`);
+  async clearDocuments(shopId: string): Promise<void> {
+    await this.vectorStoreService.deleteDocuments(shopId);
+    this.logger.warn(
+      'clearDocuments not fully implemented for LangChain Chroma wrapper',
+    );
+  }
+
+  async deleteDocumentGroup(
+    documentGroupId: string,
+    shopId: string,
+  ): Promise<number> {
+    const deletedCount = await this.vectorStoreService.deleteDocumentGroup(
+      documentGroupId,
+      shopId,
+    );
+    this.logger.log(
+      `Deleted ${deletedCount} chunks for documentGroupId: ${documentGroupId}`,
+    );
     return deletedCount;
   }
 
-  private isAvailabilityQuery(query: string): boolean {
-    const normalizedQuery = query.toLowerCase();
+  private mergeProducts(
+    searchProducts: Product[],
+    availableProducts: Product[],
+  ): Product[] {
+    const mergedProducts = new Map<string, Product>();
 
-    return RagService.availabilityMarkers.some((marker) => normalizedQuery.includes(marker));
-  }
-
-  private extractQueryTerms(query: string): string[] {
-    return query
-      .toLowerCase()
-      .split(/[^\p{L}\p{N}]+/u)
-      .map((term) => this.normalizeTerm(term))
-      .filter((term) => term.length > 2)
-      .filter((term) => !RagService.ignoredQueryTerms.has(term));
-  }
-
-  private expandQueryTerms(query: string, terms: string[]): string[] {
-    const expandedTerms = new Set(terms);
-    const normalizedQuery = query.toLowerCase();
-
-    for (const term of terms) {
-      for (const relatedTerm of RagService.relatedTermExpansions[term] ?? []) {
-        expandedTerms.add(this.normalizeTerm(relatedTerm));
+    for (const product of [...searchProducts, ...availableProducts]) {
+      if (!mergedProducts.has(product.id)) {
+        mergedProducts.set(product.id, product);
       }
     }
 
-    if (normalizedQuery.includes('phone-related') || normalizedQuery.includes('related to phone')) {
-      expandedTerms.add('accessory');
-      expandedTerms.add('charger');
-      expandedTerms.add('case');
-    }
-
-    return [...expandedTerms];
+    return [...mergedProducts.values()];
   }
 
-  private normalizeTerm(term: string): string {
-    if (term.endsWith('ies') && term.length > 4) {
-      return `${term.slice(0, -3)}y`;
+  private deduplicateVectorDocs(documents: Document[]): Document[] {
+    const uniqueDocuments = new Map<string, Document>();
+
+    for (const document of documents) {
+      const key = `${document.pageContent}::${JSON.stringify(document.metadata ?? {})}`;
+      if (!uniqueDocuments.has(key)) {
+        uniqueDocuments.set(key, document);
+      }
     }
 
-    if (term.endsWith('s') && term.length > 3) {
-      return term.slice(0, -1);
-    }
-
-    return term;
+    return [...uniqueDocuments.values()];
   }
 
-  private tokenize(value?: string | null): string[] {
-    if (!value) {
-      return [];
+  private normalizeRetrievalQuery(query: string): string | null {
+    const tokens: string[] = query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    if (tokens.length == 0) {
+      return null;
     }
 
-    return value
-      .toLowerCase()
-      .split(/[^\p{L}\p{N}]+/u)
-      .map((term) => this.normalizeTerm(term))
-      .filter((term) => term.length > 1);
+    const normalizedTokens = tokens.filter(
+      (token) => token.length > 2 && !RagService.retrievalStopWords.has(token),
+    );
+
+    if (normalizedTokens.length === 0) {
+      return null;
+    }
+
+    const normalizedQuery = [...new Set(normalizedTokens)].join(' ');
+    return normalizedQuery === query.trim().toLowerCase()
+      ? null
+      : normalizedQuery;
   }
 
-  private filterProductsByQuery(products: Product[], query: string): Product[] {
-    const terms = this.expandQueryTerms(query, this.extractQueryTerms(query));
-    if (terms.length === 0) {
-      return products;
+  private buildVectorSearchQueries(
+    query: string,
+    normalizedQuery: string | null,
+    matchedProducts: Product[],
+  ): string[] {
+    const queries: string[] = [];
+    const productHints = matchedProducts
+      .slice(0, 3)
+      .map((product) =>
+        [product.name, product.description].filter(Boolean).join('\n'),
+      )
+      .filter(Boolean)
+      .join('\n\n');
+
+    if (productHints) {
+      queries.push(`${query}\n\nProduct hints:\n${productHints}`);
+      if (normalizedQuery) {
+        queries.push(`${normalizedQuery}\n\nProduct hints:\n${productHints}`);
+      }
     }
 
-    const categoryMatches = products.filter((product) => {
-      const categoryTerms = this.tokenize(product.category?.name);
-      return terms.some((term) => categoryTerms.includes(term));
-    });
-    if (categoryMatches.length > 0) {
-      return categoryMatches;
+    queries.push(query);
+    if (normalizedQuery) {
+      queries.push(normalizedQuery);
     }
 
-    const identityMatches = products.filter((product) => {
-      const identityTerms = new Set([...this.tokenize(product.name), ...this.tokenize(product.sku)]);
-      return terms.some((term) => identityTerms.has(term));
-    });
-    if (identityMatches.length > 0) {
-      return identityMatches;
-    }
-
-    const matchedProducts = products.filter((product) => {
-      const haystackTerms = new Set([
-        ...this.tokenize(product.name),
-        ...this.tokenize(product.description),
-        ...this.tokenize(product.sku),
-        ...this.tokenize(product.category?.name),
-      ]);
-
-      return terms.some((term) => haystackTerms.has(term));
-    });
-
-    return matchedProducts.length > 0 ? matchedProducts : products;
+    return [...new Set(queries.map((value) => value.trim()).filter(Boolean))];
   }
 
   private buildCatalogSummary(products: Product[]): string {
@@ -301,7 +306,10 @@ export class RagService {
       maxPrice = Math.max(maxPrice, product.price);
     }
 
-    const parts = [`In-stock products: ${products.length}`, `Price range: ${minPrice}-${maxPrice}`];
+    const parts = [
+      `In-stock products: ${products.length}`,
+      `Price range: ${minPrice}-${maxPrice}`,
+    ];
     if (categories.size > 0) {
       parts.push(
         `Categories: ${Array.from(categories.entries())
@@ -315,6 +323,7 @@ export class RagService {
 
   private buildProductContext(product: Product): string {
     const categoryName = product.category?.name;
+    const attributes = this.formatProductMetadata(product.metadata);
 
     return [
       `Product: ${product.name}`,
@@ -324,57 +333,110 @@ export class RagService {
       ...(categoryName ? [`Category: ${categoryName}`] : []),
       `Stock status: ${product.quantity > 0 ? 'in stock' : 'out of stock'}`,
       ...(product.description ? [`Description: ${product.description}`] : []),
+      ...(attributes ? [`Attributes: ${attributes}`] : []),
       ...(product.barcode ? [`Barcode: ${product.barcode}`] : []),
     ].join('\n');
   }
 
-  async getAvailableProducts(shopId: string, limit: number = 100): Promise<Product[]> {
-    const result = await this.productService.findAll({ page: 1, limit }, shopId);
+  async getAvailableProducts(
+    shopId: string,
+    limit: number = 100,
+  ): Promise<Product[]> {
+    const products = await this.productService.findAvailableProducts(
+      shopId,
+      limit,
+    );
 
-    return (result.data || [])
-      .filter((product) => product.quantity > 0)
-      .sort((left, right) => right.quantity - left.quantity);
+    return products.sort((left, right) => right.quantity - left.quantity);
   }
 
   private async buildCombinedContext(
     query: string,
     shopId: string,
     maxResults: number,
-  ): Promise<{ context: string; sources: Array<{ pageContent: string; metadata: Record<string, any> }> }> {
-    const [vectorDocs, productsSearchResult] = await Promise.all([
-      this.vectorStoreService.similaritySearch(query, shopId, maxResults),
-      this.productService.findAll({ page: 1, limit: 50, search: query }, shopId).catch(() => ({
-        data: [],
-        pagination: { total: 0 },
-      })),
+  ): Promise<{
+    context: string;
+    sources: Array<{ pageContent: string; metadata: Record<string, any> }>;
+  }> {
+    const normalizedQuery = this.normalizeRetrievalQuery(query);
+    const [productsSearchResult, availableProducts] = await Promise.all([
+      this.productService
+        .findAll(
+          {
+            page: 1,
+            limit: RagService.catalogContextLimit,
+            search: query,
+          },
+          shopId,
+        )
+        .catch(() => ({
+          data: [],
+          pagination: { total: 0 },
+        })),
+      this.productService
+        .findAvailableProducts(shopId, RagService.catalogContextLimit)
+        .catch(() => []),
     ]);
 
-    const isAvailabilityQuery = this.isAvailabilityQuery(query);
-    let products = productsSearchResult.data || [];
+    let matchedProducts = Array.isArray(productsSearchResult.data)
+      ? productsSearchResult.data
+      : [];
+    if (matchedProducts.length === 0 && normalizedQuery) {
+      const normalizedProductsSearchResult = await this.productService
+        .findAll(
+          {
+            page: 1,
+            limit: RagService.catalogContextLimit,
+            search: normalizedQuery,
+          },
+          shopId,
+        )
+        .catch(() => ({
+          data: [],
+          pagination: { total: 0 },
+        }));
 
-    if (isAvailabilityQuery) {
-      products = this.filterProductsByQuery(products, query);
-      const fallbackProducts = await this.getAvailableProducts(shopId, 50).catch(() => []);
-      const filteredFallbackProducts = this.filterProductsByQuery(fallbackProducts, query);
-      if (filteredFallbackProducts.length > 0) {
-        products = filteredFallbackProducts;
-      }
+      matchedProducts = Array.isArray(normalizedProductsSearchResult.data)
+        ? normalizedProductsSearchResult.data
+        : [];
     }
 
-    this.logger.log(`Found ${vectorDocs.length} vector docs, ${products.length} products`);
+    const catalogProducts = this.mergeProducts(
+      matchedProducts,
+      availableProducts,
+    );
+    const vectorSearchQueries = this.buildVectorSearchQueries(
+      query,
+      normalizedQuery,
+      matchedProducts,
+    );
+    const vectorSearchResults = await Promise.all(
+      vectorSearchQueries.map(async (searchQuery) => {
+        try {
+          return await this.vectorStoreService.similaritySearch(
+            searchQuery,
+            shopId,
+            maxResults,
+          );
+        } catch {
+          return [];
+        }
+      }),
+    );
+    const vectorDocs = this.deduplicateVectorDocs(
+      vectorSearchResults.flat(),
+    ).slice(0, maxResults);
 
-    const sources: Array<{ pageContent: string; metadata: Record<string, any> }> = [];
-    const productContextParts: string[] = [];
+    this.logger.log(
+      `Found ${vectorDocs.length} vector docs, ${matchedProducts.length} direct product matches, ${availableProducts.length} in-stock catalog products`,
+    );
+
+    const sources: Array<{
+      pageContent: string;
+      metadata: Record<string, any>;
+    }> = [];
     const vectorContextParts: string[] = [];
-
-    for (const product of products) {
-      const productInfo = this.buildProductContext(product);
-      productContextParts.push(productInfo);
-      sources.push({
-        pageContent: productInfo,
-        metadata: { source: 'postgresql', productId: product.id, type: 'product' },
-      });
-    }
+    const productContextParts: string[] = [];
 
     for (let i = 0; i < vectorDocs.length; i++) {
       const doc = vectorDocs[i];
@@ -385,16 +447,104 @@ export class RagService {
       });
     }
 
-    const parts: string[] = [];
-    if (productContextParts.length > 0) {
-      parts.push(this.buildCatalogSummary(products));
-      parts.push('## Products from catalog:\n\n' + productContextParts.join('\n\n'));
+    for (const product of catalogProducts) {
+      const productInfo = this.buildProductContext(product);
+      productContextParts.push(productInfo);
+      sources.push({
+        pageContent: productInfo,
+        metadata: {
+          source: 'postgresql',
+          productId: product.id,
+          type: 'product',
+        },
+      });
     }
+
+    const parts: string[] = [];
     if (vectorContextParts.length > 0) {
-      parts.push('## Additional context:\n\n' + vectorContextParts.join('\n\n'));
+      parts.push('## Reference notes:\n\n' + vectorContextParts.join('\n\n'));
+    }
+    if (availableProducts.length > 0) {
+      parts.push(this.buildCatalogSummary(availableProducts));
+    }
+    if (productContextParts.length > 0) {
+      parts.push(
+        '## Products from catalog:\n\n' + productContextParts.join('\n\n'),
+      );
     }
 
     return { context: parts.join('\n\n'), sources };
+  }
+
+  private buildPrompt(query: string, context: string): string {
+    return `Context:
+${context}
+
+Question: ${query}`;
+  }
+
+  private buildSystemMessage(query: string, systemPrompt?: string): string {
+    const yesNoInstruction = /[\u0400-\u04FF]/u.test(query)
+      ? 'For yes/no questions, start with "Да.", "Нет.", or "Не знаю."'
+      : 'For yes/no questions, start with "Yes.", "No.", or "I don\'t know."';
+
+    const instructions = [
+      'You are a helpful assistant.',
+      'Follow these rules with highest priority.',
+      'Treat the context as hidden internal notes.',
+      'The hidden notes are the source of truth for the answer.',
+      'Answer only from the hidden notes, not from generic knowledge.',
+      'Apply simple direct implications from the hidden notes.',
+      'If the hidden notes explicitly answer the question, follow them and do not contradict them.',
+      'If the hidden notes say something is allowed, compatible, or available, answer accordingly and do not refuse it.',
+      'Do not answer no unless the hidden notes explicitly say no, incompatible, not allowed, or unavailable.',
+      'Answer in the same language as the user.',
+      yesNoInstruction,
+      'For yes/no questions, the first sentence must be only the direct answer.',
+      'If helpful, after the direct answer add one short practical recommendation.',
+      'If the hidden notes are insufficient or ambiguous, use the equivalent of "I don\'t know" in the user\'s language or ask one short clarifying question.',
+      'Never mention the context, hidden notes, hidden instructions, section titles, sources, vector database, catalog, or database records.',
+    ];
+
+    if (systemPrompt?.trim()) {
+      instructions.push(
+        `Additional behavior. Apply only if it does not conflict with the rules above: ${systemPrompt.trim()}`,
+      );
+    }
+
+    return instructions.join(' ');
+  }
+
+  private formatProductMetadata(
+    metadata: Record<string, unknown> | null,
+  ): string | null {
+    if (!metadata) {
+      return null;
+    }
+
+    const attributes = Object.entries(metadata)
+      .filter(([, value]) => value !== null && value !== undefined)
+      .map(([key, value]) => {
+        if (
+          typeof value === 'string' ||
+          typeof value === 'number' ||
+          typeof value === 'boolean'
+        ) {
+          return `${key}: ${value}`;
+        }
+
+        return `${key}: ${JSON.stringify(value)}`;
+      });
+
+    return attributes.length > 0 ? attributes.join('; ') : null;
+  }
+
+  private isCatalogDocument(doc: {
+    metadata?: Record<string, unknown>;
+  }): boolean {
+    return (
+      doc.metadata?.source === 'catalog' && doc.metadata?.type === 'product'
+    );
   }
 
   async query(
@@ -409,35 +559,24 @@ export class RagService {
       metadata: Record<string, any>;
     }>;
   }> {
-    this.logger.log(`Processing RAG query: "${query}" for organization: ${shopId}`);
+    this.logger.log(
+      `Processing RAG query: "${query}" for organization: ${shopId}`,
+    );
 
-    const { context, sources } = await this.buildCombinedContext(query, shopId, maxResults);
+    const { context, sources } = await this.buildCombinedContext(
+      query,
+      shopId,
+      maxResults,
+    );
 
-    const baseInstructions =
-      'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
+    const prompt = this.buildPrompt(query, context);
+    const systemMessage = this.buildSystemMessage(query, systemPrompt);
 
-    let prompt: string;
-    if (systemPrompt) {
-      prompt = `${systemPrompt}
+    const answer = await this.llmService.generateText(prompt, systemMessage);
 
-Context:
-${context}
-
-Question: ${query}
-
-${baseInstructions}`;
-    } else {
-      prompt = `You are a helpful assistant that answers questions based on the provided context. ${baseInstructions}
-
-Context:
-${context}
-
-Question: ${query}`;
-    }
-
-    const answer = await this.llmService.generateText(prompt);
-
-    this.logger.log(`Generated answer for query: "${query.substring(0, 50)}..."`);
+    this.logger.log(
+      `Generated answer for query: "${query.substring(0, 50)}..."`,
+    );
 
     return { answer, sources };
   }
@@ -457,52 +596,52 @@ Question: ${query}`;
       score: number;
     }>;
   }> {
-    this.logger.log(`Processing RAG query with scores: "${query}" for organization: ${shopId}`);
+    this.logger.log(
+      `Processing RAG query with scores: "${query}" for organization: ${shopId}`,
+    );
 
     const [vectorDocsWithScores, { context, sources }] = await Promise.all([
-      this.vectorStoreService.similaritySearchWithScore(query, shopId, maxResults),
+      this.vectorStoreService.similaritySearchWithScore(
+        query,
+        shopId,
+        maxResults,
+      ),
       this.buildCombinedContext(query, shopId, maxResults),
     ]);
 
-    this.logger.log(`Found ${vectorDocsWithScores.length} vector documents with scores`);
+    this.logger.log(
+      `Found ${vectorDocsWithScores.length} vector documents with scores`,
+    );
 
-    const baseInstructions =
-      'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
+    const prompt = this.buildPrompt(query, context);
+    const systemMessage = this.buildSystemMessage(query, systemPrompt);
 
-    let prompt: string;
-    if (systemPrompt) {
-      prompt = `${systemPrompt}
+    const answer = await this.llmService.generateText(prompt, systemMessage);
 
-Context:
-${context}
-
-Question: ${query}
-
-${baseInstructions}`;
-    } else {
-      prompt = `You are a helpful assistant that answers questions based on the provided context. ${baseInstructions}
-
-Context:
-${context}
-
-Question: ${query}`;
-    }
-
-    const answer = await this.llmService.generateText(prompt);
-
-    this.logger.log(`Generated answer for query: "${query.substring(0, 50)}..."`);
+    this.logger.log(
+      `Generated answer for query: "${query.substring(0, 50)}..."`,
+    );
 
     return {
       answer,
       sources: sources.map((src, idx) => ({
         document: { pageContent: src.pageContent, metadata: src.metadata },
-        score: idx < vectorDocsWithScores.length ? vectorDocsWithScores[idx][1] : 0,
+        score:
+          idx < vectorDocsWithScores.length ? vectorDocsWithScores[idx][1] : 0,
       })),
     };
   }
 
-  async addTexts(texts: string[], shopId: string, metadata?: Record<string, any>[]): Promise<string[]> {
-    const documentIds = await this.vectorStoreService.addTexts(texts, shopId, metadata);
+  async addTexts(
+    texts: string[],
+    shopId: string,
+    metadata?: Record<string, any>[],
+  ): Promise<string[]> {
+    const documentIds = await this.vectorStoreService.addTexts(
+      texts,
+      shopId,
+      metadata,
+    );
     return documentIds;
   }
 
@@ -514,39 +653,34 @@ Question: ${query}`;
     retrievalQuery?: string,
   ): AsyncGenerator<
     | { type: 'chunk'; content: string }
-    | { type: 'complete'; sources: Array<{ pageContent: string; metadata: Record<string, any> }> }
+    | {
+        type: 'complete';
+        sources: Array<{ pageContent: string; metadata: Record<string, any> }>;
+      }
   > {
-    this.logger.log(`Processing streaming RAG query: "${query}" for organization: ${shopId}`);
+    this.logger.log(
+      `Processing streaming RAG query: "${query}" for organization: ${shopId}`,
+    );
 
-    const { context, sources } = await this.buildCombinedContext(retrievalQuery ?? query, shopId, maxResults);
+    const { context, sources } = await this.buildCombinedContext(
+      retrievalQuery ?? query,
+      shopId,
+      maxResults,
+    );
 
-    const baseInstructions =
-      'If the context does not contain enough information to answer the question, say so clearly. Answer based only on the context provided above.';
+    const prompt = this.buildPrompt(query, context);
+    const systemMessage = this.buildSystemMessage(query, systemPrompt);
 
-    let prompt: string;
-    if (systemPrompt) {
-      prompt = `${systemPrompt}
-
-Context:
-${context}
-
-Question: ${query}
-
-${baseInstructions}`;
-    } else {
-      prompt = `You are a helpful assistant that answers questions based on the provided context. ${baseInstructions}
-
-Context:
-${context}
-
-Question: ${query}`;
-    }
-
-    for await (const chunk of this.llmService.generateStream(prompt)) {
+    for await (const chunk of this.llmService.generateStream(
+      prompt,
+      systemMessage,
+    )) {
       yield { type: 'chunk', content: chunk };
     }
 
-    this.logger.log(`Generated streaming answer for query: "${query.substring(0, 50)}..."`);
+    this.logger.log(
+      `Generated streaming answer for query: "${query.substring(0, 50)}..."`,
+    );
 
     yield { type: 'complete', sources };
   }

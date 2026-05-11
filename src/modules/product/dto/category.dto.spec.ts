@@ -39,7 +39,10 @@ describe('CategoryDto', () => {
     });
 
     it('should return undefined for non-date non-string values', () => {
-      const category = createMockCategory({ createdAt: 12345 as any, updatedAt: 12345 as any });
+      const category = createMockCategory({
+        createdAt: 12345 as any,
+        updatedAt: 12345 as any,
+      });
 
       const dto = CategoryDto.fromEntity(category);
 

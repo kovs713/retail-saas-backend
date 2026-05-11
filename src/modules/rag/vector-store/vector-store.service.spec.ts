@@ -36,7 +36,8 @@ describe('VectorStoreService', () => {
     }).compile();
 
     service = module.get<VectorStoreService>(VectorStoreService);
-    embeddingsService = module.get<DeepMocked<EmbeddingsService>>(EmbeddingsService);
+    embeddingsService =
+      module.get<DeepMocked<EmbeddingsService>>(EmbeddingsService);
     chromaDBClient = module.get<DeepMocked<Chroma>>(ChromaDBClient);
   });
 
@@ -76,11 +77,19 @@ describe('VectorStoreService', () => {
       expect(result).toEqual([
         {
           pageContent: 'first content',
-          metadata: { shopId: mockTenantContext.shopId, source: 'manual', _id: 'id-1' },
+          metadata: {
+            shopId: mockTenantContext.shopId,
+            source: 'manual',
+            _id: 'id-1',
+          },
         },
         {
           pageContent: 'second content',
-          metadata: { shopId: mockTenantContext.shopId, source: 'upload', _id: 'id-2' },
+          metadata: {
+            shopId: mockTenantContext.shopId,
+            source: 'upload',
+            _id: 'id-2',
+          },
         },
       ]);
     });
@@ -88,7 +97,13 @@ describe('VectorStoreService', () => {
     it('returns all documents without applying pagination', async () => {
       const collection = makeCollectionWithDocs({
         ids: ['id-1', 'id-2', 'id-3', 'id-4', 'id-5'],
-        documents: ['content 1', 'content 2', 'content 3', 'content 4', 'content 5'],
+        documents: [
+          'content 1',
+          'content 2',
+          'content 3',
+          'content 4',
+          'content 5',
+        ],
         metadatas: [
           { source: 'test1' },
           { source: 'test2' },
@@ -144,7 +159,11 @@ describe('VectorStoreService', () => {
     });
 
     it('filters collection by the tenant shopId', async () => {
-      const collection = makeCollectionWithDocs({ ids: [], documents: [], metadatas: [] });
+      const collection = makeCollectionWithDocs({
+        ids: [],
+        documents: [],
+        metadatas: [],
+      });
       bindCollection(collection);
 
       await service.getDocuments(mockTenantContext.shopId);
@@ -156,20 +175,35 @@ describe('VectorStoreService', () => {
 
     it('does not leak documents from another tenant', async () => {
       const tenantA = createMockTenantContext();
-      const tenantB = { ...createMockTenantContext(), shopId: 'different-shop' };
+      const tenantB = {
+        ...createMockTenantContext(),
+        shopId: 'different-shop',
+      };
 
-      const collection = makeCollectionWithDocs({ ids: [], documents: [], metadatas: [] });
+      const collection = makeCollectionWithDocs({
+        ids: [],
+        documents: [],
+        metadatas: [],
+      });
       bindCollection(collection);
 
       await service.getDocuments(tenantA.shopId);
       await service.getDocuments(tenantB.shopId);
 
-      expect(collection.get).toHaveBeenNthCalledWith(1, { where: { shopId: tenantA.shopId } });
-      expect(collection.get).toHaveBeenNthCalledWith(2, { where: { shopId: tenantB.shopId } });
+      expect(collection.get).toHaveBeenNthCalledWith(1, {
+        where: { shopId: tenantA.shopId },
+      });
+      expect(collection.get).toHaveBeenNthCalledWith(2, {
+        where: { shopId: tenantB.shopId },
+      });
     });
 
     it('returns empty result when the collection contains no matching documents', async () => {
-      const collection = makeCollectionWithDocs({ ids: [], documents: [], metadatas: [] });
+      const collection = makeCollectionWithDocs({
+        ids: [],
+        documents: [],
+        metadatas: [],
+      });
       bindCollection(collection);
 
       const result = await service.getDocuments(mockTenantContext.shopId);
@@ -222,7 +256,10 @@ describe('VectorStoreService', () => {
       const result = await service.getDocuments(mockTenantContext.shopId);
 
       expect(result[0]).toEqual({ pageContent: '', metadata: { _id: 'id-1' } });
-      expect(result[1]).toEqual({ pageContent: 'real content', metadata: { source: 'test', _id: 'id-2' } });
+      expect(result[1]).toEqual({
+        pageContent: 'real content',
+        metadata: { source: 'test', _id: 'id-2' },
+      });
     });
   });
 
@@ -280,7 +317,11 @@ describe('VectorStoreService', () => {
 
       chromaDBClient.addVectors.mockResolvedValue(['vec-1']);
 
-      const result = await service.addTexts(texts, mockTenantContext.shopId, metadatas);
+      const result = await service.addTexts(
+        texts,
+        mockTenantContext.shopId,
+        metadatas,
+      );
 
       expect(result).toBeDefined();
     });
@@ -291,7 +332,11 @@ describe('VectorStoreService', () => {
 
       chromaDBClient.addVectors.mockResolvedValue(['vec-1', 'vec-2']);
 
-      const result = await service.addTexts(texts, mockTenantContext.shopId, metadatas);
+      const result = await service.addTexts(
+        texts,
+        mockTenantContext.shopId,
+        metadatas,
+      );
 
       expect(result).toBeDefined();
     });
@@ -309,19 +354,32 @@ describe('VectorStoreService', () => {
 
   describe('similaritySearch', () => {
     it('should return search results', async () => {
-      const mockDocs = [{ pageContent: 'result', metadata: { shopId: 'shop-1' } }];
+      const mockDocs = [
+        { pageContent: 'result', metadata: { shopId: 'shop-1' } },
+      ];
       chromaDBClient.similaritySearch.mockResolvedValue(mockDocs);
 
-      const result = await service.similaritySearch('test query', mockTenantContext.shopId, 5);
+      const result = await service.similaritySearch(
+        'test query',
+        mockTenantContext.shopId,
+        5,
+      );
 
       expect(result).toEqual(mockDocs);
     });
 
     it('should return results with custom filters', async () => {
-      const mockDocs = [{ pageContent: 'result', metadata: { shopId: 'shop-1' } }];
+      const mockDocs = [
+        { pageContent: 'result', metadata: { shopId: 'shop-1' } },
+      ];
       chromaDBClient.similaritySearch.mockResolvedValue(mockDocs);
 
-      const result = await service.similaritySearch('test query', mockTenantContext.shopId, 5, { source: 'test' });
+      const result = await service.similaritySearch(
+        'test query',
+        mockTenantContext.shopId,
+        5,
+        { source: 'test' },
+      );
 
       expect(result).toEqual(mockDocs);
     });
@@ -337,9 +395,54 @@ describe('VectorStoreService', () => {
 
       chromaDBClient.similaritySearchWithScore.mockResolvedValue(mockResults);
 
-      const result = await service.similaritySearchWithScore('test query', mockTenantContext.shopId);
+      const result = await service.similaritySearchWithScore(
+        'test query',
+        mockTenantContext.shopId,
+      );
 
       expect(result).toEqual(mockResults);
+    });
+  });
+
+  describe('deleteDocumentsByFilter', () => {
+    it('should delete all matching ids for the tenant-scoped filter', async () => {
+      const collection = makeCollectionWithDocs({
+        ids: ['id-1', 'id-2'],
+        documents: ['one', 'two'],
+        metadatas: [
+          { shopId: mockTenantContext.shopId, type: 'product' },
+          { shopId: mockTenantContext.shopId, type: 'product' },
+        ],
+      });
+      bindCollection(collection);
+
+      const result = await service.deleteDocumentsByFilter(
+        mockTenantContext.shopId,
+        { type: 'product', productId: 'product-1' },
+      );
+
+      expect(collection.get).toHaveBeenCalledWith({
+        where: {
+          shopId: mockTenantContext.shopId,
+          type: 'product',
+          productId: 'product-1',
+        },
+      });
+      expect(chromaDBClient.delete).toHaveBeenCalledWith({
+        ids: ['id-1', 'id-2'],
+      });
+      expect(result).toBe(2);
+    });
+
+    it('should return zero when the collection is unavailable', async () => {
+      bindCollection(null);
+
+      const result = await service.deleteDocumentsByFilter(
+        mockTenantContext.shopId,
+        { type: 'product', productId: 'product-1' },
+      );
+
+      expect(result).toBe(0);
     });
   });
 
@@ -351,7 +454,10 @@ describe('VectorStoreService', () => {
     });
 
     it('should create retriever with custom filter', () => {
-      const result = service.asRetriever(mockTenantContext.shopId, { k: 5, filter: { source: 'test' } });
+      const result = service.asRetriever(mockTenantContext.shopId, {
+        k: 5,
+        filter: { source: 'test' },
+      });
 
       expect(result).toBeDefined();
     });

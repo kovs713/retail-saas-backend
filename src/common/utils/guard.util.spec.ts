@@ -50,7 +50,9 @@ describe('Guard Utils', () => {
 
     it('should create a guard that sets user on request', async () => {
       const guard = mockAuthGuard(mockUser);
-      const mockRequest = { user: undefined } as Request & { user?: TokenPayload };
+      const mockRequest = { user: undefined } as Request & {
+        user?: TokenPayload;
+      };
       const mockContext = createMock<ExecutionContext>({
         switchToHttp: () => ({
           getRequest: () => mockRequest,
@@ -65,7 +67,9 @@ describe('Guard Utils', () => {
 
     it('should return true when canActivate is called', async () => {
       const guard = mockAuthGuard(mockUser);
-      const mockRequest = { user: undefined } as Request & { user?: TokenPayload };
+      const mockRequest = { user: undefined } as Request & {
+        user?: TokenPayload;
+      };
       const mockContext = createMock<ExecutionContext>({
         switchToHttp: () => ({
           getRequest: () => mockRequest,
@@ -79,7 +83,9 @@ describe('Guard Utils', () => {
 
     it('should set the complete user payload on request', async () => {
       const guard = mockAuthGuard(mockUser);
-      const mockRequest = { user: undefined } as Request & { user?: TokenPayload };
+      const mockRequest = { user: undefined } as Request & {
+        user?: TokenPayload;
+      };
       const mockContext = createMock<ExecutionContext>({
         switchToHttp: () => ({
           getRequest: () => mockRequest,
@@ -105,7 +111,9 @@ describe('Guard Utils', () => {
       };
 
       const guard = mockAuthGuard(adminUser);
-      const mockRequest = { user: undefined } as Request & { user?: TokenPayload };
+      const mockRequest = { user: undefined } as Request & {
+        user?: TokenPayload;
+      };
       const mockContext = createMock<ExecutionContext>({
         switchToHttp: () => ({
           getRequest: () => mockRequest,

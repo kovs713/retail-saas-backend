@@ -1,4 +1,8 @@
-import { createDeletedProduct, createProduct, createProducts } from '@/core/database/factories';
+import {
+  createDeletedProduct,
+  createProduct,
+  createProducts,
+} from '@/core/database/factories';
 
 describe('ProductFactory', () => {
   describe('createProduct', () => {
@@ -11,7 +15,11 @@ describe('ProductFactory', () => {
     });
 
     it('should apply field overrides', () => {
-      const product = createProduct({ index: 2, name: 'Custom Name', quantity: 5 });
+      const product = createProduct({
+        index: 2,
+        name: 'Custom Name',
+        quantity: 5,
+      });
 
       expect(product.id).toBe('prod_002');
       expect(product.name).toBe('Custom Name');

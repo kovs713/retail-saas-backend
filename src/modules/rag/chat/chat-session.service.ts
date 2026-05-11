@@ -1,5 +1,9 @@
 import { LoggerService } from '@/core/logger/logger.service';
-import { ChatSessionDto, ChatSessionMetadataDto } from '../dto';
+import {
+  ChatMessageEntry,
+  ChatSessionDto,
+  ChatSessionMetadataDto,
+} from '../dto';
 import { ChatSession } from './entities';
 import { ChatMessageRepository, ChatSessionRepository } from './repositories';
 
@@ -21,9 +25,6 @@ export class ChatSessionService {
       userId: session.userId,
       title: session.title,
       status: session.status,
-      warmStatus: session.warmStatus,
-      warmProductSnapshotAt: session.warmProductSnapshotAt?.toISOString() ?? null,
-      warmProductSummary: session.warmProductSummary,
       messages: (session.messages ?? []).map((message) => ({
         id: message.id,
         role: message.role,
@@ -36,12 +37,20 @@ export class ChatSessionService {
     };
   }
 
+  private toMessageDto(session: ChatSession): ChatMessageEntry[] {
+    return (session.messages ?? []).map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      timestamp: message.createdAt.toISOString(),
+    }));
+  }
+
   private toMetadataDto(session: ChatSession): ChatSessionMetadataDto {
     return {
       id: session.id,
       title: session.title,
       status: session.status,
-      warmStatus: session.warmStatus,
       lastMessageAt: session.lastMessageAt.toISOString(),
       createdAt: session.createdAt.toISOString(),
       updatedAt: session.updatedAt.toISOString(),
@@ -64,9 +73,6 @@ export class ChatSessionService {
       userId,
       title: 'New chat',
       status: 'active',
-      warmStatus: 'pending',
-      warmProductSummary: null,
-      warmProductSnapshotAt: null,
       lastMessageAt: now,
     });
 
@@ -76,8 +82,16 @@ export class ChatSessionService {
     return this.toDto(savedSession);
   }
 
-  async getOwnedSession(sessionId: string, shopId: string, userId: string): Promise<ChatSessionDto> {
-    const session = await this.sessionRepository.findOwnedById(sessionId, shopId, userId);
+  async getOwnedSession(
+    sessionId: string,
+    shopId: string,
+    userId: string,
+  ): Promise<ChatSessionDto> {
+    const session = await this.sessionRepository.findOwnedById(
+      sessionId,
+      shopId,
+      userId,
+    );
     if (!session) {
       throw new NotFoundException('Chat session not found');
     }
@@ -90,8 +104,29 @@ export class ChatSessionService {
     userId: string,
     status: 'active' | 'archived' = 'active',
   ): Promise<ChatSessionMetadataDto[]> {
-    const sessions = await this.sessionRepository.listOwnedByUser(shopId, userId, status);
+    const sessions = await this.sessionRepository.listOwnedByUser(
+      shopId,
+      userId,
+      status,
+    );
     return sessions.map((session) => this.toMetadataDto(session));
+  }
+
+  async listSessionMessages(
+    sessionId: string,
+    shopId: string,
+    userId: string,
+  ): Promise<ChatMessageEntry[]> {
+    const session = await this.sessionRepository.findOwnedById(
+      sessionId,
+      shopId,
+      userId,
+    );
+    if (!session) {
+      throw new NotFoundException('Chat session not found');
+    }
+
+    return this.toMessageDto(session);
   }
 
   async appendMessage(
@@ -101,7 +136,11 @@ export class ChatSessionService {
     role: 'user' | 'assistant',
     content: string,
   ): Promise<ChatSessionDto> {
-    const session = await this.sessionRepository.findOwnedById(sessionId, shopId, userId);
+    const session = await this.sessionRepository.findOwnedById(
+      sessionId,
+      shopId,
+      userId,
+    );
     if (!session) {
       throw new NotFoundException('Chat session not found');
     }
@@ -113,7 +152,11 @@ export class ChatSessionService {
     });
     const savedMessage = await this.messageRepository.save(message);
 
-    if (role === 'user' && session.title === 'New chat' && (session.messages?.length ?? 0) === 0) {
+    if (
+      role === 'user' &&
+      session.title === 'New chat' &&
+      (session.messages?.length ?? 0) === 0
+    ) {
       session.title = this.buildSessionTitle(content);
     }
 
@@ -124,8 +167,16 @@ export class ChatSessionService {
     return this.toDto({ ...savedSession, messages: session.messages });
   }
 
-  async archiveSession(sessionId: string, shopId: string, userId: string): Promise<ChatSessionDto> {
-    const session = await this.sessionRepository.findOwnedById(sessionId, shopId, userId);
+  async archiveSession(
+    sessionId: string,
+    shopId: string,
+    userId: string,
+  ): Promise<ChatSessionDto> {
+    const session = await this.sessionRepository.findOwnedById(
+      sessionId,
+      shopId,
+      userId,
+    );
     if (!session) {
       throw new NotFoundException('Chat session not found');
     }
@@ -135,14 +186,26 @@ export class ChatSessionService {
     return this.toDto(savedSession);
   }
 
-  async deleteSession(sessionId: string, shopId: string, userId: string): Promise<void> {
+  async deleteSession(
+    sessionId: string,
+    shopId: string,
+    userId: string,
+  ): Promise<void> {
     await this.getOwnedSession(sessionId, shopId, userId);
     await this.sessionRepository.softDeleteById(sessionId);
   }
 
-  async getOrCreateSession(sessionId: string | undefined, shopId: string, userId: string): Promise<ChatSessionDto> {
+  async getOrCreateSession(
+    sessionId: string | undefined,
+    shopId: string,
+    userId: string,
+  ): Promise<ChatSessionDto> {
     if (sessionId) {
-      const existing = await this.sessionRepository.findOwnedById(sessionId, shopId, userId);
+      const existing = await this.sessionRepository.findOwnedById(
+        sessionId,
+        shopId,
+        userId,
+      );
       if (existing) {
         return this.toDto(existing);
       }

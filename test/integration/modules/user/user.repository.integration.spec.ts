@@ -31,7 +31,14 @@ describe('UserRepository Integration', () => {
           synchronize: true,
           logging: false,
         }),
-        TypeOrmModule.forFeature([Shop, Location, User, ChatEvent, StorefrontView, Order]),
+        TypeOrmModule.forFeature([
+          Shop,
+          Location,
+          User,
+          ChatEvent,
+          StorefrontView,
+          Order,
+        ]),
       ],
       providers: [UserRepository],
     }).compile();
@@ -65,7 +72,10 @@ describe('UserRepository Integration', () => {
     );
   };
 
-  const createUser = async (email: string, shopId: string | null): Promise<User> => {
+  const createUser = async (
+    email: string,
+    shopId: string | null,
+  ): Promise<User> => {
     return dataSource.getRepository(User).save(
       dataSource.getRepository(User).create({
         email,
@@ -88,7 +98,9 @@ describe('UserRepository Integration', () => {
   });
 
   it('findById returns null for missing id', async () => {
-    const result = await repository.findById('00000000-0000-0000-0000-000000000000');
+    const result = await repository.findById(
+      '00000000-0000-0000-0000-000000000000',
+    );
 
     expect(result).toBeNull();
   });
@@ -103,7 +115,9 @@ describe('UserRepository Integration', () => {
     const result = await repository.findByShopId(shopA.id);
 
     expect(result).toHaveLength(2);
-    expect(result.map((user) => user.id).sort()).toEqual([userA1.id, userA2.id].sort());
+    expect(result.map((user) => user.id).sort()).toEqual(
+      [userA1.id, userA2.id].sort(),
+    );
     expect(result.every((user) => user.shopId === shopA.id)).toBe(true);
     expect(result.every((user) => user.shop?.id === shopA.id)).toBe(true);
   });
@@ -112,8 +126,12 @@ describe('UserRepository Integration', () => {
     const shop = await createShop('Exists Shop', `exists-shop-${Date.now()}`);
     await createUser('exists@example.com', shop.id);
 
-    await expect(repository.existsByEmail('exists@example.com')).resolves.toBe(true);
-    await expect(repository.existsByEmail('missing@example.com')).resolves.toBe(false);
+    await expect(repository.existsByEmail('exists@example.com')).resolves.toBe(
+      true,
+    );
+    await expect(repository.existsByEmail('missing@example.com')).resolves.toBe(
+      false,
+    );
   });
 
   it('existsByEmailAndNotId excludes the provided user id', async () => {
@@ -121,7 +139,11 @@ describe('UserRepository Integration', () => {
     const userA = await createUser('same@example.com', shop.id);
     const userB = await createUser('other@example.com', shop.id);
 
-    await expect(repository.existsByEmailAndNotId('same@example.com', userA.id)).resolves.toBe(false);
-    await expect(repository.existsByEmailAndNotId('same@example.com', userB.id)).resolves.toBe(true);
+    await expect(
+      repository.existsByEmailAndNotId('same@example.com', userA.id),
+    ).resolves.toBe(false);
+    await expect(
+      repository.existsByEmailAndNotId('same@example.com', userB.id),
+    ).resolves.toBe(true);
   });
 });

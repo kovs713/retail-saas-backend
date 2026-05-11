@@ -3,7 +3,11 @@ import { CreateUserDto, UpdateUserDto } from './dto';
 import { User } from './entities';
 import { UserRepository } from './repositories';
 
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { compare, hash } from 'bcryptjs';
 
 @Injectable()
@@ -17,7 +21,9 @@ export class UserService {
     const existing = await this.userRepository.existsByEmail(createDto.email);
 
     if (existing) {
-      throw new ConflictException(`User with email "${createDto.email}" already exists`);
+      throw new ConflictException(
+        `User with email "${createDto.email}" already exists`,
+      );
     }
 
     const passwordHash = await hash(createDto.password, 10);
@@ -107,10 +113,15 @@ export class UserService {
     const user = await this.findById(id);
 
     if (updateDto.email && updateDto.email !== user.email) {
-      const existing = await this.userRepository.existsByEmailAndNotId(updateDto.email, id);
+      const existing = await this.userRepository.existsByEmailAndNotId(
+        updateDto.email,
+        id,
+      );
 
       if (existing) {
-        throw new ConflictException(`User with email "${updateDto.email}" already exists`);
+        throw new ConflictException(
+          `User with email "${updateDto.email}" already exists`,
+        );
       }
     }
 
@@ -120,10 +131,17 @@ export class UserService {
     return updated;
   }
 
-  private async invalidateUserCache(userId: string, email?: string): Promise<void> {
-    await this.cacheService.del(this.cacheService.generateKey('user', 'id', userId));
+  private async invalidateUserCache(
+    userId: string,
+    email?: string,
+  ): Promise<void> {
+    await this.cacheService.del(
+      this.cacheService.generateKey('user', 'id', userId),
+    );
     if (email) {
-      await this.cacheService.del(this.cacheService.generateKey('user', 'email', email));
+      await this.cacheService.del(
+        this.cacheService.generateKey('user', 'email', email),
+      );
     }
   }
 }

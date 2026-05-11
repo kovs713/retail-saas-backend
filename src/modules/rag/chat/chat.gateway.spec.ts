@@ -92,7 +92,8 @@ describe('ChatGateway', () => {
       .compile();
 
     gateway = module.get<ChatGateway>(ChatGateway);
-    sessionService = module.get<DeepMocked<ChatSessionService>>(ChatSessionService);
+    sessionService =
+      module.get<DeepMocked<ChatSessionService>>(ChatSessionService);
     ragService = module.get<DeepMocked<RagService>>(RagService);
     cacheService = module.get<DeepMocked<CacheService>>(CacheService);
     jwtService = module.get<DeepMocked<JwtService>>(JwtService);
@@ -103,9 +104,14 @@ describe('ChatGateway', () => {
 
   describe('handleConnection', () => {
     it('should handle client connection with valid token', async () => {
-      jwtService.verifyAsync.mockResolvedValue({ sub: 'user-1', shopId: 'shop-1' } as never);
+      jwtService.verifyAsync.mockResolvedValue({
+        sub: 'user-1',
+        shopId: 'shop-1',
+      } as never);
 
-      await gateway.handleConnection(mockSocket as Parameters<typeof gateway.handleConnection>[0]);
+      await gateway.handleConnection(
+        mockSocket as Parameters<typeof gateway.handleConnection>[0],
+      );
 
       expect(mockSocket.data.tenantContext).toEqual({ shopId: 'shop-1' });
       expect(mockSocket.disconnect).not.toHaveBeenCalled();
@@ -117,7 +123,9 @@ describe('ChatGateway', () => {
         handshake: { auth: {}, headers: {} },
       };
 
-      await gateway.handleConnection(socketWithoutToken as Parameters<typeof gateway.handleConnection>[0]);
+      await gateway.handleConnection(
+        socketWithoutToken as Parameters<typeof gateway.handleConnection>[0],
+      );
 
       expect(socketWithoutToken.disconnect).toHaveBeenCalled();
     });
@@ -125,7 +133,9 @@ describe('ChatGateway', () => {
     it('should disconnect client with invalid token', async () => {
       jwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
 
-      await gateway.handleConnection(mockSocket as Parameters<typeof gateway.handleConnection>[0]);
+      await gateway.handleConnection(
+        mockSocket as Parameters<typeof gateway.handleConnection>[0],
+      );
 
       expect(mockSocket.disconnect).toHaveBeenCalled();
     });
@@ -178,7 +188,9 @@ describe('ChatGateway', () => {
         yield { type: 'chunk' as const, content: 'World' };
         yield {
           type: 'complete' as const,
-          sources: [{ pageContent: 'Source content', metadata: { source: 'test' } }],
+          sources: [
+            { pageContent: 'Source content', metadata: { source: 'test' } },
+          ],
         };
       })();
 
@@ -234,7 +246,11 @@ describe('ChatGateway', () => {
 
       await gateway.handleMessage({ message: 'Hello' }, mockSocket);
 
-      expect(sessionService.getOrCreateSession).toHaveBeenCalledWith(undefined, 'shop-1', 'user-1');
+      expect(sessionService.getOrCreateSession).toHaveBeenCalledWith(
+        undefined,
+        'shop-1',
+        'user-1',
+      );
     });
 
     it('should use existing session when sessionId provided', async () => {
@@ -246,9 +262,16 @@ describe('ChatGateway', () => {
         yield { type: 'complete' as const, sources: [] };
       });
 
-      await gateway.handleMessage({ sessionId: 'existing-session', message: 'Hello' }, mockSocket);
+      await gateway.handleMessage(
+        { sessionId: 'existing-session', message: 'Hello' },
+        mockSocket,
+      );
 
-      expect(sessionService.getOrCreateSession).toHaveBeenCalledWith('existing-session', 'shop-1', 'user-1');
+      expect(sessionService.getOrCreateSession).toHaveBeenCalledWith(
+        'existing-session',
+        'shop-1',
+        'user-1',
+      );
     });
 
     it('should include recent user history in retrieval for follow-up message', async () => {
@@ -256,8 +279,18 @@ describe('ChatGateway', () => {
       sessionService.getOrCreateSession.mockResolvedValue({
         ...mockSession,
         messages: [
-          { id: 'm1', role: 'user', content: 'is there any phones', timestamp: '2024-01-01T00:00:00.000Z' },
-          { id: 'm2', role: 'assistant', content: 'No phones found', timestamp: '2024-01-01T00:00:01.000Z' },
+          {
+            id: 'm1',
+            role: 'user',
+            content: 'is there any phones',
+            timestamp: '2024-01-01T00:00:00.000Z',
+          },
+          {
+            id: 'm2',
+            role: 'assistant',
+            content: 'No phones found',
+            timestamp: '2024-01-01T00:00:01.000Z',
+          },
         ],
       });
       sessionService.appendMessage.mockResolvedValue(mockSession);
@@ -266,7 +299,10 @@ describe('ChatGateway', () => {
         yield { type: 'complete' as const, sources: [] };
       });
 
-      await gateway.handleMessage({ sessionId: 'session-1', message: 'i mean smartphones' }, mockSocket);
+      await gateway.handleMessage(
+        { sessionId: 'session-1', message: 'i mean smartphones' },
+        mockSocket,
+      );
 
       expect(ragService.queryStream).toHaveBeenCalledWith(
         'i mean smartphones',

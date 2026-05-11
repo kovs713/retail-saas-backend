@@ -4,7 +4,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Transform, plainToInstance } from 'class-transformer';
 
 export class ShopDto {
-  @ApiProperty({ description: 'Shop ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'Shop ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @Expose()
   id: string;
 
@@ -48,7 +51,10 @@ export class ShopDto {
   @Expose()
   ownerId: string | null;
 
-  @ApiProperty({ description: 'Created at timestamp', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Created at timestamp',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   @Expose()
   @Transform(({ value }) => {
     if (value instanceof Date) {
@@ -61,7 +67,10 @@ export class ShopDto {
   })
   createdAt: string;
 
-  @ApiPropertyOptional({ description: 'Updated at timestamp', example: '2024-01-01T00:00:00.000Z' })
+  @ApiPropertyOptional({
+    description: 'Updated at timestamp',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   @Expose()
   @Transform(({ value }) => {
     if (value instanceof Date) {

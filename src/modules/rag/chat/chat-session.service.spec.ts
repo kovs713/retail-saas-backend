@@ -72,7 +72,6 @@ describe('ChatSessionService', () => {
           userId: 'user-1',
           title: 'New chat',
           status: 'active',
-          warmStatus: 'pending',
         }),
       );
       expect(result).toEqual(
@@ -82,9 +81,6 @@ describe('ChatSessionService', () => {
           userId: 'user-1',
           title: 'Need phones',
           status: 'active',
-          warmStatus: 'pending',
-          warmProductSummary: null,
-          warmProductSnapshotAt: null,
           messages: [],
           lastMessageAt: '2024-01-01T00:00:00.000Z',
           createdAt: '2024-01-01T00:00:00.000Z',
@@ -98,9 +94,17 @@ describe('ChatSessionService', () => {
     it('should return owned session', async () => {
       sessionRepository.findOwnedById.mockResolvedValue(mockSession as any);
 
-      const result = await service.getOwnedSession('session-1', 'shop-1', 'user-1');
+      const result = await service.getOwnedSession(
+        'session-1',
+        'shop-1',
+        'user-1',
+      );
 
-      expect(sessionRepository.findOwnedById).toHaveBeenCalledWith('session-1', 'shop-1', 'user-1');
+      expect(sessionRepository.findOwnedById).toHaveBeenCalledWith(
+        'session-1',
+        'shop-1',
+        'user-1',
+      );
       expect(result).toEqual(
         expect.objectContaining({
           id: 'session-1',
@@ -108,9 +112,6 @@ describe('ChatSessionService', () => {
           userId: 'user-1',
           title: 'Need phones',
           status: 'active',
-          warmStatus: 'pending',
-          warmProductSummary: null,
-          warmProductSnapshotAt: null,
           messages: [],
           lastMessageAt: '2024-01-01T00:00:00.000Z',
           createdAt: '2024-01-01T00:00:00.000Z',
@@ -122,7 +123,9 @@ describe('ChatSessionService', () => {
     it('should throw when session missing', async () => {
       sessionRepository.findOwnedById.mockResolvedValue(null);
 
-      await expect(service.getOwnedSession('missing', 'shop-1', 'user-1')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.getOwnedSession('missing', 'shop-1', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -132,16 +135,75 @@ describe('ChatSessionService', () => {
 
       const result = await service.listSessions('shop-1', 'user-1');
 
-      expect(sessionRepository.listOwnedByUser).toHaveBeenCalledWith('shop-1', 'user-1', 'active');
+      expect(sessionRepository.listOwnedByUser).toHaveBeenCalledWith(
+        'shop-1',
+        'user-1',
+        'active',
+      );
       expect(result[0]).toEqual({
         id: 'session-1',
         title: 'Need phones',
         status: 'active',
-        warmStatus: 'pending',
         lastMessageAt: '2024-01-01T00:00:00.000Z',
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
       });
+    });
+  });
+
+  describe('listSessionMessages', () => {
+    it('should return owned session messages in order', async () => {
+      sessionRepository.findOwnedById.mockResolvedValue({
+        ...mockSession,
+        messages: [
+          {
+            id: 'message-1',
+            role: 'user',
+            content: 'Need phones',
+            createdAt: new Date('2024-01-01T00:00:01.000Z'),
+          },
+          {
+            id: 'message-2',
+            role: 'assistant',
+            content: 'Here are options',
+            createdAt: new Date('2024-01-01T00:00:02.000Z'),
+          },
+        ],
+      } as any);
+
+      const result = await service.listSessionMessages(
+        'session-1',
+        'shop-1',
+        'user-1',
+      );
+
+      expect(sessionRepository.findOwnedById).toHaveBeenCalledWith(
+        'session-1',
+        'shop-1',
+        'user-1',
+      );
+      expect(result).toEqual([
+        {
+          id: 'message-1',
+          role: 'user',
+          content: 'Need phones',
+          timestamp: '2024-01-01T00:00:01.000Z',
+        },
+        {
+          id: 'message-2',
+          role: 'assistant',
+          content: 'Here are options',
+          timestamp: '2024-01-01T00:00:02.000Z',
+        },
+      ]);
+    });
+
+    it('should throw when session missing', async () => {
+      sessionRepository.findOwnedById.mockResolvedValue(null);
+
+      await expect(
+        service.listSessionMessages('missing', 'shop-1', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -170,7 +232,13 @@ describe('ChatSessionService', () => {
         title: 'Need latest smartphones',
       } as any);
 
-      const result = await service.appendMessage('session-1', 'shop-1', 'user-1', 'user', 'Need latest smartphones');
+      const result = await service.appendMessage(
+        'session-1',
+        'shop-1',
+        'user-1',
+        'user',
+        'Need latest smartphones',
+      );
 
       expect(messageRepository.create).toHaveBeenCalledWith({
         sessionId: 'session-1',
@@ -190,9 +258,16 @@ describe('ChatSessionService', () => {
   describe('archiveSession', () => {
     it('should archive owned session', async () => {
       sessionRepository.findOwnedById.mockResolvedValue(mockSession as any);
-      sessionRepository.save.mockResolvedValue({ ...mockSession, status: 'archived' } as any);
+      sessionRepository.save.mockResolvedValue({
+        ...mockSession,
+        status: 'archived',
+      } as any);
 
-      const result = await service.archiveSession('session-1', 'shop-1', 'user-1');
+      const result = await service.archiveSession(
+        'session-1',
+        'shop-1',
+        'user-1',
+      );
 
       expect(result.status).toBe('archived');
     });
@@ -205,7 +280,9 @@ describe('ChatSessionService', () => {
 
       await service.deleteSession('session-1', 'shop-1', 'user-1');
 
-      expect(sessionRepository.softDeleteById).toHaveBeenCalledWith('session-1');
+      expect(sessionRepository.softDeleteById).toHaveBeenCalledWith(
+        'session-1',
+      );
     });
   });
 });

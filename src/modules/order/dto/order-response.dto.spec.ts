@@ -1,4 +1,8 @@
-import { OrderItemResponseDto, OrderListResponseDto, OrderResponseDto } from './order-response.dto';
+import {
+  OrderItemResponseDto,
+  OrderListResponseDto,
+  OrderResponseDto,
+} from './order-response.dto';
 
 import { plainToInstance } from 'class-transformer';
 
@@ -17,7 +21,9 @@ describe('OrderResponseDto', () => {
         updatedAt: new Date('2024-01-01T00:00:00.000Z'),
       };
 
-      const dto = plainToInstance(OrderResponseDto, raw, { excludeExtraneousValues: true });
+      const dto = plainToInstance(OrderResponseDto, raw, {
+        excludeExtraneousValues: true,
+      });
 
       expect(dto.totalAmount).toBe(200);
       expect(typeof dto.totalAmount).toBe('number');
@@ -36,7 +42,9 @@ describe('OrderResponseDto', () => {
         updatedAt: new Date('2024-01-02T00:00:00.000Z'),
       };
 
-      const dto = plainToInstance(OrderResponseDto, raw, { excludeExtraneousValues: true });
+      const dto = plainToInstance(OrderResponseDto, raw, {
+        excludeExtraneousValues: true,
+      });
 
       expect(dto.createdAt).toBe('2024-01-01T00:00:00.000Z');
       expect(dto.updatedAt).toBe('2024-01-02T00:00:00.000Z');
@@ -55,7 +63,9 @@ describe('OrderResponseDto', () => {
         updatedAt: '2024-06-16T12:00:00.000Z',
       };
 
-      const dto = plainToInstance(OrderResponseDto, raw, { excludeExtraneousValues: true });
+      const dto = plainToInstance(OrderResponseDto, raw, {
+        excludeExtraneousValues: true,
+      });
 
       expect(dto.createdAt).toBe('2024-06-15T12:00:00.000Z');
     });
@@ -73,7 +83,9 @@ describe('OrderResponseDto', () => {
         updatedAt: 12345,
       };
 
-      const dto = plainToInstance(OrderResponseDto, raw, { excludeExtraneousValues: true });
+      const dto = plainToInstance(OrderResponseDto, raw, {
+        excludeExtraneousValues: true,
+      });
 
       expect(dto.createdAt).toBeUndefined();
       expect(dto.updatedAt).toBeUndefined();
@@ -86,8 +98,20 @@ describe('OrderResponseDto', () => {
         customerName: 'Test Customer',
         customerPhone: '+1234567890',
         items: [
-          { productId: 'prod_001', sku: 'SKU-1', name: 'Product 1', quantity: 2, price: 50 },
-          { productId: 'prod_002', sku: 'SKU-2', name: 'Product 2', quantity: 1, price: 100 },
+          {
+            productId: 'prod_001',
+            sku: 'SKU-1',
+            name: 'Product 1',
+            quantity: 2,
+            price: 50,
+          },
+          {
+            productId: 'prod_002',
+            sku: 'SKU-2',
+            name: 'Product 2',
+            quantity: 1,
+            price: 100,
+          },
         ],
         totalAmount: 200,
         status: 'PENDING',
@@ -95,7 +119,9 @@ describe('OrderResponseDto', () => {
         updatedAt: new Date('2024-01-01T00:00:00.000Z'),
       };
 
-      const dto = plainToInstance(OrderResponseDto, raw, { excludeExtraneousValues: true });
+      const dto = plainToInstance(OrderResponseDto, raw, {
+        excludeExtraneousValues: true,
+      });
 
       expect(dto.items).toHaveLength(2);
       expect(dto.items[0]).toBeInstanceOf(OrderItemResponseDto);
@@ -125,7 +151,9 @@ describe('OrderListResponseDto', () => {
       limit: 10,
     };
 
-    const dto = plainToInstance(OrderListResponseDto, raw, { excludeExtraneousValues: true });
+    const dto = plainToInstance(OrderListResponseDto, raw, {
+      excludeExtraneousValues: true,
+    });
 
     expect(dto.data).toHaveLength(1);
     expect(dto.data[0]).toBeInstanceOf(OrderResponseDto);

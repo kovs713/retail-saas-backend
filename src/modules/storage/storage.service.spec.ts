@@ -1,10 +1,9 @@
-import { MinioClient } from '@/common/types';
+import { MinioClient, MinioConfig } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import { StorageService } from './storage.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { BucketItemStat, Client } from 'minio';
 
@@ -21,22 +20,24 @@ describe('StorageService', () => {
     metaData: { 'content-type': 'text/plain' },
     etag: 'test-etag',
   };
+  const mockMinioConfig = {
+    host: 'localhost',
+    port: 9000,
+    accessKey: 'test-key',
+    secretKey: 'test-secret',
+    userSSL: false,
+    bucket: 'test-bucket',
+  };
 
   beforeEach(async () => {
     mockMinioClient = createMock<Client>();
     mockMinioClient.statObject.mockResolvedValue(mockStat);
 
-    const mockConfigService = createMock<ConfigService>();
-    mockConfigService.getOrThrow.mockImplementation((key: string) => {
-      const config: Record<string, string> = { S3_BUCKET: mockBucket };
-      return config[key];
-    });
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StorageService,
         { provide: MinioClient, useValue: mockMinioClient },
-        { provide: ConfigService, useValue: mockConfigService },
+        { provide: MinioConfig, useValue: mockMinioConfig },
         { provide: LoggerService, useValue: createMock<LoggerService>() },
       ],
     }).compile();
@@ -50,7 +51,9 @@ describe('StorageService', () => {
 
   describe('getPresignedPutUrl', () => {
     it('should generate presigned PUT URL', async () => {
-      mockMinioClient.presignedPutObject.mockResolvedValue('https://example.com/put');
+      mockMinioClient.presignedPutObject.mockResolvedValue(
+        'https://example.com/put',
+      );
 
       const result = await service.getPresignedPutUrl(mockKey);
 
@@ -58,7 +61,9 @@ describe('StorageService', () => {
     });
 
     it('should use custom expiry', async () => {
-      mockMinioClient.presignedPutObject.mockResolvedValue('https://example.com/put');
+      mockMinioClient.presignedPutObject.mockResolvedValue(
+        'https://example.com/put',
+      );
 
       const result = await service.getPresignedPutUrl(mockKey, 7200);
 
@@ -83,7 +88,9 @@ describe('StorageService', () => {
 
     it('should map not found errors', async () => {
       mockMinioClient.getObject.mockRejectedValue({ code: 'NoSuchObject' });
-      await expect(service.getObjectStream(mockKey)).rejects.toThrow(NotFoundException);
+      await expect(service.getObjectStream(mockKey)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -91,10 +98,15 @@ describe('StorageService', () => {
     it('should upload object with metadata', async () => {
       mockMinioClient.putObject.mockResolvedValue('test-etag');
 
-      const result = await service.putObject(mockKey, mockFileBuffer, mockFileBuffer.length, {
-        'Content-Type': 'text/plain',
-        'Cache-Control': 'public, max-age=31536000, immutable',
-      });
+      const result = await service.putObject(
+        mockKey,
+        mockFileBuffer,
+        mockFileBuffer.length,
+        {
+          'Content-Type': 'text/plain',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      );
 
       expect(result).toBe('test-etag');
       expect(mockMinioClient.putObject).toHaveBeenCalledWith(
@@ -112,7 +124,9 @@ describe('StorageService', () => {
     it('should throw when upload fails', async () => {
       mockMinioClient.putObject.mockRejectedValue(new Error('upload failed'));
 
-      await expect(service.putObject(mockKey, mockFileBuffer, mockFileBuffer.length)).rejects.toThrow('upload failed');
+      await expect(
+        service.putObject(mockKey, mockFileBuffer, mockFileBuffer.length),
+      ).rejects.toThrow('upload failed');
     });
   });
 
@@ -127,7 +141,10 @@ describe('StorageService', () => {
     });
 
     it('should use default content type when missing', async () => {
-      mockMinioClient.statObject.mockResolvedValue({ ...mockStat, metaData: {} });
+      mockMinioClient.statObject.mockResolvedValue({
+        ...mockStat,
+        metaData: {},
+      });
 
       const result = await service.statObject(mockKey);
 
@@ -136,7 +153,9 @@ describe('StorageService', () => {
 
     it('should map not found errors', async () => {
       mockMinioClient.statObject.mockRejectedValue({ code: 'NoSuchKey' });
-      await expect(service.statObject(mockKey)).rejects.toThrow(NotFoundException);
+      await expect(service.statObject(mockKey)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -149,7 +168,9 @@ describe('StorageService', () => {
 
     it('should map not found errors', async () => {
       mockMinioClient.removeObject.mockRejectedValue({ code: 'NotFound' });
-      await expect(service.deleteObject(mockKey)).rejects.toThrow(NotFoundException);
+      await expect(service.deleteObject(mockKey)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -178,7 +199,9 @@ describe('StorageService', () => {
     it('should handle non-object errors gracefully', async () => {
       mockMinioClient.getObject.mockRejectedValue('string error');
 
-      await expect(service.getObjectStream(mockKey)).rejects.toBe('string error');
+      await expect(service.getObjectStream(mockKey)).rejects.toBe(
+        'string error',
+      );
     });
 
     it('should handle null errors gracefully', async () => {

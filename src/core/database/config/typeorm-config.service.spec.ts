@@ -18,17 +18,19 @@ describe('TypeOrmConfigService', () => {
 
   describe('createTypeOrmOptions', () => {
     it('should load TypeORM config from environment', () => {
-      jest.spyOn(configService, 'getOrThrow').mockImplementation((key: string) => {
-        const config: Record<string, any> = {
-          DB_HOST: 'localhost',
-          DB_PORT: 5432,
-          DB_USERNAME: 'testuser',
-          DB_PASSWORD: 'testpass',
-          DB_DATABASE: 'testdb',
-          NODE_ENV: 'production',
-        };
-        return config[key];
-      });
+      jest
+        .spyOn(configService, 'getOrThrow')
+        .mockImplementation((key: string) => {
+          const config: Record<string, any> = {
+            DB_HOST: 'localhost',
+            DB_PORT: 5432,
+            DB_USERNAME: 'testuser',
+            DB_PASSWORD: 'testpass',
+            DB_DATABASE: 'testdb',
+            NODE_ENV: 'production',
+          };
+          return config[key];
+        });
 
       const result = service.createTypeOrmOptions();
 
@@ -48,25 +50,29 @@ describe('TypeOrmConfigService', () => {
     });
 
     it('should use default values when env not set', () => {
-      jest.spyOn(configService, 'getOrThrow').mockImplementation((key: string) => {
-        throw new Error(`Environment variable ${key} not found`);
-      });
+      jest
+        .spyOn(configService, 'getOrThrow')
+        .mockImplementation((key: string) => {
+          throw new Error(`Environment variable ${key} not found`);
+        });
 
       expect(() => service.createTypeOrmOptions()).toThrow();
     });
 
     it('should enable entities synchronization in development', () => {
-      jest.spyOn(configService, 'getOrThrow').mockImplementation((key: string) => {
-        const config: Record<string, any> = {
-          DB_HOST: 'localhost',
-          DB_PORT: 5432,
-          DB_USERNAME: 'user',
-          DB_PASSWORD: 'pass',
-          DB_DATABASE: 'db',
-          NODE_ENV: 'DEVELOPMENT',
-        };
-        return config[key];
-      });
+      jest
+        .spyOn(configService, 'getOrThrow')
+        .mockImplementation((key: string) => {
+          const config: Record<string, any> = {
+            DB_HOST: 'localhost',
+            DB_PORT: 5432,
+            DB_USERNAME: 'user',
+            DB_PASSWORD: 'pass',
+            DB_DATABASE: 'db',
+            NODE_ENV: 'DEVELOPMENT',
+          };
+          return config[key];
+        });
 
       const result = service.createTypeOrmOptions();
 
@@ -74,17 +80,19 @@ describe('TypeOrmConfigService', () => {
     });
 
     it('should disable synchronization in production', () => {
-      jest.spyOn(configService, 'getOrThrow').mockImplementation((key: string) => {
-        const config: Record<string, any> = {
-          DB_HOST: 'localhost',
-          DB_PORT: 5432,
-          DB_USERNAME: 'user',
-          DB_PASSWORD: 'pass',
-          DB_DATABASE: 'db',
-          NODE_ENV: 'production',
-        };
-        return config[key];
-      });
+      jest
+        .spyOn(configService, 'getOrThrow')
+        .mockImplementation((key: string) => {
+          const config: Record<string, any> = {
+            DB_HOST: 'localhost',
+            DB_PORT: 5432,
+            DB_USERNAME: 'user',
+            DB_PASSWORD: 'pass',
+            DB_DATABASE: 'db',
+            NODE_ENV: 'production',
+          };
+          return config[key];
+        });
 
       const result = service.createTypeOrmOptions();
 
@@ -92,17 +100,19 @@ describe('TypeOrmConfigService', () => {
     });
 
     it('should enable logging in DEVELOPMENT mode', () => {
-      jest.spyOn(configService, 'getOrThrow').mockImplementation((key: string) => {
-        const config: Record<string, any> = {
-          DB_HOST: 'localhost',
-          DB_PORT: 5432,
-          DB_USERNAME: 'user',
-          DB_PASSWORD: 'pass',
-          DB_DATABASE: 'db',
-          NODE_ENV: 'DEVELOPMENT',
-        };
-        return config[key];
-      });
+      jest
+        .spyOn(configService, 'getOrThrow')
+        .mockImplementation((key: string) => {
+          const config: Record<string, any> = {
+            DB_HOST: 'localhost',
+            DB_PORT: 5432,
+            DB_USERNAME: 'user',
+            DB_PASSWORD: 'pass',
+            DB_DATABASE: 'db',
+            NODE_ENV: 'DEVELOPMENT',
+          };
+          return config[key];
+        });
 
       const result = service.createTypeOrmOptions();
 
@@ -110,17 +120,19 @@ describe('TypeOrmConfigService', () => {
     });
 
     it('should disable logging in production', () => {
-      jest.spyOn(configService, 'getOrThrow').mockImplementation((key: string) => {
-        const config: Record<string, any> = {
-          DB_HOST: 'localhost',
-          DB_PORT: 5432,
-          DB_USERNAME: 'user',
-          DB_PASSWORD: 'pass',
-          DB_DATABASE: 'db',
-          NODE_ENV: 'production',
-        };
-        return config[key];
-      });
+      jest
+        .spyOn(configService, 'getOrThrow')
+        .mockImplementation((key: string) => {
+          const config: Record<string, any> = {
+            DB_HOST: 'localhost',
+            DB_PORT: 5432,
+            DB_USERNAME: 'user',
+            DB_PASSWORD: 'pass',
+            DB_DATABASE: 'db',
+            NODE_ENV: 'production',
+          };
+          return config[key];
+        });
 
       const result = service.createTypeOrmOptions();
 
@@ -128,17 +140,19 @@ describe('TypeOrmConfigService', () => {
     });
 
     it('should configure entities from modules', () => {
-      jest.spyOn(configService, 'getOrThrow').mockImplementation((key: string) => {
-        const config: Record<string, any> = {
-          DB_HOST: 'localhost',
-          DB_PORT: 5432,
-          DB_USERNAME: 'user',
-          DB_PASSWORD: 'pass',
-          DB_DATABASE: 'db',
-          NODE_ENV: 'production',
-        };
-        return config[key];
-      });
+      jest
+        .spyOn(configService, 'getOrThrow')
+        .mockImplementation((key: string) => {
+          const config: Record<string, any> = {
+            DB_HOST: 'localhost',
+            DB_PORT: 5432,
+            DB_USERNAME: 'user',
+            DB_PASSWORD: 'pass',
+            DB_DATABASE: 'db',
+            NODE_ENV: 'production',
+          };
+          return config[key];
+        });
 
       const result = service.createTypeOrmOptions();
 
@@ -146,17 +160,19 @@ describe('TypeOrmConfigService', () => {
     });
 
     it('should set extra options for search_path', () => {
-      jest.spyOn(configService, 'getOrThrow').mockImplementation((key: string) => {
-        const config: Record<string, any> = {
-          DB_HOST: 'localhost',
-          DB_PORT: 5432,
-          DB_USERNAME: 'user',
-          DB_PASSWORD: 'pass',
-          DB_DATABASE: 'db',
-          NODE_ENV: 'production',
-        };
-        return config[key];
-      });
+      jest
+        .spyOn(configService, 'getOrThrow')
+        .mockImplementation((key: string) => {
+          const config: Record<string, any> = {
+            DB_HOST: 'localhost',
+            DB_PORT: 5432,
+            DB_USERNAME: 'user',
+            DB_PASSWORD: 'pass',
+            DB_DATABASE: 'db',
+            NODE_ENV: 'production',
+          };
+          return config[key];
+        });
 
       const result = service.createTypeOrmOptions();
 

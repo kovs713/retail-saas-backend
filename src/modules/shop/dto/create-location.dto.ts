@@ -6,12 +6,18 @@ export class CreateLocationDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Location address', example: '123 Main St' })
+  @ApiPropertyOptional({
+    description: 'Location address',
+    example: '123 Main St',
+  })
   @IsOptional()
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ description: 'Location phone', example: '+1234567890' })
+  @ApiPropertyOptional({
+    description: 'Location phone',
+    example: '+1234567890',
+  })
   @IsOptional()
   @IsString()
   phone?: string;
@@ -24,7 +30,10 @@ export class CreateLocationDto {
   @IsObject()
   workingHours?: Record<string, string>;
 
-  @ApiPropertyOptional({ description: 'Set as default location', example: false })
+  @ApiPropertyOptional({
+    description: 'Set as default location',
+    example: false,
+  })
   @IsOptional()
   @IsBoolean()
   isDefault?: boolean;

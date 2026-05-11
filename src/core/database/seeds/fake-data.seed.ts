@@ -4,100 +4,36 @@ import { Category, Product } from '@/modules/product/entities';
 import { Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
 import { AppModule } from 'src/app.module';
+import {
+  CHAT_EVENT_QUERIES,
+  SEED_LOCALE,
+  SHOP_SEEDS,
+  buildSeedUsers,
+} from './fake-data.seed-data';
 
-import { Faker, en } from '@faker-js/faker';
+import { Faker, ru } from '@faker-js/faker';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { hash } from 'bcryptjs';
 import { DataSource } from 'typeorm';
 
-const faker = new Faker({ locale: [en] });
+const seedFaker = new Faker({ locale: [ru] });
 
-interface ShopSeedData {
-  name: string;
-  slug: string;
-  description: string;
-  address: string;
-  phone: string;
-  workingHours: Record<string, string>;
-  categories: { name: string; slug: string }[];
-  products: { name: string; price: number; cost: number }[];
+if (SEED_LOCALE !== 'ru') {
+  throw new Error('Unsupported fake seed locale');
 }
-
-const SHOP_SEEDS: ShopSeedData[] = [
-  {
-    name: 'Electronics Hub',
-    slug: 'electronics-hub',
-    description: 'Premium electronics and gadgets',
-    address: '123 Tech Street, Silicon Valley, CA 94025',
-    phone: '+1-555-0101',
-    workingHours: {
-      monday: '9:00-21:00',
-      tuesday: '9:00-21:00',
-      wednesday: '9:00-21:00',
-      thursday: '9:00-21:00',
-      friday: '9:00-22:00',
-      saturday: '10:00-22:00',
-      sunday: '10:00-18:00',
-    },
-    categories: [
-      { name: 'Smartphones', slug: 'smartphones' },
-      { name: 'Laptops', slug: 'laptops' },
-      { name: 'Accessories', slug: 'accessories' },
-      { name: 'Audio', slug: 'audio' },
-    ],
-    products: [
-      { name: 'iPhone 15 Pro', price: 999, cost: 750 },
-      { name: 'Samsung Galaxy S24', price: 899, cost: 650 },
-      { name: 'MacBook Pro 16"', price: 2499, cost: 1900 },
-      { name: 'Dell XPS 15', price: 1799, cost: 1400 },
-      { name: 'AirPods Pro', price: 249, cost: 150 },
-      { name: 'Sony WH-1000XM5', price: 399, cost: 280 },
-      { name: 'USB-C Hub', price: 49, cost: 25 },
-      { name: 'Wireless Charger', price: 39, cost: 18 },
-      { name: 'Phone Case Premium', price: 29, cost: 10 },
-      { name: 'Screen Protector', price: 19, cost: 5 },
-    ],
-  },
-  {
-    name: 'Fashion Store',
-    slug: 'fashion-store',
-    description: 'Trendy clothing and accessories',
-    address: '456 Fashion Ave, New York, NY 10018',
-    phone: '+1-555-0202',
-    workingHours: {
-      monday: '10:00-20:00',
-      tuesday: '10:00-20:00',
-      wednesday: '10:00-20:00',
-      thursday: '10:00-20:00',
-      friday: '10:00-21:00',
-      saturday: '10:00-21:00',
-      sunday: '12:00-18:00',
-    },
-    categories: [
-      { name: 'Men', slug: 'men' },
-      { name: 'Women', slug: 'women' },
-      { name: 'Shoes', slug: 'shoes' },
-      { name: 'Bags', slug: 'bags' },
-    ],
-    products: [
-      { name: 'Classic White Shirt', price: 59, cost: 25 },
-      { name: 'Slim Fit Jeans', price: 89, cost: 40 },
-      { name: 'Summer Dress', price: 129, cost: 60 },
-      { name: 'Leather Jacket', price: 299, cost: 150 },
-      { name: 'Running Shoes', price: 149, cost: 70 },
-      { name: 'Casual Sneakers', price: 119, cost: 55 },
-      { name: 'Leather Bag', price: 199, cost: 90 },
-      { name: 'Canvas Backpack', price: 79, cost: 35 },
-      { name: 'Wool Scarf', price: 49, cost: 20 },
-      { name: 'Sunglasses', price: 159, cost: 75 },
-    ],
-  },
-] as const;
 
 async function clearDatabase(dataSource: DataSource): Promise<void> {
   await dataSource.transaction(async () => {
-    for (const table of ['products', 'categories', 'orders', 'chat_events', 'storefront_views', 'users', 'shops']) {
+    for (const table of [
+      'products',
+      'categories',
+      'orders',
+      'chat_events',
+      'storefront_views',
+      'users',
+      'shops',
+    ]) {
       await dataSource.query(`DELETE FROM "${table}"`);
     }
   });
@@ -121,61 +57,38 @@ async function seedShops(dataSource: DataSource): Promise<Shop[]> {
   );
 }
 
-async function seedUsers(dataSource: DataSource, shops: Shop[]): Promise<User[]> {
+async function seedUsers(
+  dataSource: DataSource,
+  shops: Shop[],
+): Promise<User[]> {
   const userRepo = dataSource.getRepository(User);
   const passwordHash = await hash('changeme123', 10);
   const adminPasswordHash = await hash('admin123', 10);
+  const userSeeds = buildSeedUsers();
 
-  return Promise.all([
-    userRepo.save(
-      userRepo.create({
-        email: 'owner@electronics-hub.com',
-        passwordHash,
-        role: Role.OWNER,
-        shopId: shops[0].id,
-        isActive: true,
-      }),
+  return Promise.all(
+    userSeeds.map((userSeed) =>
+      userRepo.save(
+        userRepo.create({
+          email: userSeed.email,
+          passwordHash:
+            userSeed.role === Role.ADMIN ? adminPasswordHash : passwordHash,
+          role: userSeed.role,
+          shopId:
+            userSeed.shopSeedIndex === null
+              ? null
+              : shops[userSeed.shopSeedIndex].id,
+          isActive: true,
+        }),
+      ),
     ),
-    userRepo.save(
-      userRepo.create({
-        email: 'owner@fashion-store.com',
-        passwordHash,
-        role: Role.OWNER,
-        shopId: shops[1].id,
-        isActive: true,
-      }),
-    ),
-    userRepo.save(
-      userRepo.create({
-        email: 'admin@retail-saas.com',
-        passwordHash: adminPasswordHash,
-        role: Role.ADMIN,
-        shopId: null,
-        isActive: true,
-      }),
-    ),
-    userRepo.save(
-      userRepo.create({
-        email: 'manager@electronics-hub.com',
-        passwordHash,
-        role: Role.EMPLOYEE,
-        shopId: shops[0].id,
-        isActive: true,
-      }),
-    ),
-    userRepo.save(
-      userRepo.create({
-        email: 'manager@fashion-store.com',
-        passwordHash,
-        role: Role.EMPLOYEE,
-        shopId: shops[1].id,
-        isActive: true,
-      }),
-    ),
-  ]);
+  );
 }
 
-async function seedCategories(dataSource: DataSource, shops: Shop[]): Promise<Category[]> {
+async function seedCategories(
+  dataSource: DataSource,
+  shops: Shop[],
+): Promise<Category[]> {
   const categoryRepo = dataSource.getRepository(Category);
   return Promise.all(
     SHOP_SEEDS.flatMap((seed, i) =>
@@ -192,14 +105,31 @@ async function seedCategories(dataSource: DataSource, shops: Shop[]): Promise<Ca
   );
 }
 
-async function seedProducts(dataSource: DataSource, shops: Shop[], categories: Category[]): Promise<void> {
+async function seedProducts(
+  dataSource: DataSource,
+  shops: Shop[],
+  categories: Category[],
+): Promise<void> {
   const productRepo = dataSource.getRepository(Product);
-  const shopCategories = [categories.slice(0, 4), categories.slice(4, 8)];
+  const categoriesByShopId = new Map<string, Category[]>();
+
+  for (const category of categories) {
+    const shopCategories = categoriesByShopId.get(category.shopId) ?? [];
+    shopCategories.push(category);
+    categoriesByShopId.set(category.shopId, shopCategories);
+  }
 
   await Promise.all(
     SHOP_SEEDS.flatMap((seed, i) =>
       seed.products.map((prod) => {
-        const category = shopCategories[i][Math.floor(Math.random() * shopCategories[i].length)];
+        const shopCategoryList = categoriesByShopId.get(shops[i].id) ?? [];
+
+        if (shopCategoryList.length === 0) {
+          throw new Error(`No categories seeded for shop ${shops[i].slug}`);
+        }
+
+        const category = seedFaker.helpers.arrayElement(shopCategoryList);
+
         return productRepo.save(
           productRepo.create({
             name: prod.name,
@@ -207,18 +137,15 @@ async function seedProducts(dataSource: DataSource, shops: Shop[], categories: C
             cost: prod.cost,
             shopId: shops[i].id,
             categoryId: category.id,
-            sku: faker.string.alphanumeric(8).toUpperCase(),
-            description: faker.commerce.productDescription(),
-            quantity: faker.number.int({ min: 10, max: 500 }),
-            barcode: faker.commerce.upc(),
+            sku: seedFaker.string.alphanumeric(8).toUpperCase(),
+            description: prod.description,
+            quantity: seedFaker.number.int({ min: 10, max: 500 }),
+            barcode: seedFaker.commerce.isbn(),
             images: [
-              faker.image.dataUri({ width: 400, height: 400 }),
-              faker.image.dataUri({ width: 400, height: 400 }),
+              seedFaker.image.dataUri({ width: 400, height: 400 }),
+              seedFaker.image.dataUri({ width: 400, height: 400 }),
             ],
-            metadata: {
-              brand: faker.company.name(),
-              warranty: `${faker.number.int({ min: 1, max: 3 })} years`,
-            },
+            metadata: prod.metadata,
           }),
         );
       }),
@@ -226,17 +153,20 @@ async function seedProducts(dataSource: DataSource, shops: Shop[], categories: C
   );
 }
 
-async function seedStorefrontViews(dataSource: DataSource, shops: Shop[]): Promise<void> {
+async function seedStorefrontViews(
+  dataSource: DataSource,
+  shops: Shop[],
+): Promise<void> {
   const viewRepo = dataSource.getRepository(StorefrontView);
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const views = shops.flatMap((shop) => {
-    const count = faker.number.int({ min: 50, max: 200 });
+    const count = seedFaker.number.int({ min: 50, max: 200 });
     return Array.from({ length: count }, () =>
       viewRepo.create({
         shopId: shop.id,
-        createdAt: faker.date.between({ from: thirtyDaysAgo, to: now }),
+        createdAt: seedFaker.date.between({ from: thirtyDaysAgo, to: now }),
       }),
     );
   });
@@ -244,31 +174,23 @@ async function seedStorefrontViews(dataSource: DataSource, shops: Shop[]): Promi
   await viewRepo.save(views);
 }
 
-async function seedChatEvents(dataSource: DataSource, shops: Shop[]): Promise<void> {
+async function seedChatEvents(
+  dataSource: DataSource,
+  shops: Shop[],
+): Promise<void> {
   const eventRepo = dataSource.getRepository(ChatEvent);
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const queries = [
-    'What are your shipping options?',
-    'Do you offer returns?',
-    'Is this product in stock?',
-    'What payment methods do you accept?',
-    'Can I get a discount?',
-    'How do I track my order?',
-    'What is your warranty policy?',
-    'Do you ship internationally?',
-  ];
-
   const events = shops.flatMap((shop) => {
-    const count = faker.number.int({ min: 20, max: 100 });
+    const count = seedFaker.number.int({ min: 20, max: 100 });
     return Array.from({ length: count }, () =>
       eventRepo.create({
         shopId: shop.id,
-        userQuery: faker.helpers.arrayElement(queries),
-        answerLength: faker.number.int({ min: 50, max: 500 }),
-        sourcesCount: faker.number.int({ min: 1, max: 5 }),
-        createdAt: faker.date.between({ from: thirtyDaysAgo, to: now }),
+        userQuery: seedFaker.helpers.arrayElement(CHAT_EVENT_QUERIES),
+        answerLength: seedFaker.number.int({ min: 50, max: 500 }),
+        sourcesCount: seedFaker.number.int({ min: 1, max: 5 }),
+        createdAt: seedFaker.date.between({ from: thirtyDaysAgo, to: now }),
       }),
     );
   });
@@ -289,8 +211,17 @@ async function bootstrap() {
   const users = await seedUsers(dataSource, shops);
 
   const shopRepo = dataSource.getRepository(Shop);
-  shops[0].ownerId = users[0].id;
-  shops[1].ownerId = users[1].id;
+  const ownerEmails = new Set(
+    buildSeedUsers()
+      .filter((user) => user.role === Role.OWNER)
+      .map((user) => user.email),
+  );
+  const ownerUsers = users.filter((user) => ownerEmails.has(user.email));
+
+  shops.forEach((shop, index) => {
+    shop.ownerId = ownerUsers[index]?.id ?? null;
+  });
+
   await shopRepo.save(shops);
 
   const categories = await seedCategories(dataSource, shops);

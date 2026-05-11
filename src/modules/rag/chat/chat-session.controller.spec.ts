@@ -45,7 +45,10 @@ describe('ChatSessionController', () => {
 
     const result = await controller.createSession(tenantContext, user);
 
-    expect(service.createSession).toHaveBeenCalledWith(tenantContext.shopId, user.sub);
+    expect(service.createSession).toHaveBeenCalledWith(
+      tenantContext.shopId,
+      user.sub,
+    );
     expect(result.success).toBe(true);
   });
 
@@ -55,7 +58,6 @@ describe('ChatSessionController', () => {
         id: 'session-1',
         title: 'Need phones',
         status: 'active',
-        warmStatus: 'pending',
         lastMessageAt: '2024-01-01T00:00:00.000Z',
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
@@ -64,26 +66,74 @@ describe('ChatSessionController', () => {
 
     const result = await controller.listSessions('active', tenantContext, user);
 
-    expect(service.listSessions).toHaveBeenCalledWith(tenantContext.shopId, user.sub, 'active');
+    expect(service.listSessions).toHaveBeenCalledWith(
+      tenantContext.shopId,
+      user.sub,
+      'active',
+    );
+    expect(result.success).toBe(true);
+    expect(result.data).toHaveLength(1);
+  });
+
+  it('should list current user session messages', async () => {
+    service.listSessionMessages.mockResolvedValue([
+      {
+        id: 'message-1',
+        role: 'user',
+        content: 'Need phones',
+        timestamp: '2024-01-01T00:00:00.000Z',
+      },
+    ]);
+
+    const result = await controller.listSessionMessages(
+      'session-1',
+      tenantContext,
+      user,
+    );
+
+    expect(service.listSessionMessages).toHaveBeenCalledWith(
+      'session-1',
+      tenantContext.shopId,
+      user.sub,
+    );
     expect(result.success).toBe(true);
     expect(result.data).toHaveLength(1);
   });
 
   it('should archive owned session', async () => {
-    service.archiveSession.mockResolvedValue({ id: 'session-1', status: 'archived' } as any);
+    service.archiveSession.mockResolvedValue({
+      id: 'session-1',
+      status: 'archived',
+    } as any);
 
-    const result = await controller.archiveSession('session-1', tenantContext, user);
+    const result = await controller.archiveSession(
+      'session-1',
+      tenantContext,
+      user,
+    );
 
-    expect(service.archiveSession).toHaveBeenCalledWith('session-1', tenantContext.shopId, user.sub);
+    expect(service.archiveSession).toHaveBeenCalledWith(
+      'session-1',
+      tenantContext.shopId,
+      user.sub,
+    );
     expect(result.success).toBe(true);
   });
 
   it('should hard delete owned session', async () => {
     service.deleteSession.mockResolvedValue(undefined);
 
-    const result = await controller.deleteSession('session-1', tenantContext, user);
+    const result = await controller.deleteSession(
+      'session-1',
+      tenantContext,
+      user,
+    );
 
-    expect(service.deleteSession).toHaveBeenCalledWith('session-1', tenantContext.shopId, user.sub);
+    expect(service.deleteSession).toHaveBeenCalledWith(
+      'session-1',
+      tenantContext.shopId,
+      user.sub,
+    );
     expect(result.success).toBe(true);
   });
 });

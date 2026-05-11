@@ -107,7 +107,11 @@ describe('ShopController', () => {
     it('should create a shop successfully', async () => {
       jest.spyOn(service, 'create').mockResolvedValue(mockShop);
       const expectedDto = ShopDto.fromEntity(mockShop);
-      const expectedResult = { success: true, data: expectedDto, message: 'Shop created successfully' };
+      const expectedResult = {
+        success: true,
+        data: expectedDto,
+        message: 'Shop created successfully',
+      };
 
       const result = await controller.create(createDto);
 
@@ -152,18 +156,32 @@ describe('ShopController', () => {
       const updatedShop = { ...mockShop, ...updateDto };
       jest.spyOn(service, 'update').mockResolvedValue(updatedShop);
       const expectedDto = ShopDto.fromEntity(updatedShop);
-      const expectedResult = { success: true, data: expectedDto, message: 'Shop updated successfully' };
+      const expectedResult = {
+        success: true,
+        data: expectedDto,
+        message: 'Shop updated successfully',
+      };
 
-      const result = await controller.update('shop-1', updateDto, ownerTenantContext, ownerRequest);
+      const result = await controller.update(
+        'shop-1',
+        updateDto,
+        ownerTenantContext,
+        ownerRequest,
+      );
 
       expect(service.update).toHaveBeenCalledWith('shop-1', updateDto);
       expect(result).toEqual(expectedResult);
     });
 
     it('should reject owner updating another shop', async () => {
-      await expect(controller.update('shop-2', updateDto, ownerTenantContext, ownerRequest)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        controller.update(
+          'shop-2',
+          updateDto,
+          ownerTenantContext,
+          ownerRequest,
+        ),
+      ).rejects.toThrow(ForbiddenException);
       expect(service.update).not.toHaveBeenCalled();
     });
 
@@ -171,7 +189,12 @@ describe('ShopController', () => {
       const updatedShop = { ...mockShop, ...updateDto, id: 'shop-2' };
       jest.spyOn(service, 'update').mockResolvedValue(updatedShop);
 
-      await controller.update('shop-2', updateDto, otherTenantContext, adminRequest);
+      await controller.update(
+        'shop-2',
+        updateDto,
+        otherTenantContext,
+        adminRequest,
+      );
 
       expect(service.update).toHaveBeenCalledWith('shop-2', updateDto);
     });
@@ -183,11 +206,25 @@ describe('ShopController', () => {
       const updatedShop = { ...mockShop, logoUrl };
       jest.spyOn(service, 'updateMediaUrls').mockResolvedValue(updatedShop);
       const expectedDto = ShopDto.fromEntity(updatedShop);
-      const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
+      const expectedResult = {
+        success: true,
+        data: expectedDto,
+        message: 'Shop media URLs updated successfully',
+      };
 
-      const result = await controller.updateMedia('shop-1', ownerTenantContext, ownerRequest, logoUrl, undefined);
+      const result = await controller.updateMedia(
+        'shop-1',
+        ownerTenantContext,
+        ownerRequest,
+        logoUrl,
+        undefined,
+      );
 
-      expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', logoUrl, undefined);
+      expect(service.updateMediaUrls).toHaveBeenCalledWith(
+        'shop-1',
+        logoUrl,
+        undefined,
+      );
       expect(result).toEqual(expectedResult);
     });
 
@@ -196,11 +233,25 @@ describe('ShopController', () => {
       const updatedShop = { ...mockShop, bannerUrl };
       jest.spyOn(service, 'updateMediaUrls').mockResolvedValue(updatedShop);
       const expectedDto = ShopDto.fromEntity(updatedShop);
-      const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
+      const expectedResult = {
+        success: true,
+        data: expectedDto,
+        message: 'Shop media URLs updated successfully',
+      };
 
-      const result = await controller.updateMedia('shop-1', ownerTenantContext, ownerRequest, undefined, bannerUrl);
+      const result = await controller.updateMedia(
+        'shop-1',
+        ownerTenantContext,
+        ownerRequest,
+        undefined,
+        bannerUrl,
+      );
 
-      expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', undefined, bannerUrl);
+      expect(service.updateMediaUrls).toHaveBeenCalledWith(
+        'shop-1',
+        undefined,
+        bannerUrl,
+      );
       expect(result).toEqual(expectedResult);
     });
 
@@ -210,17 +261,37 @@ describe('ShopController', () => {
       const updatedShop = { ...mockShop, logoUrl, bannerUrl };
       jest.spyOn(service, 'updateMediaUrls').mockResolvedValue(updatedShop);
       const expectedDto = ShopDto.fromEntity(updatedShop);
-      const expectedResult = { success: true, data: expectedDto, message: 'Shop media URLs updated successfully' };
+      const expectedResult = {
+        success: true,
+        data: expectedDto,
+        message: 'Shop media URLs updated successfully',
+      };
 
-      const result = await controller.updateMedia('shop-1', ownerTenantContext, ownerRequest, logoUrl, bannerUrl);
+      const result = await controller.updateMedia(
+        'shop-1',
+        ownerTenantContext,
+        ownerRequest,
+        logoUrl,
+        bannerUrl,
+      );
 
-      expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-1', logoUrl, bannerUrl);
+      expect(service.updateMediaUrls).toHaveBeenCalledWith(
+        'shop-1',
+        logoUrl,
+        bannerUrl,
+      );
       expect(result).toEqual(expectedResult);
     });
 
     it('should reject owner updating media for another shop', async () => {
       await expect(
-        controller.updateMedia('shop-2', ownerTenantContext, ownerRequest, 'https://example.com/logo.png', undefined),
+        controller.updateMedia(
+          'shop-2',
+          ownerTenantContext,
+          ownerRequest,
+          'https://example.com/logo.png',
+          undefined,
+        ),
       ).rejects.toThrow(ForbiddenException);
       expect(service.updateMediaUrls).not.toHaveBeenCalled();
     });
@@ -240,7 +311,11 @@ describe('ShopController', () => {
         undefined,
       );
 
-      expect(service.updateMediaUrls).toHaveBeenCalledWith('shop-2', 'https://example.com/logo.png', undefined);
+      expect(service.updateMediaUrls).toHaveBeenCalledWith(
+        'shop-2',
+        'https://example.com/logo.png',
+        undefined,
+      );
     });
   });
 });

@@ -1,12 +1,22 @@
 import { OpenAPIObject } from '@nestjs/swagger';
 
-import { ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto, ChatMessageDto } from '@/modules/rag/dto';
+import {
+  ChatChunkEventDto,
+  ChatCompleteEventDto,
+  ChatErrorEventDto,
+  ChatMessageDto,
+} from '@/modules/rag/dto';
 
 export function registerWebSocketDocs(document: OpenAPIObject): void {
   document.components = document.components || {};
   document.components.schemas = document.components.schemas || {};
 
-  const schemas = [ChatMessageDto, ChatChunkEventDto, ChatCompleteEventDto, ChatErrorEventDto];
+  const schemas = [
+    ChatMessageDto,
+    ChatChunkEventDto,
+    ChatCompleteEventDto,
+    ChatErrorEventDto,
+  ];
   for (const dto of schemas) {
     const name = dto.name;
     document.components.schemas[name] = {
@@ -58,13 +68,22 @@ export function registerWebSocketDocs(document: OpenAPIObject): void {
                   value: {
                     sessionId: 'abc-123',
                     answer: 'We have electronics and clothing.',
-                    sources: [{ content: 'Catalog page 1', metadata: { source: 'catalog' } }],
+                    sources: [
+                      {
+                        content: 'Catalog page 1',
+                        metadata: { source: 'catalog' },
+                      },
+                    ],
                     timestamp: '2024-01-01T00:00:00.000Z',
                   },
                 },
                 error: {
                   summary: 'Error response',
-                  value: { message: 'Rate limit exceeded', code: 'RATE_LIMITED', retryAfter: 60 },
+                  value: {
+                    message: 'Rate limit exceeded',
+                    code: 'RATE_LIMITED',
+                    retryAfter: 60,
+                  },
                 },
               },
             },

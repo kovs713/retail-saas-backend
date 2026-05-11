@@ -1,5 +1,8 @@
 import { AnalyticsService } from '@/modules/analytics/analytics.service';
-import { CategoryRepository, ProductRepository } from '@/modules/product/repositories';
+import {
+  CategoryRepository,
+  ProductRepository,
+} from '@/modules/product/repositories';
 import { PublicShopController } from './public-shop.controller';
 import { ShopService } from './shop.service';
 
@@ -39,9 +42,12 @@ describe('PublicShopController', () => {
 
     controller = module.get<PublicShopController>(PublicShopController);
     shopService = module.get<DeepMocked<ShopService>>(ShopService);
-    productRepository = module.get<DeepMocked<ProductRepository>>(ProductRepository);
-    categoryRepository = module.get<DeepMocked<CategoryRepository>>(CategoryRepository);
-    analyticsService = module.get<DeepMocked<AnalyticsService>>(AnalyticsService);
+    productRepository =
+      module.get<DeepMocked<ProductRepository>>(ProductRepository);
+    categoryRepository =
+      module.get<DeepMocked<CategoryRepository>>(CategoryRepository);
+    analyticsService =
+      module.get<DeepMocked<AnalyticsService>>(AnalyticsService);
   });
 
   afterEach(() => {
@@ -55,7 +61,9 @@ describe('PublicShopController', () => {
       isActive: false,
     } as any);
 
-    await expect(controller.getStorefront('shop-1')).rejects.toThrow(BadRequestException);
+    await expect(controller.getStorefront('shop-1')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('should return storefront data with products and categories', async () => {
@@ -204,7 +212,9 @@ describe('PublicShopController', () => {
     shopService.findBySlug.mockResolvedValue(mockShop as any);
     productRepository.findAll.mockResolvedValue([[], 0]);
     categoryRepository.findAllByShop.mockResolvedValue([]);
-    analyticsService.logStorefrontView.mockRejectedValue(new Error('analytics down'));
+    analyticsService.logStorefrontView.mockRejectedValue(
+      new Error('analytics down'),
+    );
 
     const result = await controller.getStorefront('test-shop');
 

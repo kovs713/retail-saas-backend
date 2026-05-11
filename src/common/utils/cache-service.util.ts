@@ -12,7 +12,11 @@ export const mockCacheService = (): DeepMocked<CacheService> => {
     parts
       .filter((p) => p !== undefined && p !== null)
       .map((p) => {
-        if (typeof p === 'string' || typeof p === 'number' || typeof p === 'boolean') {
+        if (
+          typeof p === 'string' ||
+          typeof p === 'number' ||
+          typeof p === 'boolean'
+        ) {
           return String(p);
         }
         try {

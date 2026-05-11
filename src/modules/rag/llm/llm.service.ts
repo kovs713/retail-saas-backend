@@ -9,7 +9,10 @@ import { Inject, Injectable } from '@nestjs/common';
 export class LLMService {
   private readonly logger = new LoggerService(LLMService.name);
 
-  constructor(@Inject(ChatGroqClient) private readonly chatGroqClient: ChatGroq) {}
+  constructor(
+    @Inject(ChatGroqClient)
+    private readonly chatGroqClient: ChatGroq,
+  ) {}
 
   async generateText(prompt: string, systemMessage?: string): Promise<string> {
     const messages = systemMessage
@@ -20,12 +23,17 @@ export class LLMService {
     return response.content as string;
   }
 
-  async generateWithMessages(messages: (HumanMessage | SystemMessage)[]): Promise<string> {
+  async generateWithMessages(
+    messages: (HumanMessage | SystemMessage)[],
+  ): Promise<string> {
     const response = await this.chatGroqClient.invoke(messages);
     return response.content as string;
   }
 
-  async *generateStream(prompt: string, systemMessage?: string): AsyncGenerator<string> {
+  async *generateStream(
+    prompt: string,
+    systemMessage?: string,
+  ): AsyncGenerator<string> {
     const messages = systemMessage
       ? [new SystemMessage(systemMessage), new HumanMessage(prompt)]
       : [new HumanMessage(prompt)];
