@@ -34,7 +34,7 @@ export class EvotorController {
   @Post(':shopId/connect')
   @Roles(Role.OWNER, Role.ADMIN)
   @ApiOperation({
-    summary: 'Connect a shop to evotor mock',
+    summary: 'Connect a shop to Evotor',
   })
   @ApiParam({ name: 'shopId', type: String })
   async connect(
@@ -50,7 +50,7 @@ export class EvotorController {
     return {
       success: true,
       data: integration,
-      message: 'Evotor mock connected successfully',
+      message: 'Evotor connected successfully',
     };
   }
 
@@ -77,7 +77,7 @@ export class EvotorController {
   @Get(':shopId/presentation-status')
   @Roles(Role.OWNER, Role.ADMIN)
   @ApiOperation({
-    summary: 'Get presentation status for the demo flow',
+    summary: 'Get Evotor integration presentation status',
   })
   @ApiParam({
     name: 'shopId',
@@ -94,34 +94,10 @@ export class EvotorController {
     return { success: true, data: status };
   }
 
-  @Post(':shopId/demo-setup')
-  @Roles(Role.OWNER, Role.ADMIN)
-  @ApiOperation({
-    summary: 'Run one-click demo setup for evotor mock',
-  })
-  @ApiParam({
-    name: 'shopId',
-    type: String,
-  })
-  async demoSetup(
-    @Param('shopId')
-    shopId: string,
-    @Req()
-    req: Request,
-  ): Promise<AppApiResponse<unknown>> {
-    this.assertShopAccess(shopId, req);
-    const status = await this.evotorService.demoSetup(shopId);
-    return {
-      success: true,
-      data: status,
-      message: 'Evotor demo setup completed successfully',
-    };
-  }
-
   @Delete(':shopId/connect')
   @Roles(Role.OWNER, Role.ADMIN)
   @ApiOperation({
-    summary: 'Disconnect a shop from evotor mock',
+    summary: 'Disconnect a shop from Evotor',
   })
   @ApiParam({
     name: 'shopId',
@@ -138,14 +114,14 @@ export class EvotorController {
     return {
       success: true,
       data: integration,
-      message: 'Evotor mock disconnected successfully',
+      message: 'Evotor disconnected successfully',
     };
   }
 
   @Post(':shopId/sync/products')
   @Roles(Role.OWNER, Role.ADMIN)
   @ApiOperation({
-    summary: 'Sync products from evotor mock into local catalog',
+    summary: 'Sync products from Evotor into local catalog',
   })
   @ApiParam({
     name: 'shopId',

@@ -1,22 +1,30 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayNotEmpty, ArrayUnique, IsArray, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class ConnectEvotorDto {
   @ApiProperty({
-    description: 'Phone number used to bind Evotor terminals',
-    example: '+79990001122',
+    description: 'Evotor store UUID',
+    example: '20190607-4F3B-40E0-80F0-00155D012500',
   })
+  @IsNotEmpty()
   @IsString()
-  phone: string;
+  storeId: string;
 
   @ApiProperty({
-    description: 'Terminal IMEI list',
-    example: ['111111111111111', '222222222222222'],
-    type: [String],
+    description: 'Evotor terminal or device UUID',
+    example: '20190607-4F3B-40E0-80F0-00155D012501',
+    required: false,
   })
-  @IsArray()
-  @ArrayNotEmpty()
-  @ArrayUnique()
-  @IsString({ each: true })
-  imeis: string[];
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+
+  @ApiProperty({
+    description: 'Evotor user UUID',
+    example: '20190607-4F3B-40E0-80F0-00155D012502',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }

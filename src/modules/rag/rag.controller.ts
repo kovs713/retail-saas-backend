@@ -302,7 +302,7 @@ export class RagController {
     }
 
     const maxUploadSizeMb = Number(
-      this.configService.get<string>('UPLOAD_MAX_MB') ?? 5,
+      this.configService.getOrThrow<string>('UPLOAD_MAX_MB'),
     );
     if (file.size > maxUploadSizeMb * 1024 * 1024) {
       throw new BadRequestException(

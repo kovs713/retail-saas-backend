@@ -16,12 +16,9 @@ export class EvotorApiModule {
           useFactory: (configService: ConfigService): EvotorOptions => ({
             baseUrl: configService.getOrThrow<string>(
               'EVOTOR_BASE_URL',
-              'http://localhost:3001',
+              'https://api.evotor.ru/api/v1/inventories',
             ),
-            token: configService.getOrThrow<string>(
-              'EVOTOR_TOKEN',
-              'mock-evotor-token',
-            ),
+            token: configService.getOrThrow<string>('EVOTOR_TOKEN'),
           }),
         },
 

@@ -30,34 +30,24 @@ export class EvotorService {
 
   async connect(
     shopId: string,
-    payload?: ConnectEvotorDto,
+    payload: ConnectEvotorDto,
   ): Promise<EvotorIntegration> {
-    const shop = await this.shopService.findById(shopId);
-    const phone = payload?.phone ?? shop.phone ?? this.buildDemoPhone(shopId);
-    const imeis = this.normalizeImeis(payload?.imeis ?? ['demo-terminal-1']);
-    const binding = await this.evotorApiService.bindTerminals(
-      shopId,
-      phone,
-      imeis,
-    );
+    await this.shopService.findById(shopId);
 
     const existing = await this.repository.findOne({
       where: { shopId },
     });
     const integration = existing ?? this.repository.create({ shopId });
 
-    integration.provider = 'mock';
+    integration.provider = 'evotor';
     integration.status = 'connected';
-    integration.externalStoreId = binding.storeId;
-    integration.externalDeviceId = binding.devices[0]?.id ?? null;
-    integration.externalUserId = binding.userId;
+    integration.externalStoreId = payload.storeId;
+    integration.externalDeviceId = payload.deviceId ?? null;
+    integration.externalUserId = payload.userId ?? null;
     integration.metadata = {
       ...(integration.metadata ?? {}),
-      mode: 'mock',
-      phone,
-      imeis,
-      devices: binding.devices,
-      seededProductsCount: binding.seededProductsCount,
+      mode: 'api',
+      connectedAt: new Date().toISOString(),
     };
 
     return this.repository.save(integration);
@@ -98,28 +88,6 @@ export class EvotorService {
       syncActive: terminalConnected,
       importedProductsCount,
       lastSyncAt: integration?.lastSyncAt?.toISOString() ?? null,
-    };
-  }
-
-  async demoSetup(shopId: string): Promise<{
-    shopRegistered: boolean;
-    terminalConnected: boolean;
-    catalogImported: boolean;
-    syncActive: boolean;
-    importedProductsCount: number;
-    lastSyncAt: string | null;
-  }> {
-    const integration = await this.connect(shopId);
-    await this.evotorApiService.seedStore(shopId, 12, 0, 'electronics');
-    const syncResult = await this.syncProducts(shopId);
-
-    return {
-      shopRegistered: true,
-      terminalConnected: integration.status === 'connected',
-      catalogImported: syncResult.importedCount > 0,
-      syncActive: integration.status === 'connected',
-      importedProductsCount: syncResult.importedCount,
-      lastSyncAt: syncResult.syncedAt,
     };
   }
 
@@ -263,27 +231,6 @@ export class EvotorService {
     }
 
     return integration;
-  }
-
-  private getExternalStoreId(shopId: string): string {
-    return `store-${shopId}`;
-  }
-
-  private normalizeImeis(imeis: string[]): string[] {
-    const normalizedImeis = [
-      ...new Set(imeis.map((imei) => imei.trim())),
-    ].filter(Boolean);
-
-    if (normalizedImeis.length === 0) {
-      throw new BadRequestException('At least one IMEI is required');
-    }
-
-    return normalizedImeis;
-  }
-
-  private buildDemoPhone(shopId: string): string {
-    const digits = shopId.replace(/\D/g, '').slice(-10).padStart(10, '0');
-    return `+7${digits}`;
   }
 
   private async syncCatalogProduct(product: Product): Promise<void> {

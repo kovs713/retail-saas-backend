@@ -104,9 +104,8 @@ export class ProductService {
 
     const safeFileName = this.sanitizeImageFileName(fileName);
     const key = this.buildProductImageKey(productId, safeFileName);
-    const expirySeconds = this.configService.get<number>(
+    const expirySeconds = this.configService.getOrThrow<number>(
       'MEDIA_UPLOAD_PRESIGNED_TTL',
-      900,
     );
     const uploadUrl = await this.storageService.getPresignedPutUrl(
       key,

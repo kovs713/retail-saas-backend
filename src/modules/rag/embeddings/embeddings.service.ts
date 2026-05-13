@@ -12,11 +12,8 @@ export class EmbeddingsService extends OllamaEmbeddings {
 
   constructor(configService: ConfigService) {
     super({
-      model: configService.get<string>('EMBEDDINGS_MODEL', 'embeddinggemma'),
-      baseUrl: configService.get<string>(
-        'OLLAMA_BASE_URL',
-        'http://localhost:11435',
-      ),
+      model: configService.getOrThrow<string>('EMBEDDINGS_MODEL'),
+      baseUrl: configService.getOrThrow<string>('OLLAMA_BASE_URL'),
     });
     this.logger.log(`Initialized Ollama embeddings with model: ${this.model}`);
   }

@@ -30,6 +30,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         const host = configService.getOrThrow<string>('REDIS_HOST');
         const port = configService.getOrThrow<number>('REDIS_PORT');
         const password = configService.getOrThrow<string>('REDIS_PASSWORD');
+        const throttlerStorage = new ThrottlerStorageRedisService(
+          `redis://${host}:${port}`,
+          {
+            password: password || undefined,
+          },
+        );
+
+        const storageInternal = throttlerStorage as unknown as {
+          redis?: { on?: (event: string, callback: () => void) => void };
+        };
+        storageInternal.redis?.on?.('error', () => undefined);
+
         return {
           throttlers: [
             {
@@ -38,9 +50,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
               limit: configService.getOrThrow<number>('THROTTLE_LIMIT'),
             },
           ],
-          storage: new ThrottlerStorageRedisService(`redis://${host}:${port}`, {
-            password,
-          }),
+          storage: throttlerStorage,
         };
       },
     }),

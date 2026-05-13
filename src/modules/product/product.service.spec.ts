@@ -185,7 +185,7 @@ describe('ProductService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('should push evotor-managed field edits to mock before saving locally', async () => {
+    it('should push evotor-managed field edits before saving locally', async () => {
       const managedProduct = createProduct({
         id: 'prod_1',
         shopId: mockTenantContext.shopId,
@@ -309,7 +309,7 @@ describe('ProductService', () => {
       expect(result.quantity).toBe(150);
     });
 
-    it('should push stock updates for evotor-managed products to mock', async () => {
+    it('should push stock updates for evotor-managed products', async () => {
       const managedProduct = createProduct({
         id: 'prod_1',
         shopId: mockTenantContext.shopId,
@@ -371,7 +371,7 @@ describe('ProductService', () => {
       expect(result.quantity).toBe(150);
     });
 
-    it('should push stock adjustments for evotor-managed products to mock', async () => {
+    it('should push stock adjustments for evotor-managed products', async () => {
       const managedProduct = createProduct({
         id: 'prod_1',
         shopId: mockTenantContext.shopId,

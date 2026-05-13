@@ -25,7 +25,7 @@ export class EvotorIntegration {
   @JoinColumn({ name: 'shopId' })
   shop: Shop;
 
-  @Column({ type: 'varchar', length: 50, default: 'mock' })
+  @Column({ type: 'varchar', length: 50, default: 'evotor' })
   provider: string;
 
   @Column({ type: 'varchar', length: 50, default: 'connected' })

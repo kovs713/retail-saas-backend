@@ -47,10 +47,9 @@ describe('EvotorService', () => {
     catalogIndexService = module.get(CatalogIndexService);
   });
 
-  it('connects a shop to evotor mock using phone and imeis', async () => {
+  it('connects a shop to an Evotor store', async () => {
     shopService.findById.mockResolvedValue({
       id: 'shop-1',
-      phone: '+79990001122',
     } as never);
     integrationRepository.findOne.mockResolvedValue(null);
     integrationRepository.create.mockImplementation(
@@ -59,51 +58,21 @@ describe('EvotorService', () => {
     integrationRepository.save.mockImplementation(async (value) =>
       Promise.resolve(value as EvotorIntegration),
     );
-    (evotorApiService as any).bindTerminals = jest.fn().mockResolvedValue({
+
+    const result = await service.connect('shop-1', {
       storeId: 'store-shop-1',
+      deviceId: 'device-store-shop-1',
       userId: 'user-shop-1',
-      seededProductsCount: 12,
-      devices: [
-        {
-          id: 'device-store-shop-1-111111111111111',
-          imei: '111111111111111',
-          phone: '+79990001122',
-        },
-        {
-          id: 'device-store-shop-1-222222222222222',
-          imei: '222222222222222',
-          phone: '+79990001122',
-        },
-      ],
     });
 
-    const result = await (service as any).connect('shop-1', {
-      phone: '+79990001122',
-      imeis: ['111111111111111', '222222222222222'],
-    });
-
-    expect((evotorApiService as any).bindTerminals).toHaveBeenCalledWith(
-      'shop-1',
-      '+79990001122',
-      ['111111111111111', '222222222222222'],
-    );
+    expect(result.provider).toBe('evotor');
     expect(result.externalStoreId).toBe('store-shop-1');
-    expect(result.externalDeviceId).toBe('device-store-shop-1-111111111111111');
+    expect(result.externalDeviceId).toBe('device-store-shop-1');
+    expect(result.externalUserId).toBe('user-shop-1');
     expect(result.metadata).toEqual(
       expect.objectContaining({
-        phone: '+79990001122',
-        imeis: ['111111111111111', '222222222222222'],
-        seededProductsCount: 12,
-        devices: [
-          expect.objectContaining({
-            id: 'device-store-shop-1-111111111111111',
-            imei: '111111111111111',
-          }),
-          expect.objectContaining({
-            id: 'device-store-shop-1-222222222222222',
-            imei: '222222222222222',
-          }),
-        ],
+        mode: 'api',
+        connectedAt: expect.any(String),
       }),
     );
   });
@@ -251,84 +220,5 @@ describe('EvotorService', () => {
       importedProductsCount: 1,
       lastSyncAt: '2026-04-21T10:00:00.000Z',
     });
-  });
-
-  it('runs one-click demo setup and returns presentation status', async () => {
-    shopService.findById.mockResolvedValue({
-      id: 'shop-1',
-      phone: '+79990001122',
-    } as never);
-    integrationRepository.findOne
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: 'integration-1',
-        shopId: 'shop-1',
-        status: 'connected',
-        externalStoreId: 'store-shop-1',
-        lastSyncAt: new Date('2026-04-21T11:00:00.000Z'),
-      } as EvotorIntegration)
-      .mockResolvedValueOnce({
-        id: 'integration-1',
-        shopId: 'shop-1',
-        status: 'connected',
-        externalStoreId: 'store-shop-1',
-        lastSyncAt: new Date('2026-04-21T11:00:00.000Z'),
-      } as EvotorIntegration);
-    integrationRepository.create.mockImplementation(
-      (value) => value as EvotorIntegration,
-    );
-    (evotorApiService as any).bindTerminals = jest.fn().mockResolvedValue({
-      storeId: 'store-shop-1',
-      userId: 'user-shop-1',
-      seededProductsCount: 12,
-      devices: [
-        {
-          id: 'device-store-shop-1-demo-terminal-1',
-          imei: 'demo-terminal-1',
-          phone: '+79990001122',
-        },
-      ],
-    });
-    integrationRepository.save.mockImplementation(async (value) =>
-      Promise.resolve(value as EvotorIntegration),
-    );
-    productRepository.findSyncedByShop.mockResolvedValue([]);
-    evotorApiService.getProducts.mockResolvedValue([
-      {
-        id: 'remote-1',
-        article_number: 'SKU-001',
-        name: 'Remote Product',
-        price: 1200,
-        quantity: 7,
-      },
-    ]);
-    productRepository.create.mockImplementation((value) => value as never);
-    integrationRepository.save.mockImplementation(async (value) =>
-      Promise.resolve(value as EvotorIntegration),
-    );
-
-    const result = await service.demoSetup('shop-1');
-
-    expect((evotorApiService as any).bindTerminals).toHaveBeenCalledWith(
-      'shop-1',
-      '+79990001122',
-      ['demo-terminal-1'],
-    );
-    expect(evotorApiService.seedStore).toHaveBeenCalledWith(
-      'shop-1',
-      12,
-      0,
-      'electronics',
-    );
-    expect(result).toEqual(
-      expect.objectContaining({
-        shopRegistered: true,
-        terminalConnected: true,
-        catalogImported: true,
-        syncActive: true,
-        importedProductsCount: 1,
-      }),
-    );
-    expect(result.lastSyncAt).toEqual(expect.any(String));
   });
 });
