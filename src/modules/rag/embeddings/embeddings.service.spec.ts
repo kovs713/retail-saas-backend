@@ -10,9 +10,11 @@ describe('EmbeddingsService', () => {
 
   beforeEach(() => {
     configService = createMock<ConfigService>();
-    configService.get.mockImplementation(
-      (key: string, defaultValue?: string) => defaultValue,
-    );
+    configService.getOrThrow.mockImplementation((key: string) => {
+      if (key === 'EMBEDDINGS_MODEL') return 'embeddinggemma';
+      if (key === 'OLLAMA_BASE_URL') return 'http://localhost:11435';
+      throw new Error(`Missing config: ${key}`);
+    });
 
     service = new EmbeddingsService(configService);
   });
@@ -22,42 +24,24 @@ describe('EmbeddingsService', () => {
   });
 
   describe('initialization', () => {
-    it('should initialize with default model from env', () => {
-      configService.get.mockImplementation(
-        (key: string, defaultValue?: string) => {
-          if (key === 'EMBEDDINGS_MODEL') return 'custom-model';
-          if (key === 'OLLAMA_BASE_URL') return 'http://custom-url:11435';
-          return defaultValue;
-        },
-      );
+    it('should initialize with custom model from env', () => {
+      configService.getOrThrow.mockImplementation((key: string) => {
+        if (key === 'EMBEDDINGS_MODEL') return 'custom-model';
+        if (key === 'OLLAMA_BASE_URL') return 'http://custom-url:11435';
+        throw new Error(`Missing config: ${key}`);
+      });
 
       const serviceWithCustomConfig = new EmbeddingsService(configService);
 
       expect(serviceWithCustomConfig.model).toBe('custom-model');
     });
 
-    it('should use default model if env not set', () => {
-      configService.get.mockImplementation(
-        (key: string, defaultValue?: string) => {
-          return defaultValue;
-        },
-      );
-
-      const serviceWithDefaults = new EmbeddingsService(configService);
-
-      expect(serviceWithDefaults.model).toBe('embeddinggemma');
+    it('should use default model from config', () => {
+      expect(service.model).toBe('embeddinggemma');
     });
 
-    it('should use default Ollama URL if env not set', () => {
-      configService.get.mockImplementation(
-        (key: string, defaultValue?: string) => {
-          return defaultValue;
-        },
-      );
-
-      const serviceWithDefaults = new EmbeddingsService(configService);
-
-      const typedService = serviceWithDefaults as any;
+    it('should use default Ollama URL from config', () => {
+      const typedService = service as any;
 
       expect(typedService.baseUrl).toBe('http://localhost:11435');
     });
@@ -69,32 +53,28 @@ describe('EmbeddingsService', () => {
 
   describe('configuration', () => {
     it('should read EMBEDDINGS_MODEL from config', () => {
-      configService.get.mockImplementation((key: string) => {
+      configService.getOrThrow.mockImplementation((key: string) => {
         if (key === 'EMBEDDINGS_MODEL') return 'test-model';
-        return undefined;
+        if (key === 'OLLAMA_BASE_URL') return 'http://localhost:11435';
+        throw new Error(`Missing config: ${key}`);
       });
 
       const serviceWithModel = new EmbeddingsService(configService);
 
-      expect(configService.get).toHaveBeenCalledWith(
-        'EMBEDDINGS_MODEL',
-        'embeddinggemma',
-      );
+      expect(configService.getOrThrow).toHaveBeenCalledWith('EMBEDDINGS_MODEL');
       expect(serviceWithModel.model).toBe('test-model');
     });
 
     it('should read OLLAMA_BASE_URL from config', () => {
-      configService.get.mockImplementation((key: string) => {
+      configService.getOrThrow.mockImplementation((key: string) => {
+        if (key === 'EMBEDDINGS_MODEL') return 'embeddinggemma';
         if (key === 'OLLAMA_BASE_URL') return 'http://test-url:11435';
-        return undefined;
+        throw new Error(`Missing config: ${key}`);
       });
 
       new EmbeddingsService(configService);
 
-      expect(configService.get).toHaveBeenCalledWith(
-        'OLLAMA_BASE_URL',
-        'http://localhost:11435',
-      );
+      expect(configService.getOrThrow).toHaveBeenCalledWith('OLLAMA_BASE_URL');
     });
   });
 });

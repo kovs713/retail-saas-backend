@@ -29,7 +29,7 @@ describe('RagController', () => {
         },
         {
           provide: ConfigService,
-          useValue: { get: jest.fn().mockReturnValue('5') },
+          useValue: { get: jest.fn().mockReturnValue('5'), getOrThrow: jest.fn().mockReturnValue('5') },
         },
       ],
       controllers: [RagController],
