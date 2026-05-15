@@ -1,5 +1,5 @@
 import { MinioClient, MinioConfig, MinioOptions } from '@/common/types';
-import { StorageService } from './storage.service';
+import { ObjectStorageService } from './object-storage.service';
 
 import { DynamicModule, Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -7,10 +7,10 @@ import { Client } from 'minio';
 
 @Global()
 @Module({})
-export class StorageModule {
+export class ObjectStorageModule {
   static forRoot(): DynamicModule {
     return {
-      module: StorageModule,
+      module: ObjectStorageModule,
       providers: [
         {
           provide: MinioConfig,
@@ -38,9 +38,9 @@ export class StorageModule {
           },
         },
 
-        StorageService,
+        ObjectStorageService,
       ],
-      exports: [StorageService],
+      exports: [ObjectStorageService],
     };
   }
 }

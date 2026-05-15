@@ -1,8 +1,8 @@
 import { Pagination, PaginationResponse } from '@/common/dto';
 import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
+import { ObjectStorageService } from '@/core/object-storage/object-storage.service';
 import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
-import { StorageService } from '@/modules/storage/storage.service';
 import { CatalogIndexService } from './catalog-index.service';
 import {
   CreateCategoryDto,
@@ -32,7 +32,7 @@ export class ProductService {
     private readonly productRepository: ProductRepository,
     private readonly categoryRepository: CategoryRepository,
     private readonly cacheService: CacheService,
-    private readonly storageService: StorageService,
+    private readonly storageService: ObjectStorageService,
     private readonly configService: ConfigService,
     private readonly evotorApiService: EvotorApiService,
     private readonly catalogIndexService: CatalogIndexService,

@@ -6,9 +6,9 @@ import type { Client } from 'minio';
 import { Readable } from 'stream';
 
 @Injectable()
-export class StorageService {
+export class ObjectStorageService {
   private readonly logger: LoggerService = new LoggerService(
-    StorageService.name,
+    ObjectStorageService.name,
   );
   private readonly bucket: string;
 
