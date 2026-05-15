@@ -1,9 +1,9 @@
-import { MinioClient, MinioConfig, MinioOptions } from '@/common/types';
+import { S3Client, S3Config, S3Options } from '@/common/types';
 import { ObjectStorageService } from './object-storage.service';
 
+import { S3Client as AwsS3Client } from '@aws-sdk/client-s3';
 import { DynamicModule, Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Client } from 'minio';
 
 @Global()
 @Module({})
@@ -13,27 +13,32 @@ export class ObjectStorageModule {
       module: ObjectStorageModule,
       providers: [
         {
-          provide: MinioConfig,
+          provide: S3Config,
           inject: [ConfigService],
-          useFactory: (configService: ConfigService): MinioOptions => ({
+          useFactory: (configService: ConfigService): S3Options => ({
             host: configService.getOrThrow<string>('S3_HOST'),
             port: configService.getOrThrow<number>('S3_PORT'),
             accessKey: configService.getOrThrow<string>('S3_USERNAME'),
             secretKey: configService.getOrThrow<string>('S3_PASSWORD'),
-            userSSL: configService.getOrThrow<string>('S3_USE_SSL') === 'true',
             bucket: configService.getOrThrow<string>('S3_BUCKET'),
+            region: configService.get<string>('S3_REGION') ?? 'us-east-1',
+            useSSL: configService.getOrThrow<string>('S3_USE_SSL') === 'true',
           }),
         },
         {
-          provide: MinioClient,
-          inject: [MinioConfig],
-          useFactory: (bucketSecrets: MinioOptions): Client => {
-            return new Client({
-              endPoint: bucketSecrets.host,
-              port: bucketSecrets.port,
-              useSSL: bucketSecrets.userSSL,
-              accessKey: bucketSecrets.accessKey,
-              secretKey: bucketSecrets.secretKey,
+          provide: S3Client,
+          inject: [S3Config],
+          useFactory: (s3Options: S3Options): AwsS3Client => {
+            const protocol = s3Options.useSSL ? 'https' : 'http';
+
+            return new AwsS3Client({
+              region: s3Options.region,
+              endpoint: `${protocol}://${s3Options.host}:${s3Options.port}`,
+              forcePathStyle: true,
+              credentials: {
+                accessKeyId: s3Options.accessKey,
+                secretAccessKey: s3Options.secretKey,
+              },
             });
           },
         },

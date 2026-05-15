@@ -25,6 +25,8 @@
     "docker:run": "docker run -p 3000:3000 retail-analytics-platform-backend"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1047.0",
+    "@aws-sdk/s3-request-presigner": "^3.1047.0",
     "@langchain/community": "^1.1.27",
     "@langchain/core": "^1.1.40",
     "@langchain/groq": "^1.2.0",
@@ -47,7 +49,7 @@
     "class-validator": "^0.14.4",
     "globals": "^17.5.0",
     "mime-types": "^3.0.2",
-    "minio": "^8.0.7",
+    "multer": "^2.1.1",
     "pg": "^8.20.0",
     "redis": "^5.12.1",
     "reflect-metadata": "^0.2.2",

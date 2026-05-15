@@ -3,13 +3,14 @@ export interface EvotorOptions {
   token: string;
 }
 
-export interface MinioOptions {
+export interface S3Options {
   host: string;
   port: number;
   accessKey: string;
   secretKey: string;
-  userSSL: boolean;
+  useSSL: boolean;
   bucket: string;
+  region: string;
 }
 
 export interface RagChatOptions {
