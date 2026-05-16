@@ -1,6 +1,7 @@
 import { ProductModule } from '@/modules/product/product.module';
 import { ShopModule } from '@/modules/shop/shop.module';
 import { EvotorIntegration } from './entities';
+import { EvotorAdminController } from './evotor-admin.controller';
 import { EvotorApiModule } from './evotor-api.module';
 import { EvotorController } from './evotor.controller';
 import { EvotorService } from './evotor.service';
@@ -18,6 +19,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
   ],
   providers: [EvotorService, EvotorIntegrationRepository],
   exports: [EvotorService, EvotorIntegrationRepository],
-  controllers: [EvotorController],
+  controllers: [EvotorController, EvotorAdminController],
 })
 export class EvotorModule {}

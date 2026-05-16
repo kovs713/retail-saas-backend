@@ -60,7 +60,7 @@ describe('EvotorApiService', () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'https://bridge.example.com/api/evotor/stores/store%2F1/products?evotorUserId=evotor-user-1&cursor=cursor-2',
+      'https://bridge.example.com/api/evotor/stores/store%2F1/products?cursor=cursor-2&evotorUserId=evotor-user-1',
       expect.objectContaining({ method: 'GET', headers: expect.any(Headers) }),
     );
 
@@ -94,6 +94,78 @@ describe('EvotorApiService', () => {
     const headers = fetchMock.mock.calls[0][1]?.headers as Headers;
     expect(headers.get('Authorization')).toBe('Bearer admin-token');
     expect(headers.get('Content-Type')).toBe('application/json');
+  });
+
+  it('reads admin dashboard resources through bridge admin endpoints', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse([{ id: 'account-1' }]))
+      .mockResolvedValueOnce(jsonResponse([{ id: 'event-1' }]))
+      .mockResolvedValueOnce(jsonResponse([{ id: 'store-1' }]))
+      .mockResolvedValueOnce(jsonResponse([{ id: 'device-1' }]))
+      .mockResolvedValueOnce(jsonResponse([{ id: 'product-1' }]))
+      .mockResolvedValueOnce(jsonResponse([{ id: 'document-1' }]));
+
+    const result = await service.getAdminDashboard();
+
+    expect(result).toEqual({
+      accounts: [{ id: 'account-1' }],
+      inboxEvents: [{ id: 'event-1' }],
+      stores: [{ id: 'store-1' }],
+      devices: [{ id: 'device-1' }],
+      products: [{ id: 'product-1' }],
+      documents: [{ id: 'document-1' }],
+    });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      'https://bridge.example.com/admin/evotor/accounts',
+      'https://bridge.example.com/admin/evotor/inbox-events',
+      'https://bridge.example.com/admin/evotor/stores',
+      'https://bridge.example.com/admin/evotor/devices',
+      'https://bridge.example.com/admin/evotor/products',
+      'https://bridge.example.com/admin/evotor/documents',
+    ]);
+  });
+
+  it('triggers admin sync through the bridge', async () => {
+    const response = {
+      batchId: 'batch-1',
+      evotorUserId: 'evotor-user-1',
+    };
+    const payload = {
+      evotorUserId: 'evotor-user-1',
+      dateFrom: '2026-05-01',
+      dateTo: '2026-05-16',
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(response));
+
+    const result = await service.syncAdmin(payload);
+
+    expect(result).toEqual(response);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://bridge.example.com/admin/evotor/sync',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: expect.any(Headers),
+      }),
+    );
+  });
+
+  it('forwards cloud token to bridge admin recovery endpoint', async () => {
+    const payload = {
+      evotorUserId: 'evotor-user-1',
+      token: 'cloud-token',
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: 'ok' }));
+
+    await service.setAdminCloudToken(payload);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://bridge.example.com/admin/evotor/cloud-token',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    );
   });
 });
 

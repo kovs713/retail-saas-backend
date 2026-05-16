@@ -1,6 +1,12 @@
 import { EvotorConfig, EvotorOptions } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
-import { RemoteProduct, UpsertProduct } from './dto';
+import {
+  EvotorAdminCloudTokenDto,
+  EvotorAdminDashboard,
+  EvotorAdminSyncDto,
+  RemoteProduct,
+  UpsertProduct,
+} from './dto';
 
 import {
   HttpException,
@@ -27,7 +33,16 @@ type EvotorProductData = RemoteProduct[] | { items?: RemoteProduct[] };
 interface RequestOptions {
   evotorUserId?: string | null;
   retry?: boolean;
+  timeoutMs?: number;
 }
+
+type EvotorAdminResource =
+  | 'accounts'
+  | 'inbox-events'
+  | 'stores'
+  | 'devices'
+  | 'products'
+  | 'documents';
 
 @Injectable()
 export class EvotorApiService {
@@ -87,6 +102,78 @@ export class EvotorApiService {
     );
   }
 
+  async getAdminDashboard(): Promise<EvotorAdminDashboard> {
+    const [accounts, inboxEvents, stores, devices, products, documents] =
+      await Promise.all([
+        this.listAdminAccounts(),
+        this.listAdminInboxEvents(),
+        this.listAdminStores(),
+        this.listAdminDevices(),
+        this.listAdminProducts(),
+        this.listAdminDocuments(),
+      ]);
+
+    return {
+      accounts,
+      inboxEvents,
+      stores,
+      devices,
+      products,
+      documents,
+    };
+  }
+
+  async listAdminAccounts(): Promise<unknown[]> {
+    return this.listAdminResource('accounts');
+  }
+
+  async listAdminInboxEvents(): Promise<unknown[]> {
+    return this.listAdminResource('inbox-events');
+  }
+
+  async listAdminStores(): Promise<unknown[]> {
+    return this.listAdminResource('stores');
+  }
+
+  async listAdminDevices(): Promise<unknown[]> {
+    return this.listAdminResource('devices');
+  }
+
+  async listAdminProducts(): Promise<unknown[]> {
+    return this.listAdminResource('products');
+  }
+
+  async listAdminDocuments(): Promise<unknown[]> {
+    return this.listAdminResource('documents');
+  }
+
+  async syncAdmin(payload: EvotorAdminSyncDto): Promise<unknown> {
+    return this.request(
+      '/admin/evotor/sync',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      {
+        evotorUserId: payload.evotorUserId,
+        timeoutMs: Math.max(this.evotorConfig.timeoutMs, 30000),
+      },
+    );
+  }
+
+  async setAdminCloudToken(
+    payload: EvotorAdminCloudTokenDto,
+  ): Promise<unknown> {
+    return this.request(
+      '/admin/evotor/cloud-token',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      { evotorUserId: payload.evotorUserId },
+    );
+  }
+
   private async request<T>(
     path: string,
     init: RequestInit = {},
@@ -95,13 +182,11 @@ export class EvotorApiService {
     const attempts = options.retry ? 3 : 1;
     const method = init.method ?? 'GET';
     const requestId = randomUUID();
+    const timeoutMs = options.timeoutMs ?? this.evotorConfig.timeoutMs;
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       const controller = new AbortController();
-      const timeout = setTimeout(
-        () => controller.abort(),
-        this.evotorConfig.timeoutMs,
-      );
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
         const response = await fetch(this.buildUrl(path), {
@@ -166,20 +251,28 @@ export class EvotorApiService {
 
   private buildPath(
     path: string,
-    query: { cursor?: string; evotorUserId?: string | null },
+    query: Record<string, string | undefined | null> = {},
   ): string {
     const params = new URLSearchParams();
 
-    if (query.evotorUserId) {
-      params.set('evotorUserId', query.evotorUserId);
-    }
-
-    if (query.cursor) {
-      params.set('cursor', query.cursor);
+    for (const [key, value] of Object.entries(query)) {
+      if (value) {
+        params.set(key, value);
+      }
     }
 
     const search = params.toString();
     return search ? `${path}?${search}` : path;
+  }
+
+  private async listAdminResource(
+    resource: EvotorAdminResource,
+  ): Promise<unknown[]> {
+    return this.request<unknown[]>(
+      `/admin/evotor/${resource}`,
+      { method: 'GET' },
+      { retry: true },
+    );
   }
 
   private buildHeaders(
