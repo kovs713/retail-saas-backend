@@ -21,4 +21,19 @@ export class EvotorIntegrationRepository extends Repository<EvotorIntegration> {
       shopId: shopId,
     });
   }
+
+  async countActive(): Promise<number> {
+    return this.repository.count({ where: { status: 'connected' } });
+  }
+
+  async countByStatus(status: string): Promise<number> {
+    return this.repository.count({ where: { status } });
+  }
+
+  async findRecent(limit: number = 10): Promise<EvotorIntegration[]> {
+    return this.repository.find({
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
 }

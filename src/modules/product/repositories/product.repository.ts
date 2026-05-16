@@ -287,6 +287,32 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
+  async countAll(): Promise<number> {
+    return this.repository.count({
+      where: { deletedAt: IsNull() },
+    });
+  }
+
+  async countByShopWithoutProducts(): Promise<number> {
+    const shopsWithProducts = await this.repository
+      .createQueryBuilder('product')
+      .select('DISTINCT product.shopId', 'shopId')
+      .where('product.deletedAt IS NULL')
+      .getRawMany();
+
+    const shopIds = new Set(
+      shopsWithProducts.map((r: Record<string, unknown>) => r.shopId),
+    );
+
+    const totalShops = await this.manager
+      .createQueryBuilder()
+      .select('COUNT(*)', 'count')
+      .from('shops', 's')
+      .getRawOne<{ count: string }>();
+
+    return Number(totalShops?.count ?? 0) - shopIds.size;
+  }
+
   async softDeleteById(id: string): Promise<void> {
     await this.repository.softDelete(id);
   }

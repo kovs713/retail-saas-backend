@@ -83,4 +83,34 @@ export class AnalyticsRepository {
       .andWhere('storefront_view.createdAt BETWEEN :from AND :to', { from, to })
       .getCount();
   }
+
+  async countChatEventsByPeriod(from: Date, to: Date): Promise<number> {
+    return this.chatEventRepository
+      .createQueryBuilder('chat_event')
+      .where('chat_event.createdAt BETWEEN :from AND :to', { from, to })
+      .getCount();
+  }
+
+  async countStorefrontViewsByPeriod(from: Date, to: Date): Promise<number> {
+    return this.storefrontViewRepository
+      .createQueryBuilder('storefront_view')
+      .where('storefront_view.createdAt BETWEEN :from AND :to', { from, to })
+      .getCount();
+  }
+
+  async findRecentChatEvents(limit: number = 10): Promise<ChatEvent[]> {
+    return this.chatEventRepository.find({
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
+  async findRecentStorefrontViews(
+    limit: number = 10,
+  ): Promise<StorefrontView[]> {
+    return this.storefrontViewRepository.find({
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
 }

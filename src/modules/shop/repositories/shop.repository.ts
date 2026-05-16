@@ -40,4 +40,19 @@ export class ShopRepository extends Repository<Shop> {
       id: Not(id),
     });
   }
+
+  async countAll(): Promise<number> {
+    return this.repository.count();
+  }
+
+  async countActive(): Promise<number> {
+    return this.repository.count({ where: { isActive: true } });
+  }
+
+  async findRecent(limit: number = 10): Promise<Shop[]> {
+    return this.repository.find({
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
 }

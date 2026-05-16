@@ -167,4 +167,21 @@ export class OrderRepository extends Repository<Order> {
       .having('COUNT(*) > 1')
       .getCount();
   }
+
+  async countByStatus(status: string): Promise<number> {
+    return this.repository.count({
+      where: { status: status as Order['status'] },
+    });
+  }
+
+  async countAll(): Promise<number> {
+    return this.repository.count();
+  }
+
+  async findRecent(limit: number = 10): Promise<Order[]> {
+    return this.repository.find({
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
 }
