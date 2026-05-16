@@ -338,9 +338,11 @@ export class ProductService {
     }
 
     if (this.shouldSyncManagedProduct(product, updateProductDto)) {
-      await this.evotorApiService.upsertProducts(product.externalStoreId!, [
-        this.buildManagedProductPayload(product, updateProductDto),
-      ]);
+      await this.evotorApiService.upsertProducts(
+        product.externalStoreId!,
+        [this.buildManagedProductPayload(product, updateProductDto)],
+        this.getEvotorUserId(product),
+      );
     }
 
     await this.productRepository.update(
@@ -408,9 +410,11 @@ export class ProductService {
     const product = await this.findOne(id, shopId);
 
     if (this.shouldSyncManagedProduct(product, { quantity })) {
-      await this.evotorApiService.upsertProducts(product.externalStoreId!, [
-        this.buildManagedProductPayload(product, { quantity }),
-      ]);
+      await this.evotorApiService.upsertProducts(
+        product.externalStoreId!,
+        [this.buildManagedProductPayload(product, { quantity })],
+        this.getEvotorUserId(product),
+      );
     }
 
     await this.productRepository.updateQuantity(id, shopId, quantity);
@@ -437,9 +441,11 @@ export class ProductService {
     const nextQuantity = product.quantity + adjustment;
 
     if (this.shouldSyncManagedProduct(product, { quantity: nextQuantity })) {
-      await this.evotorApiService.upsertProducts(product.externalStoreId!, [
-        this.buildManagedProductPayload(product, { quantity: nextQuantity }),
-      ]);
+      await this.evotorApiService.upsertProducts(
+        product.externalStoreId!,
+        [this.buildManagedProductPayload(product, { quantity: nextQuantity })],
+        this.getEvotorUserId(product),
+      );
     }
 
     await this.productRepository.incrementQuantity(id, shopId, adjustment);
@@ -798,6 +804,21 @@ export class ProductService {
       price: updateProductDto.price ?? product.price,
       quantity: updateProductDto.quantity ?? product.quantity,
     };
+  }
+
+  private getEvotorUserId(product: Product): string | undefined {
+    const evotorMetadata = product.metadata?.evotor;
+
+    if (
+      !evotorMetadata ||
+      typeof evotorMetadata !== 'object' ||
+      Array.isArray(evotorMetadata)
+    ) {
+      return undefined;
+    }
+
+    const userId = (evotorMetadata as { userId?: unknown }).userId;
+    return typeof userId === 'string' && userId ? userId : undefined;
   }
 
   private sanitizeImageFileName(fileName: string): string {

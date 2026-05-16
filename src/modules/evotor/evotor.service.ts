@@ -1,6 +1,6 @@
 import { LoggerService } from '@/core/logger/logger.service';
-import { Product } from '@/modules/product/entities';
 import { CatalogIndexService } from '@/modules/product/catalog-index.service';
+import { Product } from '@/modules/product/entities';
 import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { ConnectEvotorDto } from './dto';
@@ -19,8 +19,6 @@ export class EvotorService {
   private readonly logger = new LoggerService(EvotorService.name);
 
   constructor(
-    // @InjectRepository(EvotorIntegration)
-    // private readonly repository: Repository<EvotorIntegration>,
     private readonly repository: EvotorIntegrationRepository,
     private readonly shopService: ShopService,
     private readonly productRepository: ProductRepository,
@@ -100,6 +98,7 @@ export class EvotorService {
     const syncTimestamp = new Date();
     const remoteProducts = await this.evotorApiService.getProducts(
       integration.externalStoreId,
+      integration.externalUserId,
     );
     const syncedProducts = await this.productRepository.findSyncedByShop(
       shopId,
@@ -133,6 +132,9 @@ export class EvotorService {
         evotor: {
           id: remoteProduct.id,
           storeId: integration.externalStoreId,
+          ...(integration.externalUserId
+            ? { userId: integration.externalUserId }
+            : {}),
           managed: true,
           syncedAt: syncTimestamp.toISOString(),
         },

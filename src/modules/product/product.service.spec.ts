@@ -1,8 +1,8 @@
 import { createMockTenantContext, mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { createCategory, createProduct } from '@/core/database/factories';
+import { ObjectStorageService } from '@/core/object-storage/object-storage.service';
 import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
-import { StorageService } from '@/modules/storage/storage.service';
 import { CatalogIndexService } from './catalog-index.service';
 import { Product } from './entities';
 import { ProductService } from './product.service';
@@ -23,7 +23,7 @@ describe('ProductService', () => {
   let productRepository: DeepMocked<ProductRepository>;
   let categoryRepository: DeepMocked<CategoryRepository>;
   let cacheService: DeepMocked<CacheService>;
-  let storageService: DeepMocked<StorageService>;
+  let storageService: DeepMocked<ObjectStorageService>;
   let configService: DeepMocked<ConfigService>;
   let evotorApiService: DeepMocked<EvotorApiService>;
   let catalogIndexService: DeepMocked<CatalogIndexService>;
@@ -55,8 +55,8 @@ describe('ProductService', () => {
           useValue: mockCacheService(),
         },
         {
-          provide: StorageService,
-          useValue: createMock<StorageService>(),
+          provide: ObjectStorageService,
+          useValue: createMock<ObjectStorageService>(),
         },
         {
           provide: ConfigService,
@@ -77,7 +77,7 @@ describe('ProductService', () => {
     productRepository = module.get(ProductRepository);
     categoryRepository = module.get(CategoryRepository);
     cacheService = module.get(CacheService);
-    storageService = module.get(StorageService);
+    storageService = module.get(ObjectStorageService);
     configService = module.get(ConfigService);
     evotorApiService = module.get(EvotorApiService);
     catalogIndexService = module.get(CatalogIndexService);
@@ -194,6 +194,7 @@ describe('ProductService', () => {
         externalSource: 'evotor',
         externalId: 'evotor-prod-1',
         externalStoreId: 'store-test-shop-id',
+        metadata: { evotor: { userId: 'evotor-user-1' } },
       });
 
       productRepository.findById.mockResolvedValue(managedProduct);
@@ -219,6 +220,7 @@ describe('ProductService', () => {
             price: 4500,
           }),
         ],
+        'evotor-user-1',
       );
     });
   });
@@ -319,6 +321,7 @@ describe('ProductService', () => {
         externalSource: 'evotor',
         externalId: 'evotor-prod-1',
         externalStoreId: 'store-test-shop-id',
+        metadata: { evotor: { userId: 'evotor-user-1' } },
       });
 
       productRepository.findById.mockResolvedValue(managedProduct);
@@ -340,6 +343,7 @@ describe('ProductService', () => {
             quantity: 150,
           }),
         ],
+        'evotor-user-1',
       );
     });
   });
@@ -381,6 +385,7 @@ describe('ProductService', () => {
         externalSource: 'evotor',
         externalId: 'evotor-prod-1',
         externalStoreId: 'store-test-shop-id',
+        metadata: { evotor: { userId: 'evotor-user-1' } },
       });
 
       productRepository.findById
@@ -400,6 +405,7 @@ describe('ProductService', () => {
             quantity: 150,
           }),
         ],
+        'evotor-user-1',
       );
     });
   });

@@ -3,9 +3,9 @@ import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { EvotorIntegration } from './entities';
-import { EvotorIntegrationRepository } from './repositories';
 import { EvotorApiService } from './evotor-api.service';
 import { EvotorService } from './evotor.service';
+import { EvotorIntegrationRepository } from './repositories';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -83,6 +83,7 @@ describe('EvotorService', () => {
       shopId: 'shop-1',
       status: 'connected',
       externalStoreId: 'store-shop-1',
+      externalUserId: 'evotor-user-1',
     } as EvotorIntegration;
     const staleProduct = createProduct({
       id: 'prod-stale',
@@ -111,6 +112,10 @@ describe('EvotorService', () => {
 
     const result = await service.syncProducts('shop-1');
 
+    expect(evotorApiService.getProducts).toHaveBeenCalledWith(
+      'store-shop-1',
+      'evotor-user-1',
+    );
     expect(productRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
         shopId: 'shop-1',
@@ -118,6 +123,11 @@ describe('EvotorService', () => {
         name: 'Remote Product',
         externalSource: 'evotor',
         externalId: 'remote-1',
+        metadata: expect.objectContaining({
+          evotor: expect.objectContaining({
+            userId: 'evotor-user-1',
+          }),
+        }),
       }),
     );
     expect(productRepository.softDeleteById).toHaveBeenCalledWith('prod-stale');
@@ -151,6 +161,7 @@ describe('EvotorService', () => {
       shopId: 'shop-1',
       status: 'connected',
       externalStoreId: 'store-shop-1',
+      externalUserId: 'evotor-user-1',
     } as EvotorIntegration;
     const syncedProduct = createProduct({
       id: 'prod-1',

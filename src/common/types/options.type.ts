@@ -1,6 +1,7 @@
 export interface EvotorOptions {
   baseUrl: string;
-  token: string;
+  adminToken: string;
+  timeoutMs: number;
 }
 
 export interface S3Options {
