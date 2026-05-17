@@ -3,7 +3,11 @@ import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import { Product } from '@/modules/product/entities';
 import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
-import { ConnectEvotorDto, EvotorAdminLinkStoreDto } from './dto';
+import {
+  ConnectEvotorDto,
+  EvotorAdminLinkStoreDto,
+  SyncEvotorDto,
+} from './dto';
 import { EvotorIntegration } from './entities';
 import { EvotorApiService } from './evotor-api.service';
 import { EvotorIntegrationRepository } from './repositories';
@@ -34,6 +38,7 @@ export class EvotorService {
     payload: ConnectEvotorDto,
   ): Promise<EvotorIntegration> {
     await this.shopService.findById(shopId);
+    await this.assertExternalStoreAvailable(shopId, payload.storeId);
 
     const existing = await this.repository.findOne({
       where: { shopId },
@@ -101,6 +106,19 @@ export class EvotorService {
 
   async unlinkStore(shopId: string): Promise<EvotorIntegration> {
     return this.disconnect(shopId);
+  }
+
+  async syncBridgeAccount(
+    shopId: string,
+    payload: SyncEvotorDto,
+  ): Promise<unknown> {
+    await this.shopService.findById(shopId);
+
+    return this.evotorApiService.syncAdmin({
+      evotorUserId: payload.evotor_user_id,
+      dateFrom: payload.dateFrom,
+      dateTo: payload.dateTo,
+    });
   }
 
   async getStatus(shopId: string): Promise<EvotorIntegration | null> {

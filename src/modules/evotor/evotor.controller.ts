@@ -3,7 +3,7 @@ import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { Request } from '@/common/types';
-import { ConnectEvotorDto } from './dto';
+import { ConnectEvotorDto, SyncEvotorDto } from './dto';
 import { EvotorService } from './evotor.service';
 
 import {
@@ -12,6 +12,8 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Req,
@@ -32,7 +34,7 @@ export class EvotorController {
   constructor(private readonly evotorService: EvotorService) {}
 
   @Post(':shopId/connect')
-  @Roles(Role.OWNER, Role.ADMIN)
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Connect a shop to Evotor',
   })
@@ -51,6 +53,30 @@ export class EvotorController {
       success: true,
       data: integration,
       message: 'Evotor connected successfully',
+    };
+  }
+
+  @Post(':shopId/sync')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Sync Evotor bridge account by evotor_user_id',
+  })
+  @ApiParam({ name: 'shopId', type: String })
+  async syncBridgeAccount(
+    @Param('shopId')
+    shopId: string,
+    @Body()
+    body: SyncEvotorDto,
+    @Req()
+    req: Request,
+  ): Promise<AppApiResponse<unknown>> {
+    this.assertShopAccess(shopId, req);
+    const result = await this.evotorService.syncBridgeAccount(shopId, body);
+    return {
+      success: true,
+      data: result,
+      message: 'Evotor bridge sync started successfully',
     };
   }
 

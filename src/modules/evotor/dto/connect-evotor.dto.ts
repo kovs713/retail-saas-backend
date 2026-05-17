@@ -1,5 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class ConnectEvotorDto {
   @ApiProperty({
@@ -27,4 +32,32 @@ export class ConnectEvotorDto {
   @IsOptional()
   @IsString()
   userId?: string;
+}
+
+export class SyncEvotorDto {
+  @ApiProperty({
+    description: 'Evotor user id to sync through bridge',
+    example: '01-000000000000001',
+  })
+  @IsNotEmpty()
+  @IsString()
+  evotor_user_id: string;
+
+  @ApiProperty({
+    description: 'Documents sync start date',
+    example: '2026-05-01',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  dateFrom?: string;
+
+  @ApiProperty({
+    description: 'Documents sync end date',
+    example: '2026-05-16',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  dateTo?: string;
 }
