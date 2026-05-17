@@ -13,6 +13,10 @@ import {
 
 @Entity('evotor_integrations')
 @Index(['shopId'], { unique: true })
+@Index(['provider', 'externalStoreId'], {
+  unique: true,
+  where: "status = 'connected'",
+})
 @Index(['status'])
 export class EvotorIntegration {
   @PrimaryGeneratedColumn('uuid')

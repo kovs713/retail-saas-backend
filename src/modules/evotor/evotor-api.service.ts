@@ -3,6 +3,7 @@ import { LoggerService } from '@/core/logger/logger.service';
 import {
   EvotorAdminCloudTokenDto,
   EvotorAdminDashboard,
+  EvotorAdminListQueryDto,
   EvotorAdminSyncDto,
   RemoteProduct,
   UpsertProduct,
@@ -35,6 +36,11 @@ interface RequestOptions {
   retry?: boolean;
   timeoutMs?: number;
 }
+
+type EvotorAdminListQuery = Pick<
+  EvotorAdminListQueryDto,
+  'evotorUserId' | 'storeId'
+>;
 
 type EvotorAdminResource =
   | 'accounts'
@@ -123,28 +129,36 @@ export class EvotorApiService {
     };
   }
 
-  async listAdminAccounts(): Promise<unknown[]> {
-    return this.listAdminResource('accounts');
+  async listAdminAccounts(
+    query: EvotorAdminListQuery = {},
+  ): Promise<unknown[]> {
+    return this.listAdminResource('accounts', query);
   }
 
-  async listAdminInboxEvents(): Promise<unknown[]> {
-    return this.listAdminResource('inbox-events');
+  async listAdminInboxEvents(
+    query: EvotorAdminListQuery = {},
+  ): Promise<unknown[]> {
+    return this.listAdminResource('inbox-events', query);
   }
 
-  async listAdminStores(): Promise<unknown[]> {
-    return this.listAdminResource('stores');
+  async listAdminStores(query: EvotorAdminListQuery = {}): Promise<unknown[]> {
+    return this.listAdminResource('stores', query);
   }
 
-  async listAdminDevices(): Promise<unknown[]> {
-    return this.listAdminResource('devices');
+  async listAdminDevices(query: EvotorAdminListQuery = {}): Promise<unknown[]> {
+    return this.listAdminResource('devices', query);
   }
 
-  async listAdminProducts(): Promise<unknown[]> {
-    return this.listAdminResource('products');
+  async listAdminProducts(
+    query: EvotorAdminListQuery = {},
+  ): Promise<unknown[]> {
+    return this.listAdminResource('products', query);
   }
 
-  async listAdminDocuments(): Promise<unknown[]> {
-    return this.listAdminResource('documents');
+  async listAdminDocuments(
+    query: EvotorAdminListQuery = {},
+  ): Promise<unknown[]> {
+    return this.listAdminResource('documents', query);
   }
 
   async syncAdmin(payload: EvotorAdminSyncDto): Promise<unknown> {
@@ -267,11 +281,12 @@ export class EvotorApiService {
 
   private async listAdminResource(
     resource: EvotorAdminResource,
+    query: EvotorAdminListQuery = {},
   ): Promise<unknown[]> {
     return this.request<unknown[]>(
-      `/admin/evotor/${resource}`,
+      this.buildPath(`/admin/evotor/${resource}`, query),
       { method: 'GET' },
-      { retry: true },
+      { evotorUserId: query.evotorUserId, retry: true },
     );
   }
 

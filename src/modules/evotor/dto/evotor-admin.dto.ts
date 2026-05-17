@@ -1,10 +1,29 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
 } from 'class-validator';
+
+export class EvotorAdminListQueryDto {
+  @ApiPropertyOptional({
+    description: 'Evotor user id filter',
+    example: '01-000000000000001',
+  })
+  @IsOptional()
+  @IsString()
+  evotorUserId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Evotor store id filter',
+    example: '20190607-4F3B-40E0-80F0-00155D012500',
+  })
+  @IsOptional()
+  @IsString()
+  storeId?: string;
+}
 
 export class EvotorAdminSyncDto {
   @ApiPropertyOptional({
@@ -50,6 +69,48 @@ export class EvotorAdminCloudTokenDto {
   @IsNotEmpty()
   @IsString()
   token: string;
+}
+
+export class EvotorAdminLinkStoreDto {
+  @ApiProperty({
+    description: 'Local shop id',
+    example: '8c2e1d48-0d7e-43e6-91f2-17e7a2f0e9dd',
+  })
+  @IsNotEmpty()
+  @IsString()
+  shopId: string;
+
+  @ApiProperty({
+    description: 'Evotor user id that owns the store',
+    example: '01-000000000000001',
+  })
+  @IsNotEmpty()
+  @IsString()
+  evotorUserId: string;
+
+  @ApiProperty({
+    description: 'Evotor store id',
+    example: '20190607-4F3B-40E0-80F0-00155D012500',
+  })
+  @IsNotEmpty()
+  @IsString()
+  storeId: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional Evotor device id inside the store',
+    example: '20190607-4F3B-40E0-80F0-00155D012501',
+  })
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Sync products immediately after linking',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  syncProducts?: boolean;
 }
 
 export type EvotorAdminDashboard = {

@@ -3,16 +3,19 @@ import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import { Product } from '@/modules/product/entities';
 import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
-import { ConnectEvotorDto } from './dto';
+import { ConnectEvotorDto, EvotorAdminLinkStoreDto } from './dto';
 import { EvotorIntegration } from './entities';
 import { EvotorApiService } from './evotor-api.service';
 import { EvotorIntegrationRepository } from './repositories';
 
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+
+type BridgeRecord = Record<string, unknown>;
 
 @Injectable()
 export class EvotorService {
@@ -49,6 +52,55 @@ export class EvotorService {
     };
 
     return this.repository.save(integration);
+  }
+
+  async linkStore(
+    payload: EvotorAdminLinkStoreDto,
+  ): Promise<EvotorIntegration> {
+    await this.shopService.findById(payload.shopId);
+    await this.getBridgeAccount(payload.evotorUserId);
+    const bridgeStore = await this.getBridgeStore(
+      payload.evotorUserId,
+      payload.storeId,
+    );
+    const bridgeDevice = payload.deviceId
+      ? await this.getBridgeDevice(
+          payload.evotorUserId,
+          payload.storeId,
+          payload.deviceId,
+        )
+      : undefined;
+
+    await this.assertExternalStoreAvailable(payload.shopId, payload.storeId);
+
+    const existing = await this.repository.findByShopId(payload.shopId);
+    const integration =
+      existing ?? this.repository.create({ shopId: payload.shopId });
+    const linkedAt = new Date().toISOString();
+
+    integration.provider = 'evotor';
+    integration.status = 'connected';
+    integration.externalUserId = payload.evotorUserId;
+    integration.externalStoreId = payload.storeId;
+    integration.externalDeviceId = payload.deviceId ?? null;
+    integration.metadata = {
+      mode: 'admin_bridge_link',
+      linkedAt,
+      bridgeStore,
+      ...(bridgeDevice ? { bridgeDevice } : {}),
+    };
+
+    const saved = await this.repository.save(integration);
+
+    if (payload.syncProducts) {
+      await this.syncProducts(payload.shopId);
+    }
+
+    return saved;
+  }
+
+  async unlinkStore(shopId: string): Promise<EvotorIntegration> {
+    return this.disconnect(shopId);
   }
 
   async getStatus(shopId: string): Promise<EvotorIntegration | null> {
@@ -233,6 +285,181 @@ export class EvotorService {
     }
 
     return integration;
+  }
+
+  private async assertExternalStoreAvailable(
+    shopId: string,
+    externalStoreId: string,
+  ): Promise<void> {
+    const existing = await this.repository.findConnectedByExternalStore(
+      'evotor',
+      externalStoreId,
+    );
+
+    if (existing && existing.shopId !== shopId) {
+      throw new ConflictException(
+        'Evotor store is already linked to another shop',
+      );
+    }
+  }
+
+  private async getBridgeAccount(evotorUserId: string): Promise<BridgeRecord> {
+    const accounts = await this.evotorApiService.listAdminAccounts({
+      evotorUserId,
+    });
+    const account = this.findBridgeAccount(accounts, evotorUserId);
+
+    if (!account) {
+      throw new NotFoundException('Evotor account not found in bridge');
+    }
+
+    return account;
+  }
+
+  private async getBridgeStore(
+    evotorUserId: string,
+    storeId: string,
+  ): Promise<BridgeRecord> {
+    const stores = await this.evotorApiService.listAdminStores({
+      evotorUserId,
+      storeId,
+    });
+    const store = this.findBridgeStore(stores, evotorUserId, storeId);
+
+    if (!store) {
+      throw new NotFoundException('Evotor store not found in bridge');
+    }
+
+    return store;
+  }
+
+  private async getBridgeDevice(
+    evotorUserId: string,
+    storeId: string,
+    deviceId: string,
+  ): Promise<BridgeRecord> {
+    const devices = await this.evotorApiService.listAdminDevices({
+      evotorUserId,
+      storeId,
+    });
+    const device = this.findBridgeDevice(
+      devices,
+      evotorUserId,
+      storeId,
+      deviceId,
+    );
+
+    if (!device) {
+      throw new NotFoundException('Evotor device not found in bridge');
+    }
+
+    return device;
+  }
+
+  private findBridgeAccount(
+    records: unknown[],
+    evotorUserId: string,
+  ): BridgeRecord | null {
+    return this.findBridgeRecord(records, (record) =>
+      this.matchesBridgeValue(
+        record,
+        ['evotorUserId', 'evotor_user_id', 'externalUserId', 'userId', 'id'],
+        evotorUserId,
+      ),
+    );
+  }
+
+  private findBridgeStore(
+    records: unknown[],
+    evotorUserId: string,
+    storeId: string,
+  ): BridgeRecord | null {
+    return this.findBridgeRecord(
+      records,
+      (record) =>
+        this.matchesBridgeValue(
+          record,
+          ['storeId', 'store_id', 'externalStoreId', 'uuid', 'id'],
+          storeId,
+        ) &&
+        this.matchesBridgeValue(
+          record,
+          ['evotorUserId', 'evotor_user_id', 'externalUserId', 'userId'],
+          evotorUserId,
+          true,
+        ),
+    );
+  }
+
+  private findBridgeDevice(
+    records: unknown[],
+    evotorUserId: string,
+    storeId: string,
+    deviceId: string,
+  ): BridgeRecord | null {
+    return this.findBridgeRecord(
+      records,
+      (record) =>
+        this.matchesBridgeValue(
+          record,
+          ['deviceId', 'device_id', 'externalDeviceId', 'uuid', 'id'],
+          deviceId,
+        ) &&
+        this.matchesBridgeValue(
+          record,
+          ['storeId', 'store_id', 'externalStoreId'],
+          storeId,
+          true,
+        ) &&
+        this.matchesBridgeValue(
+          record,
+          ['evotorUserId', 'evotor_user_id', 'externalUserId', 'userId'],
+          evotorUserId,
+          true,
+        ),
+    );
+  }
+
+  private findBridgeRecord(
+    records: unknown[],
+    predicate: (record: BridgeRecord) => boolean,
+  ): BridgeRecord | null {
+    for (const item of records) {
+      const record = this.asBridgeRecord(item);
+
+      if (record && predicate(record)) {
+        return record;
+      }
+    }
+
+    return null;
+  }
+
+  private asBridgeRecord(item: unknown): BridgeRecord | null {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      return null;
+    }
+
+    return item as BridgeRecord;
+  }
+
+  private matchesBridgeValue(
+    record: BridgeRecord,
+    keys: string[],
+    expected: string,
+    allowMissing = false,
+  ): boolean {
+    const values = keys
+      .map((key) => record[key])
+      .filter((value): value is string | number =>
+        ['string', 'number'].includes(typeof value),
+      );
+
+    if (values.length === 0) {
+      return allowMissing;
+    }
+
+    return values.some((value) => String(value) === expected);
   }
 
   private async syncCatalogProduct(product: Product): Promise<void> {

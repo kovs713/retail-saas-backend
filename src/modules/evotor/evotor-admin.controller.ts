@@ -5,20 +5,31 @@ import { AuthGuard, RolesGuard } from '@/common/guards';
 import {
   EvotorAdminCloudTokenDto,
   EvotorAdminDashboard,
+  EvotorAdminLinkStoreDto,
+  EvotorAdminListQueryDto,
   EvotorAdminSyncDto,
 } from './dto';
 import { EvotorApiService } from './evotor-api.service';
+import { EvotorService } from './evotor.service';
 
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 
 @ApiTags('Admin Evotor')
 @ApiBearerAuth('JWT')
@@ -26,7 +37,10 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 @UseGuards(AuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
 export class EvotorAdminController {
-  constructor(private readonly evotorApiService: EvotorApiService) {}
+  constructor(
+    private readonly evotorApiService: EvotorApiService,
+    private readonly evotorService: EvotorService,
+  ) {}
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Get Evotor bridge dashboard state' })
@@ -37,44 +51,87 @@ export class EvotorAdminController {
 
   @Get('accounts')
   @ApiOperation({ summary: 'List Evotor bridge accounts' })
-  async listAccounts(): Promise<AppApiResponse<unknown[]>> {
-    const accounts = await this.evotorApiService.listAdminAccounts();
+  async listAccounts(
+    @Query() query: EvotorAdminListQueryDto,
+  ): Promise<AppApiResponse<unknown[]>> {
+    const accounts = await this.evotorApiService.listAdminAccounts(query);
     return { success: true, data: this.redactSensitive(accounts) };
   }
 
   @Get('inbox-events')
   @ApiOperation({ summary: 'List Evotor bridge inbox events' })
-  async listInboxEvents(): Promise<AppApiResponse<unknown[]>> {
-    const events = await this.evotorApiService.listAdminInboxEvents();
+  async listInboxEvents(
+    @Query() query: EvotorAdminListQueryDto,
+  ): Promise<AppApiResponse<unknown[]>> {
+    const events = await this.evotorApiService.listAdminInboxEvents(query);
     return { success: true, data: this.redactSensitive(events) };
   }
 
   @Get('stores')
   @ApiOperation({ summary: 'List persisted Evotor stores' })
-  async listStores(): Promise<AppApiResponse<unknown[]>> {
-    const stores = await this.evotorApiService.listAdminStores();
+  async listStores(
+    @Query() query: EvotorAdminListQueryDto,
+  ): Promise<AppApiResponse<unknown[]>> {
+    const stores = await this.evotorApiService.listAdminStores(query);
     return { success: true, data: this.redactSensitive(stores) };
   }
 
   @Get('devices')
   @ApiOperation({ summary: 'List persisted Evotor devices' })
-  async listDevices(): Promise<AppApiResponse<unknown[]>> {
-    const devices = await this.evotorApiService.listAdminDevices();
+  async listDevices(
+    @Query() query: EvotorAdminListQueryDto,
+  ): Promise<AppApiResponse<unknown[]>> {
+    const devices = await this.evotorApiService.listAdminDevices(query);
     return { success: true, data: this.redactSensitive(devices) };
   }
 
   @Get('products')
   @ApiOperation({ summary: 'List persisted Evotor products' })
-  async listProducts(): Promise<AppApiResponse<unknown[]>> {
-    const products = await this.evotorApiService.listAdminProducts();
+  async listProducts(
+    @Query() query: EvotorAdminListQueryDto,
+  ): Promise<AppApiResponse<unknown[]>> {
+    const products = await this.evotorApiService.listAdminProducts(query);
     return { success: true, data: this.redactSensitive(products) };
   }
 
   @Get('documents')
   @ApiOperation({ summary: 'List persisted Evotor documents' })
-  async listDocuments(): Promise<AppApiResponse<unknown[]>> {
-    const documents = await this.evotorApiService.listAdminDocuments();
+  async listDocuments(
+    @Query() query: EvotorAdminListQueryDto,
+  ): Promise<AppApiResponse<unknown[]>> {
+    const documents = await this.evotorApiService.listAdminDocuments(query);
     return { success: true, data: this.redactSensitive(documents) };
+  }
+
+  @Post('link-store')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Link local shop to Evotor bridge store' })
+  async linkStore(
+    @Body()
+    body: EvotorAdminLinkStoreDto,
+  ): Promise<AppApiResponse<unknown>> {
+    const integration = await this.evotorService.linkStore(body);
+    return {
+      success: true,
+      data: this.redactSensitive(integration),
+      message: 'Evotor store linked successfully',
+    };
+  }
+
+  @Delete('shops/:shopId/link')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Unlink local shop from Evotor bridge store' })
+  @ApiParam({ name: 'shopId', type: String })
+  async unlinkStore(
+    @Param('shopId')
+    shopId: string,
+  ): Promise<AppApiResponse<unknown>> {
+    const integration = await this.evotorService.unlinkStore(shopId);
+    return {
+      success: true,
+      data: this.redactSensitive(integration),
+      message: 'Evotor store unlinked successfully',
+    };
   }
 
   @Post('sync')

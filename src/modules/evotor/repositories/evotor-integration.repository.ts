@@ -22,6 +22,26 @@ export class EvotorIntegrationRepository extends Repository<EvotorIntegration> {
     });
   }
 
+  async findByShopId(shopId: string): Promise<EvotorIntegration | null> {
+    return this.repository.findOne({ where: { shopId } });
+  }
+
+  async findByExternalStore(
+    provider: string,
+    externalStoreId: string,
+  ): Promise<EvotorIntegration | null> {
+    return this.repository.findOne({ where: { provider, externalStoreId } });
+  }
+
+  async findConnectedByExternalStore(
+    provider: string,
+    externalStoreId: string,
+  ): Promise<EvotorIntegration | null> {
+    return this.repository.findOne({
+      where: { provider, externalStoreId, status: 'connected' },
+    });
+  }
+
   async countActive(): Promise<number> {
     return this.repository.count({ where: { status: 'connected' } });
   }
