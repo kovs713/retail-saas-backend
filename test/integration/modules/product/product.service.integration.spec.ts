@@ -16,7 +16,7 @@ import {
   ShopRepository,
 } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
-import { StorageService } from '@/modules/storage/storage.service';
+import { ObjectStorageService } from '@/core/object-storage/object-storage.service';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
 
@@ -69,8 +69,8 @@ describe('ProductService Integration', () => {
         LocationRepository,
         { provide: CacheService, useValue: mockCacheService() },
         {
-          provide: StorageService,
-          useValue: createMock<StorageService>,
+          provide: ObjectStorageService,
+          useValue: createMock<ObjectStorageService>(),
         },
         {
           provide: ConfigService,

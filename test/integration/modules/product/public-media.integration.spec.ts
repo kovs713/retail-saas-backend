@@ -12,7 +12,7 @@ import {
   ProductRepository,
 } from '@/modules/product/repositories';
 import { Location, Shop } from '@/modules/shop/entities';
-import { StorageService } from '@/modules/storage/storage.service';
+import { ObjectStorageService } from '@/core/object-storage/object-storage.service';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
 
@@ -29,7 +29,7 @@ import { DataSource } from 'typeorm';
 describe('PublicMedia Integration', () => {
   let app: INestApplication;
   let dataSource: DataSource;
-  let storageService: DeepMocked<StorageService>;
+  let storageService: DeepMocked<ObjectStorageService>;
   let shopSlug: string;
   let productId: string;
 
@@ -67,7 +67,10 @@ describe('PublicMedia Integration', () => {
         ProductRepository,
         CategoryRepository,
         { provide: CacheService, useValue: mockCacheService() },
-        { provide: StorageService, useValue: createMock<StorageService>() },
+        {
+          provide: ObjectStorageService,
+          useValue: createMock<ObjectStorageService>(),
+        },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
         { provide: EvotorApiService, useValue: createMock<EvotorApiService>() },
         {
@@ -83,7 +86,7 @@ describe('PublicMedia Integration', () => {
     app = moduleFixture.createNestApplication();
     await app.init();
     storageService =
-      moduleFixture.get<DeepMocked<StorageService>>(StorageService);
+      moduleFixture.get<DeepMocked<ObjectStorageService>>(ObjectStorageService);
     dataSource = moduleFixture.get<DataSource>(DataSource);
   }, 120000);
 
