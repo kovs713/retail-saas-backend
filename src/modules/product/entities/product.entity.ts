@@ -1,5 +1,6 @@
 import { Shop } from '@/modules/shop/entities';
 import { Category } from './';
+import { ProductImage } from './product-image.entity';
 
 import {
   Column,
@@ -9,6 +10,7 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -62,8 +64,10 @@ export class Product {
   @Index()
   barcode: string | null;
 
-  @Column('simple-array', { nullable: true })
-  images: string[];
+  @OneToMany(() => ProductImage, (image) => image.product, {
+    onDelete: 'CASCADE',
+  })
+  images: ProductImage[];
 
   @Column('jsonb', { nullable: true })
   metadata: Record<string, unknown> | null;

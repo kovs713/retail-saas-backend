@@ -1,6 +1,7 @@
-import { Product } from '../entities';
+import { Product, ProductImage } from '../entities';
+import { ProductImageDto } from './product-image.dto';
 
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Transform, plainToInstance } from 'class-transformer';
 
 export class ProductDto {
@@ -46,13 +47,18 @@ export class ProductDto {
   @Expose()
   barcode: string | null;
 
-  @ApiProperty({
-    description: 'Product images URLs',
-    example: ['https://example.com/image1.jpg'],
-    type: [String],
+  @ApiPropertyOptional({
+    description: 'Product images',
+    type: [ProductImageDto],
   })
   @Expose()
-  images: string[] | null;
+  @Transform(({ value }) => {
+    if (!value || !Array.isArray(value) || value.length === 0) {
+      return null;
+    }
+    return ProductImageDto.fromEntities(value as ProductImage[]);
+  })
+  images: ProductImageDto[] | null;
 
   @ApiProperty({
     description: 'Additional metadata',

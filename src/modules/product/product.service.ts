@@ -10,8 +10,12 @@ import {
   UpdateCategoryDto,
   UpdateProductDto,
 } from './dto';
-import { Category, Product } from './entities';
-import { CategoryRepository, ProductRepository } from './repositories';
+import { Category, Product, ProductImage } from './entities';
+import {
+  CategoryRepository,
+  ProductImageRepository,
+  ProductRepository,
+} from './repositories';
 
 import {
   BadRequestException,
@@ -19,7 +23,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { FindOptionsWhere, QueryDeepPartialEntity } from 'typeorm';
 
 @Injectable()
@@ -30,10 +33,10 @@ export class ProductService {
 
   constructor(
     private readonly productRepository: ProductRepository,
+    private readonly productImageRepository: ProductImageRepository,
     private readonly categoryRepository: CategoryRepository,
     private readonly cacheService: CacheService,
     private readonly storageService: ObjectStorageService,
-    private readonly configService: ConfigService,
     private readonly evotorApiService: EvotorApiService,
     private readonly catalogIndexService: CatalogIndexService,
   ) {}
@@ -42,13 +45,7 @@ export class ProductService {
     productId: string,
     file: Express.Multer.File,
     shopId: string,
-  ): Promise<{
-    key: string;
-    publicUrl: string;
-    contentType: string;
-    size: number;
-    etag: string;
-  }> {
+  ): Promise<ProductImage> {
     const product = await this.productRepository.findByIdWithShop(
       productId,
       shopId,
@@ -56,84 +53,139 @@ export class ProductService {
 
     if (!product || !product.shop) {
       throw new NotFoundException('Product not found');
+    }
+
+    const imageCount = await this.productImageRepository.countByProductId(
+      productId,
+      shopId,
+    );
+    if (imageCount >= 10) {
+      throw new BadRequestException('Maximum 10 images allowed per product');
     }
 
     const safeFileName = this.sanitizeImageFileName(file.originalname);
-    const key = this.buildProductImageKey(productId, safeFileName);
+    const s3Key = this.buildProductImageKey(productId, safeFileName);
+
+    await this.storageService.putObject(s3Key, file.buffer, file.size, {
+      'Content-Type': file.mimetype,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    });
+
+    const isPrimary = imageCount === 0;
+    const sortOrder = imageCount;
     const publicUrl = this.buildPublicProductImageUrl(
       product.shop.slug,
       productId,
       safeFileName,
     );
-    const etag = await this.storageService.putObject(
-      key,
-      file.buffer,
-      file.size,
-      {
-        'Content-Type': file.mimetype,
-        'Cache-Control': 'public, max-age=31536000, immutable',
-      },
-    );
 
-    product.images = this.appendImageUrl(product.images, publicUrl);
-    await this.productRepository.save(product);
-    await this.invalidateProductCache(shopId, productId);
-
-    return {
-      key,
+    const image = this.productImageRepository.create({
+      productId,
+      shopId,
+      s3Key,
       publicUrl,
+      isPrimary,
+      sortOrder,
       contentType: file.mimetype,
       size: file.size,
-      etag,
-    };
+    });
+
+    const savedImage = await this.productImageRepository.save(image);
+    await this.invalidateProductCache(shopId, productId);
+
+    return savedImage;
   }
 
-  async createImageUploadUrl(
-    productId: string,
-    fileName: string,
+  async deleteImage(imageId: string, shopId: string): Promise<void> {
+    const image = await this.productImageRepository.findWithProductById(
+      imageId,
+      shopId,
+    );
+
+    if (!image) {
+      throw new NotFoundException('Product image not found');
+    }
+
+    await this.storageService.deleteObject(image.s3Key);
+    await this.productImageRepository.hardDeleteById(imageId, shopId);
+    await this.invalidateProductCache(shopId, image.productId);
+  }
+
+  async reorderImage(
+    imageId: string,
+    sortOrder: number,
     shopId: string,
-  ): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
-    const product = await this.productRepository.findByIdWithShop(
+  ): Promise<ProductImage> {
+    const image = await this.productImageRepository.findOne({
+      where: { id: imageId, shopId },
+    });
+
+    if (!image) {
+      throw new NotFoundException('Product image not found');
+    }
+
+    image.sortOrder = sortOrder;
+    return this.productImageRepository.save(image);
+  }
+
+  async setPrimaryImage(
+    imageId: string,
+    shopId: string,
+  ): Promise<ProductImage> {
+    const image = await this.productImageRepository.findOne({
+      where: { id: imageId, shopId },
+    });
+
+    if (!image) {
+      throw new NotFoundException('Product image not found');
+    }
+
+    await this.productImageRepository.update(
+      { productId: image.productId, shopId, isPrimary: true },
+      { isPrimary: false },
+    );
+
+    image.isPrimary = true;
+    return this.productImageRepository.save(image);
+  }
+
+  async findImageById(imageId: string, shopId: string): Promise<ProductImage> {
+    const image = await this.productImageRepository.findOne({
+      where: { id: imageId, shopId },
+    });
+
+    if (!image) {
+      throw new NotFoundException('Product image not found');
+    }
+
+    return image;
+  }
+
+  async findImagesByProductId(
+    productId: string,
+    shopId: string,
+  ): Promise<ProductImage[]> {
+    return this.productImageRepository.findAllByProductId(productId, shopId);
+  }
+
+  async deleteAllProductImages(
+    productId: string,
+    shopId: string,
+  ): Promise<void> {
+    const images = await this.productImageRepository.findAllByProductId(
       productId,
       shopId,
     );
 
-    if (!product || !product.shop) {
-      throw new NotFoundException('Product not found');
+    if (images.length > 0) {
+      await Promise.all(
+        images.map((img) => this.storageService.deleteObject(img.s3Key)),
+      );
+      await this.productImageRepository.hardDeleteByProductId(
+        productId,
+        shopId,
+      );
     }
-
-    const safeFileName = this.sanitizeImageFileName(fileName);
-    const key = this.buildProductImageKey(productId, safeFileName);
-    const expirySeconds = this.configService.getOrThrow<number>(
-      'MEDIA_UPLOAD_PRESIGNED_TTL',
-    );
-    const uploadUrl = await this.storageService.getPresignedPutUrl(
-      key,
-      expirySeconds,
-    );
-    const publicUrl = this.buildPublicProductImageUrl(
-      product.shop.slug,
-      productId,
-      safeFileName,
-    );
-
-    return { uploadUrl, publicUrl, key };
-  }
-
-  async deleteImage(
-    productId: string,
-    imageName: string,
-    shopId: string,
-  ): Promise<void> {
-    const product = await this.productRepository.findById(productId, shopId);
-    if (!product) {
-      throw new NotFoundException('Product not found');
-    }
-
-    const safeFileName = this.sanitizeImageFileName(imageName);
-    const key = this.buildProductImageKey(productId, safeFileName);
-
-    await this.storageService.deleteObject(key);
   }
 
   async findPublicByShopSlugAndId(
@@ -143,22 +195,15 @@ export class ProductService {
     return this.productRepository.findByIdAndShopSlug(productId, shopSlug);
   }
 
-  async getPrivateImageStream(
+  async getImageStream(
     productId: string,
     imageName: string,
-    shopId: string,
   ): Promise<{
     stream: NodeJS.ReadableStream;
     contentType: string;
     etag: string;
     lastModified: Date;
   }> {
-    const product = await this.productRepository.findById(productId, shopId);
-
-    if (!product) {
-      throw new NotFoundException('Product not found');
-    }
-
     const safeFileName = this.sanitizeImageFileName(imageName);
     const key = this.buildProductImageKey(productId, safeFileName);
     const [stat, stream] = await Promise.all([
@@ -174,8 +219,32 @@ export class ProductService {
     };
   }
 
-  buildProductImageObjectKey(productId: string, imageName: string): string {
-    return this.buildProductImageKey(productId, imageName);
+  buildProductImageKey(productId: string, imageName: string): string {
+    return `products/${productId}/images/${imageName}`;
+  }
+
+  private sanitizeImageFileName(fileName: string): string {
+    const trimmed = fileName.trim();
+    const validPattern = /^[a-zA-Z0-9._-]+$/;
+    if (!trimmed || !validPattern.test(trimmed)) {
+      throw new BadRequestException('Invalid image file name');
+    }
+
+    const extension = trimmed.split('.').pop()?.toLowerCase();
+    const allowedExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
+    if (!extension || !allowedExtensions.has(extension)) {
+      throw new BadRequestException('Unsupported image extension');
+    }
+
+    return trimmed;
+  }
+
+  private buildPublicProductImageUrl(
+    shopSlug: string,
+    productId: string,
+    imageName: string,
+  ): string {
+    return `/public/media/${shopSlug}/products/${productId}/${imageName}`;
   }
 
   async create(
@@ -366,6 +435,7 @@ export class ProductService {
     this.logger.log(`Soft deleting product ID: ${id} for shop: ${shopId}`);
 
     await this.findOne(id, shopId);
+    await this.deleteAllProductImages(id, shopId);
     await this.productRepository.softDeleteById(id);
     await this.invalidateProductCache(shopId, id);
     await this.removeCatalogProduct(id, shopId);
@@ -819,44 +889,6 @@ export class ProductService {
 
     const userId = (evotorMetadata as { userId?: unknown }).userId;
     return typeof userId === 'string' && userId ? userId : undefined;
-  }
-
-  private sanitizeImageFileName(fileName: string): string {
-    const trimmed = fileName.trim();
-    const validPattern = /^[a-zA-Z0-9._-]+$/;
-    if (!trimmed || !validPattern.test(trimmed)) {
-      throw new BadRequestException('Invalid image file name');
-    }
-
-    const extension = trimmed.split('.').pop()?.toLowerCase();
-    const allowedExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
-    if (!extension || !allowedExtensions.has(extension)) {
-      throw new BadRequestException('Unsupported image extension');
-    }
-
-    return trimmed;
-  }
-
-  private appendImageUrl(
-    images: string[] | null | undefined,
-    publicUrl: string,
-  ): string[] {
-    const nextImages = images ?? [];
-    return nextImages.includes(publicUrl)
-      ? nextImages
-      : [...nextImages, publicUrl];
-  }
-
-  private buildProductImageKey(productId: string, imageName: string): string {
-    return `products/${productId}/images/${imageName}`;
-  }
-
-  private buildPublicProductImageUrl(
-    shopSlug: string,
-    productId: string,
-    imageName: string,
-  ): string {
-    return `/public/media/${shopSlug}/products/${productId}/${imageName}`;
   }
 
   private async syncCatalogProduct(product: Product): Promise<void> {

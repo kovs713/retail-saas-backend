@@ -32,6 +32,7 @@ export class ProductRepository extends Repository<Product> {
     const queryBuilder = this.repository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.images', 'images')
       .where('product.shopId = :shopId', { shopId })
       .andWhere('product.deletedAt IS NULL');
 
@@ -101,7 +102,7 @@ export class ProductRepository extends Repository<Product> {
         shopId,
         deletedAt: IsNull(),
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
     });
   }
 
@@ -109,6 +110,7 @@ export class ProductRepository extends Repository<Product> {
     return this.repository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.shop', 'shop')
+      .leftJoinAndSelect('product.images', 'images')
       .where('product.id = :id', { id })
       .andWhere('product.shopId = :shopId', { shopId })
       .andWhere('product.deletedAt IS NULL')
@@ -122,6 +124,7 @@ export class ProductRepository extends Repository<Product> {
     return this.repository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.shop', 'shop')
+      .leftJoinAndSelect('product.images', 'images')
       .where('product.id = :id', { id })
       .andWhere('shop.slug = :shopSlug', { shopSlug })
       .andWhere('shop.isActive = true')
@@ -136,7 +139,7 @@ export class ProductRepository extends Repository<Product> {
         shopId,
         deletedAt: IsNull(),
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
     });
   }
 
@@ -150,7 +153,7 @@ export class ProductRepository extends Repository<Product> {
         shopId,
         deletedAt: IsNull(),
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
     });
   }
 
@@ -164,7 +167,7 @@ export class ProductRepository extends Repository<Product> {
         quantity: MoreThan(0),
         deletedAt: IsNull(),
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
       take: limit,
       order: {
         quantity: 'DESC',
@@ -192,7 +195,7 @@ export class ProductRepository extends Repository<Product> {
         shopId,
         deletedAt: IsNull(),
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
       order: {
         createdAt: 'DESC',
       },
@@ -248,7 +251,7 @@ export class ProductRepository extends Repository<Product> {
         shopId,
       },
       withDeleted: true,
-      relations: ['category'],
+      relations: ['category', 'images'],
     });
   }
 

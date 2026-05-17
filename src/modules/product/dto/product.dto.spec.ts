@@ -1,6 +1,6 @@
 import { createProduct } from '@/core/database/factories';
 import { ProductDto } from './product.dto';
-import { Product } from '../entities';
+import { Product, ProductImage } from '../entities';
 
 describe('ProductDto', () => {
   const createMockProduct = (overrides: Partial<Product> = {}): Product => {
@@ -14,7 +14,7 @@ describe('ProductDto', () => {
       quantity: 100,
       categoryId: 'electronics-cat-uuid',
       barcode: '5901234123457',
-      images: ['https://example.com/mouse.jpg'],
+      images: [],
       metadata: { brand: 'TechBrand' },
       ...overrides,
     });
@@ -86,6 +86,41 @@ describe('ProductDto', () => {
       expect(dtos).toHaveLength(2);
       expect(dtos[0].name).toBe('Mouse');
       expect(dtos[1].name).toBe('Keyboard');
+    });
+  });
+
+  describe('images', () => {
+    it('should return null when images is empty array', () => {
+      const product = createMockProduct({ images: [] });
+
+      const dto = ProductDto.fromEntity(product);
+
+      expect(dto.images).toBeNull();
+    });
+
+    it('should transform ProductImage entities to DTOs', () => {
+      const mockImages = [
+        {
+          id: 'img_1',
+          s3Key: 'key1',
+          publicUrl: '/url1',
+          isPrimary: true,
+          sortOrder: 0,
+          altText: null,
+          contentType: 'image/jpeg',
+          size: 1024,
+          createdAt: new Date('2024-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+        } as ProductImage,
+      ];
+
+      const product = createMockProduct({ images: mockImages });
+
+      const dto = ProductDto.fromEntity(product);
+
+      expect(dto.images).toHaveLength(1);
+      expect(dto.images![0].id).toBe('img_1');
+      expect(dto.images![0].isPrimary).toBe(true);
     });
   });
 });

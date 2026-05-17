@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
+import { ProductImageDto } from '@/modules/product/dto/product-image.dto';
 
 export class StorefrontProductDto {
   @ApiProperty({ description: 'Product ID' })
@@ -30,9 +31,13 @@ export class StorefrontProductDto {
   @Expose()
   category: string | null;
 
-  @ApiPropertyOptional({ description: 'Product images' })
+  @ApiPropertyOptional({
+    description: 'Product images',
+    type: [ProductImageDto],
+  })
   @Expose()
-  images: string[] | null;
+  @Type(() => ProductImageDto)
+  images: ProductImageDto[] | null;
 
   @ApiProperty({
     description: 'Product availability',

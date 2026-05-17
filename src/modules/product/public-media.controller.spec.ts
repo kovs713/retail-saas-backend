@@ -40,7 +40,7 @@ describe('PublicMediaController', () => {
     jest.spyOn(stream, 'pipe').mockReturnValue(res as any);
     storageService.getObjectStream.mockResolvedValue(stream);
     productService.findPublicByShopSlugAndId.mockResolvedValue(product);
-    productService.buildProductImageObjectKey.mockReturnValue(
+    productService.buildProductImageKey.mockReturnValue(
       'products/p1/images/a.jpg',
     );
     storageService.statObject.mockResolvedValue({

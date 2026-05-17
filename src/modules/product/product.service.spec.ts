@@ -4,9 +4,13 @@ import { createCategory, createProduct } from '@/core/database/factories';
 import { ObjectStorageService } from '@/core/object-storage/object-storage.service';
 import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { CatalogIndexService } from './catalog-index.service';
-import { Product } from './entities';
+import { Product, ProductImage } from './entities';
 import { ProductService } from './product.service';
-import { CategoryRepository, ProductRepository } from './repositories';
+import {
+  CategoryRepository,
+  ProductImageRepository,
+  ProductRepository,
+} from './repositories';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import {
@@ -14,17 +18,16 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UpdateResult } from 'typeorm';
 
 describe('ProductService', () => {
   let service: ProductService;
   let productRepository: DeepMocked<ProductRepository>;
+  let productImageRepository: DeepMocked<ProductImageRepository>;
   let categoryRepository: DeepMocked<CategoryRepository>;
   let cacheService: DeepMocked<CacheService>;
   let storageService: DeepMocked<ObjectStorageService>;
-  let configService: DeepMocked<ConfigService>;
   let evotorApiService: DeepMocked<EvotorApiService>;
   let catalogIndexService: DeepMocked<CatalogIndexService>;
 
@@ -47,6 +50,10 @@ describe('ProductService', () => {
           useValue: createMock<ProductRepository>(),
         },
         {
+          provide: ProductImageRepository,
+          useValue: createMock<ProductImageRepository>(),
+        },
+        {
           provide: CategoryRepository,
           useValue: createMock<CategoryRepository>(),
         },
@@ -57,10 +64,6 @@ describe('ProductService', () => {
         {
           provide: ObjectStorageService,
           useValue: createMock<ObjectStorageService>(),
-        },
-        {
-          provide: ConfigService,
-          useValue: createMock<ConfigService>(),
         },
         {
           provide: EvotorApiService,
@@ -75,18 +78,12 @@ describe('ProductService', () => {
 
     service = module.get<ProductService>(ProductService);
     productRepository = module.get(ProductRepository);
+    productImageRepository = module.get(ProductImageRepository);
     categoryRepository = module.get(CategoryRepository);
     cacheService = module.get(CacheService);
     storageService = module.get(ObjectStorageService);
-    configService = module.get(ConfigService);
     evotorApiService = module.get(EvotorApiService);
     catalogIndexService = module.get(CatalogIndexService);
-    configService.get.mockImplementation((key: string, defaultValue?: any) => {
-      const config: Record<string, any> = {
-        MEDIA_UPLOAD_PRESIGNED_TTL: 900,
-      };
-      return key in config ? config[key] : defaultValue;
-    });
   });
 
   afterEach(() => {
@@ -226,9 +223,11 @@ describe('ProductService', () => {
   });
 
   describe('remove', () => {
-    it('should soft delete a product', async () => {
+    it('should soft delete a product and its images', async () => {
       productRepository.findById.mockResolvedValue(mockProduct);
       productRepository.softDeleteById.mockResolvedValue();
+      productImageRepository.findAllByProductId.mockResolvedValue([]);
+      productImageRepository.hardDeleteByProductId.mockResolvedValue();
       await service.remove('prod_1', mockTenantContext);
 
       expect(catalogIndexService.removeProduct).toHaveBeenCalledWith(
@@ -596,69 +595,32 @@ describe('ProductService', () => {
     });
   });
 
-  describe('createImageUploadUrl', () => {
-    it('should return upload and public URLs', async () => {
-      const productWithShop = {
-        ...mockProduct,
-        id: 'prod_1',
-        shopId: mockTenantContext.shopId,
-        shop: { slug: 'my-shop' } as any,
-      } as Product;
-      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
-      storageService.getPresignedPutUrl.mockResolvedValue('https://upload-url');
-
-      const result = await service.createImageUploadUrl(
-        'prod_1',
-        'image-1.jpg',
-        mockTenantContext,
-      );
-
-      expect(result.uploadUrl).toBe('https://upload-url');
-      expect(result.publicUrl).toBe(
-        '/public/media/my-shop/products/prod_1/image-1.jpg',
-      );
-      expect(result.key).toBe('products/prod_1/images/image-1.jpg');
-    });
-
-    it('should throw for invalid file name', async () => {
-      const productWithShop = {
-        ...mockProduct,
-        id: 'prod_1',
-        shopId: mockTenantContext.shopId,
-        shop: { slug: 'my-shop' } as any,
-      } as Product;
-      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
-
-      await expect(
-        service.createImageUploadUrl(
-          'prod_1',
-          '../evil.jpg',
-          mockTenantContext,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-  });
-
   describe('uploadProductImage', () => {
-    it('should upload image and persist public url on product', async () => {
+    it('should upload image and create ProductImage entity', async () => {
       const productWithShop = {
         ...mockProduct,
         id: 'prod_1',
         shopId: mockTenantContext.shopId,
-        images: ['/public/media/my-shop/products/prod_1/old.jpg'],
         shop: { slug: 'my-shop' } as any,
       } as Product;
-      const uploadedProduct = {
-        ...productWithShop,
-        images: [
-          ...(productWithShop.images ?? []),
-          '/public/media/my-shop/products/prod_1/photo.jpg',
-        ],
-      } as Product;
+
+      const mockImage = {
+        id: 'img_1',
+        productId: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        s3Key: 'products/prod_1/images/photo.jpg',
+        publicUrl: '/public/media/my-shop/products/prod_1/photo.jpg',
+        isPrimary: true,
+        sortOrder: 0,
+        contentType: 'image/jpeg',
+        size: 1024,
+      } as ProductImage;
 
       productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
+      productImageRepository.countByProductId.mockResolvedValue(0);
       storageService.putObject.mockResolvedValue('etag-1');
-      productRepository.save.mockResolvedValue(uploadedProduct);
+      productImageRepository.create.mockReturnValue(mockImage);
+      productImageRepository.save.mockResolvedValue(mockImage);
 
       const file = {
         originalname: 'photo.jpg',
@@ -682,33 +644,25 @@ describe('ProductService', () => {
           'Cache-Control': 'public, max-age=31536000, immutable',
         }),
       );
-      expect(productRepository.save).toHaveBeenCalledWith(
+      expect(productImageRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          images: [
-            '/public/media/my-shop/products/prod_1/old.jpg',
-            '/public/media/my-shop/products/prod_1/photo.jpg',
-          ],
+          isPrimary: true,
+          sortOrder: 0,
         }),
       );
-      expect(result.publicUrl).toBe(
-        '/public/media/my-shop/products/prod_1/photo.jpg',
-      );
-      expect(result.etag).toBe('etag-1');
-      expect(result.size).toBe(1024);
+      expect(result).toEqual(mockImage);
     });
 
-    it('should dedupe existing image url', async () => {
+    it('should throw BadRequestException when max images reached', async () => {
       const productWithShop = {
         ...mockProduct,
         id: 'prod_1',
         shopId: mockTenantContext.shopId,
-        images: ['/public/media/my-shop/products/prod_1/photo.jpg'],
         shop: { slug: 'my-shop' } as any,
       } as Product;
 
       productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
-      storageService.putObject.mockResolvedValue('etag-1');
-      productRepository.save.mockResolvedValue(productWithShop);
+      productImageRepository.countByProductId.mockResolvedValue(10);
 
       const file = {
         originalname: 'photo.jpg',
@@ -717,26 +671,208 @@ describe('ProductService', () => {
         buffer: Buffer.from('image-data'),
       } as Express.Multer.File;
 
-      await service.uploadProductImage(
+      await expect(
+        service.uploadProductImage('prod_1', file, mockTenantContext.shopId),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should set isPrimary false for subsequent images', async () => {
+      const productWithShop = {
+        ...mockProduct,
+        id: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        shop: { slug: 'my-shop' } as any,
+      } as Product;
+
+      const mockImage = {
+        id: 'img_2',
+        productId: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        s3Key: 'products/prod_1/images/photo2.jpg',
+        publicUrl: '/public/media/my-shop/products/prod_1/photo2.jpg',
+        isPrimary: false,
+        sortOrder: 1,
+        contentType: 'image/jpeg',
+        size: 2048,
+      } as ProductImage;
+
+      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
+      productImageRepository.countByProductId.mockResolvedValue(1);
+      storageService.putObject.mockResolvedValue('etag-2');
+      productImageRepository.create.mockReturnValue(mockImage);
+      productImageRepository.save.mockResolvedValue(mockImage);
+
+      const file = {
+        originalname: 'photo2.jpg',
+        mimetype: 'image/jpeg',
+        size: 2048,
+        buffer: Buffer.from('image-data'),
+      } as Express.Multer.File;
+
+      const result = await service.uploadProductImage(
         'prod_1',
         file,
         mockTenantContext.shopId,
       );
 
-      expect(productRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          images: ['/public/media/my-shop/products/prod_1/photo.jpg'],
-        }),
-      );
+      expect(result.isPrimary).toBe(false);
+      expect(result.sortOrder).toBe(1);
     });
   });
 
   describe('deleteImage', () => {
-    it('should delete image by deterministic key', async () => {
-      productRepository.findById.mockResolvedValue(mockProduct);
-      storageService.deleteObject.mockResolvedValue();
+    it('should delete image from S3 and database', async () => {
+      const mockImage = {
+        id: 'img_1',
+        productId: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        s3Key: 'products/prod_1/images/photo.jpg',
+      } as ProductImage;
 
-      await service.deleteImage('prod_1', 'photo.jpg', mockTenantContext);
+      productImageRepository.findWithProductById.mockResolvedValue(mockImage);
+      storageService.deleteObject.mockResolvedValue();
+      productImageRepository.hardDeleteById.mockResolvedValue();
+
+      await service.deleteImage('img_1', mockTenantContext.shopId);
+
+      expect(storageService.deleteObject).toHaveBeenCalledWith(
+        'products/prod_1/images/photo.jpg',
+      );
+      expect(productImageRepository.hardDeleteById).toHaveBeenCalledWith(
+        'img_1',
+        mockTenantContext.shopId,
+      );
+    });
+
+    it('should throw NotFoundException when image not found', async () => {
+      productImageRepository.findWithProductById.mockResolvedValue(null);
+
+      await expect(
+        service.deleteImage('non-existent', mockTenantContext.shopId),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('reorderImage', () => {
+    it('should update sortOrder', async () => {
+      const mockImage = {
+        id: 'img_1',
+        productId: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        sortOrder: 0,
+      } as ProductImage;
+
+      productImageRepository.findOne.mockResolvedValue(mockImage);
+      productImageRepository.save.mockResolvedValue({
+        ...mockImage,
+        sortOrder: 5,
+      });
+
+      const result = await service.reorderImage(
+        'img_1',
+        5,
+        mockTenantContext.shopId,
+      );
+
+      expect(result.sortOrder).toBe(5);
+    });
+
+    it('should throw NotFoundException when image not found', async () => {
+      productImageRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.reorderImage('non-existent', 5, mockTenantContext.shopId),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('setPrimaryImage', () => {
+    it('should set image as primary and unset others', async () => {
+      const mockImage = {
+        id: 'img_1',
+        productId: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        isPrimary: false,
+      } as ProductImage;
+
+      productImageRepository.findOne.mockResolvedValue(mockImage);
+      productImageRepository.update.mockResolvedValue({
+        affected: 1,
+      } as UpdateResult);
+      productImageRepository.save.mockResolvedValue({
+        ...mockImage,
+        isPrimary: true,
+      });
+
+      const result = await service.setPrimaryImage(
+        'img_1',
+        mockTenantContext.shopId,
+      );
+
+      expect(productImageRepository.update).toHaveBeenCalledWith(
+        {
+          productId: 'prod_1',
+          shopId: mockTenantContext.shopId,
+          isPrimary: true,
+        },
+        { isPrimary: false },
+      );
+      expect(result.isPrimary).toBe(true);
+    });
+
+    it('should throw NotFoundException when image not found', async () => {
+      productImageRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.setPrimaryImage('non-existent', mockTenantContext.shopId),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findImagesByProductId', () => {
+    it('should return all images for product', async () => {
+      const mockImages = [
+        { id: 'img_1', sortOrder: 0 } as ProductImage,
+        { id: 'img_2', sortOrder: 1 } as ProductImage,
+      ];
+
+      productImageRepository.findAllByProductId.mockResolvedValue(mockImages);
+
+      const result = await service.findImagesByProductId(
+        'prod_1',
+        mockTenantContext.shopId,
+      );
+
+      expect(result).toEqual(mockImages);
+    });
+  });
+
+  describe('deleteAllProductImages', () => {
+    it('should delete all images from S3 and database', async () => {
+      const mockImages = [
+        { id: 'img_1', s3Key: 'key1' } as ProductImage,
+        { id: 'img_2', s3Key: 'key2' } as ProductImage,
+      ];
+
+      productImageRepository.findAllByProductId.mockResolvedValue(mockImages);
+      storageService.deleteObject.mockResolvedValue();
+      productImageRepository.hardDeleteByProductId.mockResolvedValue();
+
+      await service.deleteAllProductImages('prod_1', mockTenantContext.shopId);
+
+      expect(storageService.deleteObject).toHaveBeenCalledTimes(2);
+      expect(productImageRepository.hardDeleteByProductId).toHaveBeenCalledWith(
+        'prod_1',
+        mockTenantContext.shopId,
+      );
+    });
+
+    it('should do nothing when no images exist', async () => {
+      productImageRepository.findAllByProductId.mockResolvedValue([]);
+
+      await service.deleteAllProductImages('prod_1', mockTenantContext.shopId);
+
+      expect(storageService.deleteObject).not.toHaveBeenCalled();
     });
   });
 

@@ -61,10 +61,7 @@ export class PublicMediaController {
       throw new NotFoundException('Product not found');
     }
 
-    const key = this.productService.buildProductImageObjectKey(
-      productId,
-      safeName,
-    );
+    const key = this.productService.buildProductImageKey(productId, safeName);
 
     let stream: NodeJS.ReadableStream;
     let stat: {

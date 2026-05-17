@@ -1,13 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsArray,
   IsNotEmpty,
   IsNumber,
   IsObject,
   IsOptional,
   IsPositive,
   IsString,
-  IsUrl,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -76,16 +74,6 @@ export class UpdateProductDto {
   @IsString()
   @MaxLength(50)
   barcode?: string;
-
-  @ApiPropertyOptional({
-    description: 'Product images URLs',
-    example: ['https://example.com/image1.jpg'],
-    type: [String],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsUrl({}, { each: true })
-  images?: string[];
 
   @ApiPropertyOptional({
     description: 'Additional metadata',

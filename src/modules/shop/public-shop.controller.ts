@@ -1,4 +1,5 @@
 import { Pagination } from '@/common/dto';
+import { ProductImageDto } from '@/modules/product/dto/product-image.dto';
 import {
   CategoryRepository,
   ProductRepository,
@@ -101,7 +102,9 @@ export class PublicShopController {
         price: Number(product.price),
         quantity: product.quantity,
         category: product.category?.name || null,
-        images: product.images,
+        images: product.images?.length
+          ? ProductImageDto.fromEntities(product.images)
+          : null,
         availability,
       };
     });
