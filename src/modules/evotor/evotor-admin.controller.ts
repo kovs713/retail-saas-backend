@@ -111,7 +111,9 @@ export class EvotorAdminController {
 
   private redactSensitive<T>(value: T): T {
     if (Array.isArray(value)) {
-      return value.map((item) => this.redactSensitive(item)) as T;
+      return (value as unknown[]).map((item) =>
+        this.redactSensitive(item),
+      ) as unknown as T;
     }
 
     if (!value || typeof value !== 'object') {
@@ -119,7 +121,7 @@ export class EvotorAdminController {
     }
 
     return Object.fromEntries(
-      Object.entries(value).map(([key, entry]) => [
+      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
         key,
         /token|authorization/i.test(key)
           ? '[redacted]'
