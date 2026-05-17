@@ -125,6 +125,27 @@ describe('EvotorApiService', () => {
     ]);
   });
 
+  it('passes filters to bridge admin list endpoints', async () => {
+    const query = { evotorUserId: 'evotor-user-1', storeId: 'store-1' };
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse([])));
+
+    await service.listAdminAccounts(query);
+    await service.listAdminInboxEvents(query);
+    await service.listAdminStores(query);
+    await service.listAdminDevices(query);
+    await service.listAdminProducts(query);
+    await service.listAdminDocuments(query);
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      'https://bridge.example.com/admin/evotor/accounts?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/admin/evotor/inbox-events?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/admin/evotor/stores?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/admin/evotor/devices?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/admin/evotor/products?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/admin/evotor/documents?evotorUserId=evotor-user-1&storeId=store-1',
+    ]);
+  });
+
   it('triggers admin sync through the bridge', async () => {
     const response = {
       batchId: 'batch-1',
