@@ -1,5 +1,8 @@
+import { mockCacheService } from '@/common/utils';
+import { CacheService } from '@/core/cache/cache.service';
 import { createProduct } from '@/core/database/factories';
 import { CatalogIndexService } from '@/modules/product/catalog-index.service';
+import { Product } from '@/modules/product/entities';
 import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { EvotorIntegration } from './entities';
@@ -35,6 +38,7 @@ describe('EvotorService', () => {
           provide: CatalogIndexService,
           useValue: createMock<CatalogIndexService>(),
         },
+        { provide: CacheService, useValue: mockCacheService() },
         { provide: EvotorApiService, useValue: createMock<EvotorApiService>() },
         { provide: ShopService, useValue: createMock<ShopService>() },
       ],
@@ -46,6 +50,10 @@ describe('EvotorService', () => {
     evotorApiService = module.get(EvotorApiService);
     shopService = module.get(ShopService);
     catalogIndexService = module.get(CatalogIndexService);
+    productRepository.save.mockImplementation(async (value) =>
+      Promise.resolve(value as Product),
+    );
+    productRepository.findBySku.mockResolvedValue(null);
   });
 
   it('connects a shop to an Evotor store', async () => {
@@ -321,7 +329,7 @@ describe('EvotorService', () => {
       expect.objectContaining({
         id: 'prod-1',
         sku: 'SKU-001',
-        name: 'Remote Product',
+        name: 'Old Product',
         externalId: 'remote-1',
       }),
     );

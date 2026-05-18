@@ -15,10 +15,12 @@ export class EvotorIntegrationRepository extends Repository<EvotorIntegration> {
     return this.repository.find();
   }
 
-  async findById(id: string, shopId: string): Promise<EvotorIntegration[]> {
-    return this.repository.findBy({
-      id: id,
-      shopId: shopId,
+  async findById(
+    id: string,
+    shopId: string,
+  ): Promise<EvotorIntegration | null> {
+    return this.repository.findOne({
+      where: { id, shopId },
     });
   }
 

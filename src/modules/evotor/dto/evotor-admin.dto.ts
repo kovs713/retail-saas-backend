@@ -5,15 +5,21 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
 } from 'class-validator';
+
+const EVOTOR_USER_ID_PATTERN = /^[0-9a-f]{2}-[0-9a-f]{15}$/i;
+const EVOTOR_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class EvotorAdminListQueryDto {
   @ApiPropertyOptional({
-    description: 'Evotor user id filter',
+    description: 'Evotor user id filter. If omitted, returns all accounts.',
     example: '01-000000000000001',
   })
   @IsOptional()
   @IsString()
+  @Matches(EVOTOR_USER_ID_PATTERN, { message: 'Invalid evotorUserId format' })
   evotorUserId?: string;
 
   @ApiPropertyOptional({
@@ -22,18 +28,71 @@ export class EvotorAdminListQueryDto {
   })
   @IsOptional()
   @IsString()
+  @Matches(EVOTOR_UUID_PATTERN, { message: 'Invalid storeId format' })
   storeId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Pagination cursor for next page',
+    example: 'eyJpZCI6InByb2QtMTUwIn0=',
+  })
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @ApiPropertyOptional({
+    description: 'Documents filter start date',
+    example: '2026-05-01',
+  })
+  @IsOptional()
+  @IsDateString()
+  dateFrom?: string;
+
+  @ApiPropertyOptional({
+    description: 'Documents filter end date',
+    example: '2026-05-16',
+  })
+  @IsOptional()
+  @IsDateString()
+  dateTo?: string;
 }
 
 export class EvotorAdminSyncDto {
-  @ApiPropertyOptional({
+  @ApiProperty({
     description:
       'Evotor user id. Required when bridge has multiple Evotor accounts.',
     example: '01-000000000000001',
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  evotorUserId?: string;
+  @Matches(EVOTOR_USER_ID_PATTERN, { message: 'Invalid evotorUserId format' })
+  evotorUserId: string;
+
+  @ApiPropertyOptional({
+    description: 'Documents sync start date',
+    example: '2026-05-01',
+  })
+  @IsOptional()
+  @IsDateString()
+  dateFrom?: string;
+
+  @ApiPropertyOptional({
+    description: 'Documents sync end date',
+    example: '2026-05-16',
+  })
+  @IsOptional()
+  @IsDateString()
+  dateTo?: string;
+}
+
+export class EvotorAdminStoreSyncDto {
+  @ApiProperty({
+    description: 'Evotor user id that owns the store',
+    example: '01-000000000000001',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @Matches(EVOTOR_USER_ID_PATTERN, { message: 'Invalid evotorUserId format' })
+  evotorUserId: string;
 
   @ApiPropertyOptional({
     description: 'Documents sync start date',
@@ -59,6 +118,7 @@ export class EvotorAdminCloudTokenDto {
   })
   @IsNotEmpty()
   @IsString()
+  @Matches(EVOTOR_USER_ID_PATTERN, { message: 'Invalid evotorUserId format' })
   evotorUserId: string;
 
   @ApiProperty({
@@ -86,6 +146,7 @@ export class EvotorAdminLinkStoreDto {
   })
   @IsNotEmpty()
   @IsString()
+  @Matches(EVOTOR_USER_ID_PATTERN, { message: 'Invalid evotorUserId format' })
   evotorUserId: string;
 
   @ApiProperty({
@@ -94,6 +155,7 @@ export class EvotorAdminLinkStoreDto {
   })
   @IsNotEmpty()
   @IsString()
+  @Matches(EVOTOR_UUID_PATTERN, { message: 'Invalid storeId format' })
   storeId: string;
 
   @ApiPropertyOptional({
@@ -102,6 +164,7 @@ export class EvotorAdminLinkStoreDto {
   })
   @IsOptional()
   @IsString()
+  @Matches(EVOTOR_UUID_PATTERN, { message: 'Invalid deviceId format' })
   deviceId?: string;
 
   @ApiPropertyOptional({

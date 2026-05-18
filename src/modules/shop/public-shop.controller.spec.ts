@@ -102,7 +102,7 @@ describe('PublicShopController', () => {
     ];
 
     shopService.findBySlug.mockResolvedValue(mockShop as any);
-    productRepository.findAll.mockResolvedValue([mockProducts as any, 1]);
+    productRepository.findSyncedAll.mockResolvedValue([mockProducts as any, 1]);
     categoryRepository.findAllByShop.mockResolvedValue(mockCategories as any);
 
     const result = await controller.getStorefront('test-shop');
@@ -138,7 +138,7 @@ describe('PublicShopController', () => {
     ];
 
     shopService.findBySlug.mockResolvedValue(mockShop as any);
-    productRepository.findAll.mockResolvedValue([mockProducts as any, 1]);
+    productRepository.findSyncedAll.mockResolvedValue([mockProducts as any, 1]);
     categoryRepository.findAllByShop.mockResolvedValue([]);
 
     const result = await controller.getStorefront('test-shop');
@@ -166,7 +166,7 @@ describe('PublicShopController', () => {
     ];
 
     shopService.findBySlug.mockResolvedValue(mockShop as any);
-    productRepository.findAll.mockResolvedValue([mockProducts as any, 1]);
+    productRepository.findSyncedAll.mockResolvedValue([mockProducts as any, 1]);
     categoryRepository.findAllByShop.mockResolvedValue([]);
 
     const result = await controller.getStorefront('test-shop');
@@ -194,7 +194,7 @@ describe('PublicShopController', () => {
     ];
 
     shopService.findBySlug.mockResolvedValue(mockShop as any);
-    productRepository.findAll.mockResolvedValue([mockProducts as any, 1]);
+    productRepository.findSyncedAll.mockResolvedValue([mockProducts as any, 1]);
     categoryRepository.findAllByShop.mockResolvedValue([]);
 
     const result = await controller.getStorefront('test-shop');
@@ -210,7 +210,7 @@ describe('PublicShopController', () => {
     };
 
     shopService.findBySlug.mockResolvedValue(mockShop as any);
-    productRepository.findAll.mockResolvedValue([[], 0]);
+    productRepository.findSyncedAll.mockResolvedValue([[], 0]);
     categoryRepository.findAllByShop.mockResolvedValue([]);
     analyticsService.logStorefrontView.mockRejectedValue(
       new Error('analytics down'),

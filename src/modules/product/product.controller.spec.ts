@@ -51,25 +51,6 @@ describe('ProductController', () => {
     jest.clearAllMocks();
   });
 
-  describe('create', () => {
-    it('should create a product successfully', async () => {
-      service.create.mockResolvedValue(mockProduct);
-      const result = await controller.create(
-        {
-          sku: 'PROD-001',
-          name: 'Test',
-          price: 99.99,
-          quantity: 100,
-        },
-        tenantContext,
-      );
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data?.sku).toBe(mockProduct.sku);
-      expect(result.message).toBe('Product created successfully');
-    });
-  });
-
   describe('findAll', () => {
     it('should return paginated products', async () => {
       service.findAll.mockResolvedValue({
@@ -140,53 +121,6 @@ describe('ProductController', () => {
       await expect(
         controller.update('non-existent', { name: 'Updated' }, tenantContext),
       ).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('remove', () => {
-    it('should delete a product', async () => {
-      service.remove.mockResolvedValue(undefined);
-      const result = await controller.remove('prod_1', tenantContext);
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('restore', () => {
-    it('should restore a product', async () => {
-      service.restore.mockResolvedValue({
-        message: 'Product restored successfully',
-      });
-      const result = await controller.restore('prod_1', tenantContext);
-      expect(result.success).toBe(true);
-      expect(result.message).toBe('Product restored successfully');
-    });
-  });
-
-  describe('updateStock', () => {
-    it('should update stock', async () => {
-      service.updateStock.mockResolvedValue({ ...mockProduct, quantity: 150 });
-      const result = await controller.updateStock(
-        'prod_1',
-        { quantity: 150 },
-        tenantContext,
-      );
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data!.quantity).toBe(150);
-    });
-  });
-
-  describe('adjustStock', () => {
-    it('should adjust stock', async () => {
-      service.adjustStock.mockResolvedValue({ ...mockProduct, quantity: 150 });
-      const result = await controller.adjustStock(
-        'prod_1',
-        { adjustment: 50 },
-        tenantContext,
-      );
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data!.quantity).toBe(150);
     });
   });
 

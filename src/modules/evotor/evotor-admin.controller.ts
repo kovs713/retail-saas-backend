@@ -7,6 +7,7 @@ import {
   EvotorAdminDashboard,
   EvotorAdminLinkStoreDto,
   EvotorAdminListQueryDto,
+  EvotorAdminStoreSyncDto,
   EvotorAdminSyncDto,
   EvotorApplicationDto,
   RejectEvotorApplicationDto,
@@ -144,6 +145,14 @@ export class EvotorAdminController {
   async listProducts(
     @Query() query: EvotorAdminListQueryDto,
   ): Promise<AppApiResponse<unknown[]>> {
+    if (!query.storeId) {
+      return {
+        success: true,
+        data: [],
+        message: 'storeId required to list products',
+      };
+    }
+
     const products = await this.evotorApiService.listAdminProducts(query);
     return { success: true, data: this.redactSensitive(products) };
   }
@@ -153,6 +162,14 @@ export class EvotorAdminController {
   async listDocuments(
     @Query() query: EvotorAdminListQueryDto,
   ): Promise<AppApiResponse<unknown[]>> {
+    if (!query.storeId) {
+      return {
+        success: true,
+        data: [],
+        message: 'storeId required to list documents',
+      };
+    }
+
     const documents = await this.evotorApiService.listAdminDocuments(query);
     return { success: true, data: this.redactSensitive(documents) };
   }
@@ -190,16 +207,53 @@ export class EvotorAdminController {
 
   @Post('sync')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Trigger Evotor bridge sync' })
+  @ApiOperation({ summary: 'Trigger Evotor bridge sync (all stores)' })
   async sync(
     @Body()
     body: EvotorAdminSyncDto,
   ): Promise<AppApiResponse<unknown>> {
-    const result = await this.evotorApiService.syncAdmin(body);
+    const result = await this.evotorApiService.syncStores(body);
     return {
       success: true,
       data: this.redactSensitive(result),
       message: 'Evotor bridge sync started successfully',
+    };
+  }
+
+  @Post('sync/stores/:storeId/products')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sync products for a specific store' })
+  @ApiParam({ name: 'storeId', type: String })
+  async syncStoreProducts(
+    @Param('storeId') storeId: string,
+    @Body()
+    body: EvotorAdminStoreSyncDto,
+  ): Promise<AppApiResponse<unknown>> {
+    const result = await this.evotorApiService.syncStoreProducts(storeId, body);
+    return {
+      success: true,
+      data: this.redactSensitive(result),
+      message: 'Evotor store products sync started successfully',
+    };
+  }
+
+  @Post('sync/stores/:storeId/documents')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sync documents for a specific store' })
+  @ApiParam({ name: 'storeId', type: String })
+  async syncStoreDocuments(
+    @Param('storeId') storeId: string,
+    @Body()
+    body: EvotorAdminStoreSyncDto,
+  ): Promise<AppApiResponse<unknown>> {
+    const result = await this.evotorApiService.syncStoreDocuments(
+      storeId,
+      body,
+    );
+    return {
+      success: true,
+      data: this.redactSensitive(result),
+      message: 'Evotor store documents sync started successfully',
     };
   }
 

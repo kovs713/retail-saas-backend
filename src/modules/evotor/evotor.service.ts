@@ -1,3 +1,4 @@
+import { CacheService } from '@/core/cache/cache.service';
 import { LoggerService } from '@/core/logger/logger.service';
 import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import { Product } from '@/modules/product/entities';
@@ -18,6 +19,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 
 type BridgeRecord = Record<string, unknown>;
 
@@ -26,11 +28,13 @@ export class EvotorService {
   private readonly logger = new LoggerService(EvotorService.name);
 
   constructor(
+    private readonly dataSource: DataSource,
     private readonly repository: EvotorIntegrationRepository,
     private readonly shopService: ShopService,
     private readonly productRepository: ProductRepository,
     private readonly evotorApiService: EvotorApiService,
     private readonly catalogIndexService: CatalogIndexService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async connect(
@@ -98,7 +102,20 @@ export class EvotorService {
     const saved = await this.repository.save(integration);
 
     if (payload.syncProducts) {
-      await this.syncProducts(payload.shopId);
+      try {
+        await this.syncProducts(payload.shopId);
+      } catch (error) {
+        this.logger.error(
+          `Product sync failed after linking store ${payload.shopId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+        saved.status = 'sync_failed';
+        saved.metadata = {
+          ...saved.metadata,
+          syncError: error instanceof Error ? error.message : 'Unknown error',
+          syncFailedAt: new Date().toISOString(),
+        };
+        await this.repository.save(saved);
+      }
     }
 
     return saved;
@@ -114,7 +131,7 @@ export class EvotorService {
   ): Promise<unknown> {
     await this.shopService.findById(shopId);
 
-    return this.evotorApiService.syncAdmin({
+    return this.evotorApiService.syncStores({
       evotorUserId: payload.evotor_user_id,
       dateFrom: payload.dateFrom,
       dateTo: payload.dateTo,
@@ -215,7 +232,7 @@ export class EvotorService {
             ...existingProduct,
             shopId,
             sku: remoteProduct.article_number,
-            name: remoteProduct.name,
+            name: existingProduct.name,
             price: remoteProduct.price,
             quantity: remoteProduct.quantity,
             description: existingProduct.description ?? null,
@@ -247,9 +264,9 @@ export class EvotorService {
             deletedAt: null,
           });
 
-      await this.productRepository.save(product);
-      await this.syncCatalogProduct(product);
-      matchedProductIds.add(product.id);
+      const savedProduct = await this.productRepository.save(product);
+      await this.syncCatalogProduct(savedProduct);
+      matchedProductIds.add(savedProduct.id);
       importedCount += 1;
     }
 
@@ -277,6 +294,7 @@ export class EvotorService {
       lastSyncStatus: 'success',
     };
     await this.repository.save(integration);
+    await this.invalidateProductCache(shopId);
 
     return {
       importedCount,
@@ -509,5 +527,15 @@ export class EvotorService {
         errorStack,
       );
     }
+  }
+
+  private async invalidateProductCache(shopId: string): Promise<void> {
+    await Promise.all([
+      this.cacheService.delPattern(`products:list:${shopId}:*`),
+      this.cacheService.delPattern(`products:low-stock:${shopId}:*`),
+      this.cacheService.delPattern('product:id:*'),
+      this.cacheService.delPattern(`product:sku:${shopId}:*`),
+      this.cacheService.delPattern(`product:barcode:${shopId}:*`),
+    ]);
   }
 }

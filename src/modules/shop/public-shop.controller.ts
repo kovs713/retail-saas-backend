@@ -65,10 +65,8 @@ export class PublicShopController {
     }
 
     const paginationQuery: Pagination = { page: 1, limit: 100 };
-    const [products, totalProducts] = await this.productRepository.findAll(
-      shop.id,
-      paginationQuery,
-    );
+    const [products, totalProducts] =
+      await this.productRepository.findSyncedAll(shop.id, paginationQuery);
 
     const categories = await this.categoryRepository.findAllByShop(shop.id);
 

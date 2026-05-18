@@ -39,8 +39,28 @@ export class ProductDto {
   @Expose()
   quantity: number;
 
+  @ApiPropertyOptional({
+    description: 'Product category ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @Expose()
+  categoryId: string | null;
+
   @ApiProperty({ description: 'Product category', example: 'Electronics' })
   @Expose()
+  @Transform(({ value }) => {
+    if (!value) {
+      return null;
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'object' && 'name' in value) {
+      const name = (value as { name?: unknown }).name;
+      return typeof name === 'string' ? name : null;
+    }
+    return null;
+  })
   category: string | null;
 
   @ApiProperty({ description: 'Product barcode', example: '5901234123457' })

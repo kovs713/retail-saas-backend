@@ -1,28 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsNotEmpty,
-  IsNumber,
-  IsObject,
   IsOptional,
-  IsPositive,
   IsString,
   MaxLength,
-  Min,
+  IsUUID,
 } from 'class-validator';
 
 export class UpdateProductDto {
   @ApiPropertyOptional({
-    description: 'Unique product SKU',
-    example: 'PROD-001',
-  })
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(50)
-  sku?: string;
-
-  @ApiPropertyOptional({
-    description: 'Product name',
+    description: 'Local storefront product name override',
     example: 'Wireless Mouse',
   })
   @IsOptional()
@@ -32,54 +19,19 @@ export class UpdateProductDto {
   name?: string;
 
   @ApiPropertyOptional({
-    description: 'Product description',
+    description: 'Local storefront product description',
     example: 'Ergonomic wireless mouse',
   })
   @IsOptional()
   @IsString()
   @MaxLength(2000)
-  description?: string;
-
-  @ApiPropertyOptional({ description: 'Product price', example: 29.99 })
-  @IsOptional()
-  @IsNumber()
-  @IsPositive()
-  price?: number;
-
-  @ApiPropertyOptional({ description: 'Product cost', example: 15.0 })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  cost?: number;
-
-  @ApiPropertyOptional({ description: 'Stock quantity', example: 100 })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  quantity?: number;
+  description?: string | null;
 
   @ApiPropertyOptional({
-    description: 'Category ID',
+    description: 'Local storefront category ID. Use null to clear category.',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsOptional()
-  @IsString()
-  categoryId?: string;
-
-  @ApiPropertyOptional({
-    description: 'Barcode (EAN/UPC)',
-    example: '5901234123457',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  barcode?: string;
-
-  @ApiPropertyOptional({
-    description: 'Additional metadata',
-    example: { brand: 'TechBrand', color: 'Black' },
-  })
-  @IsOptional()
-  @IsObject()
-  metadata?: Record<string, unknown>;
+  @IsUUID()
+  categoryId?: string | null;
 }

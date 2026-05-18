@@ -4,9 +4,9 @@ import {
   EvotorAdminCloudTokenDto,
   EvotorAdminDashboard,
   EvotorAdminListQueryDto,
+  EvotorAdminStoreSyncDto,
   EvotorAdminSyncDto,
   RemoteProduct,
-  UpsertProduct,
 } from './dto';
 
 import {
@@ -26,6 +26,26 @@ interface EvotorBridgeEnvelope<T> {
   };
   meta?: {
     evotorStatus?: number;
+    rateLimit?: {
+      limit?: string;
+      remaining?: string;
+      reset?: string;
+    };
+  };
+}
+
+export interface EvotorProxyResponse<T> {
+  data: T;
+  paging?: {
+    nextCursor?: string | null;
+  };
+  meta?: {
+    evotorStatus?: number;
+    rateLimit?: {
+      limit?: string;
+      remaining?: string;
+      reset?: string;
+    };
   };
 }
 
@@ -39,7 +59,7 @@ interface RequestOptions {
 
 type EvotorAdminListQuery = Pick<
   EvotorAdminListQueryDto,
-  'evotorUserId' | 'storeId'
+  'evotorUserId' | 'storeId' | 'cursor' | 'dateFrom' | 'dateTo'
 >;
 
 type EvotorAdminResource =
@@ -88,82 +108,154 @@ export class EvotorApiService {
     return products;
   }
 
-  async upsertProducts(
+  async proxyRequest<T>(
+    path: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+    evotorUserId: string,
+    query?: Record<string, string | undefined>,
+    body?: Record<string, unknown>,
+  ): Promise<EvotorBridgeEnvelope<T>> {
+    return this.request<EvotorBridgeEnvelope<T>>(
+      this.buildPath(path, query ?? {}),
+      {
+        method,
+        body: body ? JSON.stringify(body) : undefined,
+      },
+      { evotorUserId, retry: method === 'GET' },
+    );
+  }
+
+  async syncStoreProducts(
     storeId: string,
-    products: UpsertProduct[],
-    evotorUserId?: string | null,
-  ): Promise<void> {
-    await this.request(
-      this.buildPath(
-        `/api/evotor/stores/${encodeURIComponent(storeId)}/products/bulk`,
-        {
-          evotorUserId,
-        },
-      ),
+    payload: EvotorAdminStoreSyncDto,
+  ): Promise<unknown> {
+    return this.request(
+      `/api/evotor/sync/stores/${encodeURIComponent(storeId)}/products`,
       {
         method: 'POST',
-        body: JSON.stringify(products),
+        body: JSON.stringify({ evotorUserId: payload.evotorUserId }),
       },
-      { evotorUserId, retry: true },
+      {
+        evotorUserId: payload.evotorUserId,
+        timeoutMs: Math.max(this.evotorConfig.timeoutMs, 30000),
+      },
+    );
+  }
+
+  async syncStoreDocuments(
+    storeId: string,
+    payload: EvotorAdminStoreSyncDto,
+  ): Promise<unknown> {
+    return this.request(
+      `/api/evotor/sync/stores/${encodeURIComponent(storeId)}/documents`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          evotorUserId: payload.evotorUserId,
+          dateFrom: payload.dateFrom,
+          dateTo: payload.dateTo,
+        }),
+      },
+      {
+        evotorUserId: payload.evotorUserId,
+        timeoutMs: Math.max(this.evotorConfig.timeoutMs, 30000),
+      },
+    );
+  }
+
+  async syncStores(payload: EvotorAdminSyncDto): Promise<unknown> {
+    return this.request(
+      '/api/evotor/sync/stores',
+      {
+        method: 'POST',
+        body: JSON.stringify({ evotorUserId: payload.evotorUserId }),
+      },
+      {
+        evotorUserId: payload.evotorUserId,
+        timeoutMs: Math.max(this.evotorConfig.timeoutMs, 30000),
+      },
     );
   }
 
   async getAdminDashboard(): Promise<EvotorAdminDashboard> {
-    const [accounts, inboxEvents, stores, devices, products, documents] =
-      await Promise.all([
-        this.listAdminAccounts(),
-        this.listAdminInboxEvents(),
-        this.listAdminStores(),
-        this.listAdminDevices(),
-        this.listAdminProducts(),
-        this.listAdminDocuments(),
-      ]);
+    const [stores, devices] = await Promise.all([
+      this.listAdminStores({}),
+      this.listAdminDevices({}),
+    ]);
 
     return {
-      accounts,
-      inboxEvents,
+      accounts: [],
+      inboxEvents: [],
       stores,
       devices,
-      products,
-      documents,
+      products: [],
+      documents: [],
     };
   }
 
   async listAdminAccounts(
-    query: EvotorAdminListQuery = {},
+    query: Partial<EvotorAdminListQuery> = {},
   ): Promise<unknown[]> {
     return this.listAdminResource('accounts', query);
   }
 
   async listAdminInboxEvents(
-    query: EvotorAdminListQuery = {},
+    query: Partial<EvotorAdminListQuery> = {},
   ): Promise<unknown[]> {
     return this.listAdminResource('inbox-events', query);
   }
 
-  async listAdminStores(query: EvotorAdminListQuery = {}): Promise<unknown[]> {
+  async listAdminStores(
+    query: Partial<EvotorAdminListQuery> = {},
+  ): Promise<unknown[]> {
     return this.listAdminResource('stores', query);
   }
 
-  async listAdminDevices(query: EvotorAdminListQuery = {}): Promise<unknown[]> {
+  async listAdminDevices(
+    query: Partial<EvotorAdminListQuery> = {},
+  ): Promise<unknown[]> {
     return this.listAdminResource('devices', query);
   }
 
   async listAdminProducts(
-    query: EvotorAdminListQuery = {},
+    query: Partial<EvotorAdminListQuery> = {},
   ): Promise<unknown[]> {
-    return this.listAdminResource('products', query);
+    if (!query.storeId) return [];
+
+    const response = await this.request<EvotorBridgeEnvelope<unknown[]>>(
+      this.buildPath(`/api/evotor/stores/${query.storeId}/products`, {
+        cursor: query.cursor,
+        evotorUserId: query.evotorUserId,
+      }),
+      { method: 'GET' },
+      { evotorUserId: query.evotorUserId, retry: true },
+    );
+
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   async listAdminDocuments(
-    query: EvotorAdminListQuery = {},
+    query: Partial<EvotorAdminListQuery> = {},
   ): Promise<unknown[]> {
-    return this.listAdminResource('documents', query);
+    if (!query.storeId) return [];
+
+    const response = await this.request<EvotorBridgeEnvelope<unknown[]>>(
+      this.buildPath(`/api/evotor/stores/${query.storeId}/documents`, {
+        cursor: query.cursor,
+        evotorUserId: query.evotorUserId,
+        dateFrom: query.dateFrom,
+        dateTo: query.dateTo,
+      }),
+      { method: 'GET' },
+      { evotorUserId: query.evotorUserId, retry: true },
+    );
+
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   async syncAdmin(payload: EvotorAdminSyncDto): Promise<unknown> {
     return this.request(
-      '/admin/evotor/sync',
+      '/api/evotor/sync',
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -179,7 +271,7 @@ export class EvotorApiService {
     payload: EvotorAdminCloudTokenDto,
   ): Promise<unknown> {
     return this.request(
-      '/admin/evotor/cloud-token',
+      '/api/evotor/cloud-token',
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -281,13 +373,18 @@ export class EvotorApiService {
 
   private async listAdminResource(
     resource: EvotorAdminResource,
-    query: EvotorAdminListQuery = {},
+    query: Partial<EvotorAdminListQuery> = {},
   ): Promise<unknown[]> {
-    return this.request<unknown[]>(
-      this.buildPath(`/admin/evotor/${resource}`, query),
+    const response = await this.request<EvotorBridgeEnvelope<unknown[]>>(
+      this.buildPath(
+        `/api/evotor/${resource}`,
+        query as Record<string, string | undefined>,
+      ),
       { method: 'GET' },
       { evotorUserId: query.evotorUserId, retry: true },
     );
+
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   private buildHeaders(
@@ -321,6 +418,10 @@ export class EvotorApiService {
       return new UnauthorizedException('Evotor bridge request unauthorized');
     }
 
+    if (status === 429) {
+      return new HttpException('Evotor rate limit exceeded', 429);
+    }
+
     return new HttpException(
       `Evotor bridge request failed with status ${status}`,
       status,
@@ -328,7 +429,7 @@ export class EvotorApiService {
   }
 
   private shouldRetryStatus(status: number): boolean {
-    return status === 502 || status === 503 || status === 504;
+    return status === 429 || status === 502 || status === 503 || status === 504;
   }
 
   private async delay(attempt: number): Promise<void> {

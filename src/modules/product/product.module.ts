@@ -1,4 +1,3 @@
-import { EvotorApiModule } from '@/modules/evotor/evotor-api.module';
 import { VectorStoreModule } from '@/modules/rag/vector-store/vector-store.module';
 import { CatalogIndexService } from './catalog-index.service';
 import { Category, Product, ProductImage } from './entities';
@@ -17,7 +16,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Product, Category, ProductImage]),
-    EvotorApiModule.forRoot(),
     VectorStoreModule.forRootAsync(),
   ],
   providers: [

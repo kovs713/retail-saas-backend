@@ -4,7 +4,12 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
 } from 'class-validator';
+
+const EVOTOR_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EVOTOR_USER_ID_PATTERN = /^[0-9a-f]{2}-[0-9a-f]{15}$/i;
 
 export class ConnectEvotorDto {
   @ApiProperty({
@@ -13,6 +18,7 @@ export class ConnectEvotorDto {
   })
   @IsNotEmpty()
   @IsString()
+  @Matches(EVOTOR_UUID_PATTERN, { message: 'Invalid storeId format' })
   storeId: string;
 
   @ApiProperty({
@@ -22,6 +28,7 @@ export class ConnectEvotorDto {
   })
   @IsOptional()
   @IsString()
+  @Matches(EVOTOR_UUID_PATTERN, { message: 'Invalid deviceId format' })
   deviceId?: string;
 
   @ApiProperty({
@@ -31,6 +38,7 @@ export class ConnectEvotorDto {
   })
   @IsOptional()
   @IsString()
+  @Matches(EVOTOR_USER_ID_PATTERN, { message: 'Invalid userId format' })
   userId?: string;
 }
 
@@ -41,6 +49,7 @@ export class SyncEvotorDto {
   })
   @IsNotEmpty()
   @IsString()
+  @Matches(EVOTOR_USER_ID_PATTERN, { message: 'Invalid evotor_user_id format' })
   evotor_user_id: string;
 
   @ApiProperty({

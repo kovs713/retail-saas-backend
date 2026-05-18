@@ -71,6 +71,17 @@ describe('ProductDto', () => {
       expect(dto.name).toBe('Wireless Mouse');
       expect(dto.price).toBe(29.99);
       expect(dto.quantity).toBe(100);
+      expect(dto.categoryId).toBe('electronics-cat-uuid');
+    });
+
+    it('should expose category name from relation', () => {
+      const product = createMockProduct({
+        category: { name: 'Electronics' } as any,
+      });
+
+      const dto = ProductDto.fromEntity(product);
+
+      expect(dto.category).toBe('Electronics');
     });
   });
 

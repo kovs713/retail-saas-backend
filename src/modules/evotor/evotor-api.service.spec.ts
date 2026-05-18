@@ -69,33 +69,6 @@ describe('EvotorApiService', () => {
     expect(headers.get('X-Authorization')).toBeNull();
   });
 
-  it('writes product changes through the bridge bulk proxy', async () => {
-    const payload = [
-      {
-        id: 'product-1',
-        article_number: 'SKU-001',
-        name: 'First Product',
-        price: 1200,
-        quantity: 7,
-      },
-    ];
-    fetchMock.mockResolvedValueOnce(jsonResponse({ data: {} }));
-
-    await service.upsertProducts('store-1', payload, 'evotor-user-1');
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://bridge.example.com/api/evotor/stores/store-1/products/bulk?evotorUserId=evotor-user-1',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: expect.any(Headers),
-      }),
-    );
-    const headers = fetchMock.mock.calls[0][1]?.headers as Headers;
-    expect(headers.get('Authorization')).toBe('Bearer admin-token');
-    expect(headers.get('Content-Type')).toBe('application/json');
-  });
-
   it('reads admin dashboard resources through bridge admin endpoints', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse([{ id: 'account-1' }]))
@@ -116,12 +89,12 @@ describe('EvotorApiService', () => {
       documents: [{ id: 'document-1' }],
     });
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      'https://bridge.example.com/admin/evotor/accounts',
-      'https://bridge.example.com/admin/evotor/inbox-events',
-      'https://bridge.example.com/admin/evotor/stores',
-      'https://bridge.example.com/admin/evotor/devices',
-      'https://bridge.example.com/admin/evotor/products',
-      'https://bridge.example.com/admin/evotor/documents',
+      'https://bridge.example.com/api/evotor/accounts',
+      'https://bridge.example.com/api/evotor/inbox-events',
+      'https://bridge.example.com/api/evotor/stores',
+      'https://bridge.example.com/api/evotor/devices',
+      'https://bridge.example.com/api/evotor/products',
+      'https://bridge.example.com/api/evotor/documents',
     ]);
   });
 
@@ -137,12 +110,12 @@ describe('EvotorApiService', () => {
     await service.listAdminDocuments(query);
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      'https://bridge.example.com/admin/evotor/accounts?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/admin/evotor/inbox-events?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/admin/evotor/stores?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/admin/evotor/devices?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/admin/evotor/products?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/admin/evotor/documents?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/api/evotor/accounts?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/api/evotor/inbox-events?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/api/evotor/stores?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/api/evotor/devices?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/api/evotor/products?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/api/evotor/documents?evotorUserId=evotor-user-1&storeId=store-1',
     ]);
   });
 
@@ -162,7 +135,7 @@ describe('EvotorApiService', () => {
 
     expect(result).toEqual(response);
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://bridge.example.com/admin/evotor/sync',
+      'https://bridge.example.com/api/evotor/sync',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(payload),
@@ -181,7 +154,7 @@ describe('EvotorApiService', () => {
     await service.setAdminCloudToken(payload);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://bridge.example.com/admin/evotor/cloud-token',
+      'https://bridge.example.com/api/evotor/cloud-token',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(payload),
