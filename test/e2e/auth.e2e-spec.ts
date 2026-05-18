@@ -1,13 +1,15 @@
+import { RegistrationStatus } from '@/common/enums';
 import { AuthGuard } from '@/common/guards';
-import { AuthConfig } from '@/common/types';
+import { AuthConfig, AuthOptions } from '@/common/types';
 import { mockAuthGuard } from '@/common/utils';
+import { AuthController } from '@/core/auth/auth.controller';
+import { AuthService } from '@/core/auth/auth.service';
 import {
   createAuthResponseDto,
   createTokenPayload,
 } from '@/core/database/factories';
-import { AuthController } from '@/core/auth/auth.controller';
-import { AuthOptions } from '@/core/auth/auth.module';
-import { AuthService } from '@/core/auth/auth.service';
+import { RegistrationApplicationPublicController } from '@/modules/registration-application/registration-application-public.controller';
+import { RegistrationApplicationService } from '@/modules/registration-application/registration-application.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import {
@@ -24,6 +26,7 @@ import request from 'supertest';
 describe('Auth E2E', () => {
   let app: INestApplication;
   let service: DeepMocked<AuthService>;
+  let registrationApplicationService: DeepMocked<RegistrationApplicationService>;
 
   const mockUser = createTokenPayload({
     overrides: { sub: 'user_001', shopId: 'shop_001' },
@@ -46,8 +49,12 @@ describe('Auth E2E', () => {
       providers: [
         { provide: AuthConfig, useValue: mockAuthConfig },
         { provide: AuthService, useValue: createMock<AuthService>() },
+        {
+          provide: RegistrationApplicationService,
+          useValue: createMock<RegistrationApplicationService>(),
+        },
       ],
-      controllers: [AuthController],
+      controllers: [AuthController, RegistrationApplicationPublicController],
     })
       .overrideGuard(ThrottlerGuard)
       .useValue({ canActivate: () => true })
@@ -67,6 +74,9 @@ describe('Auth E2E', () => {
     await app.init();
 
     service = module.get<DeepMocked<AuthService>>(AuthService);
+    registrationApplicationService = module.get<
+      DeepMocked<RegistrationApplicationService>
+    >(RegistrationApplicationService);
   });
 
   afterAll(async () => {
@@ -79,12 +89,12 @@ describe('Auth E2E', () => {
 
   describe('POST /auth/register', () => {
     it('should create registration application without auth cookie', async () => {
-      service.register.mockResolvedValue({
+      registrationApplicationService.create.mockResolvedValue({
         id: 'application_001',
         email: 'new@example.com',
         shopName: 'New Shop',
         shopSlug: 'new-shop',
-        status: 'pending',
+        status: RegistrationStatus.PENDING,
       } as never);
 
       const response = await request(app.getHttpServer())
@@ -99,7 +109,7 @@ describe('Auth E2E', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.id).toBe('application_001');
-      expect(response.body.data.status).toBe('pending');
+      expect(response.body.data.status).toBe(RegistrationStatus.PENDING);
       expect(response.body.message).toBe(
         'Registration application created successfully',
       );
@@ -116,7 +126,7 @@ describe('Auth E2E', () => {
     });
 
     it('should return 409 for duplicate email', async () => {
-      service.register.mockRejectedValue(
+      registrationApplicationService.create.mockRejectedValue(
         new ConflictException('Email already exists'),
       );
 

@@ -1,8 +1,10 @@
 import { ProductModule } from '@/modules/product/product.module';
 import { ShopModule } from '@/modules/shop/shop.module';
-import { EvotorIntegration } from './entities';
+import { UserModule } from '@/modules/user/user.module';
+import { EvotorApplication, EvotorIntegration } from './entities';
 import { EvotorAdminController } from './evotor-admin.controller';
 import { EvotorApiModule } from './evotor-api.module';
+import { EvotorApplicationService } from './evotor-application.service';
 import { EvotorController } from './evotor.controller';
 import { EvotorService } from './evotor.service';
 import { EvotorIntegrationRepository } from './repositories';
@@ -12,13 +14,22 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EvotorIntegration]),
+    TypeOrmModule.forFeature([EvotorApplication, EvotorIntegration]),
     EvotorApiModule.forRoot(),
     ProductModule,
     ShopModule,
+    UserModule,
   ],
-  providers: [EvotorService, EvotorIntegrationRepository],
-  exports: [EvotorService, EvotorIntegrationRepository],
+  providers: [
+    EvotorService,
+    EvotorApplicationService,
+    EvotorIntegrationRepository,
+  ],
+  exports: [
+    EvotorService,
+    EvotorApplicationService,
+    EvotorIntegrationRepository,
+  ],
   controllers: [EvotorController, EvotorAdminController],
 })
 export class EvotorModule {}

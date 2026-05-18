@@ -1,7 +1,7 @@
 import { AuthConfig, JwtConfig } from '@/common/types';
 import { AuthController } from './auth.controller';
 import { AuthService, AuthTokensResult } from './auth.service';
-import { RegisterDto, SignInDto, UserInfoDto } from './dto';
+import { SignInDto, UserInfoDto } from './dto';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { UnauthorizedException } from '@nestjs/common';
@@ -24,6 +24,7 @@ describe('AuthController', () => {
     email: 'test@example.com',
     role: 'owner',
     shopId: 'shop-456',
+    evotorUserId: null,
     isActive: true,
   };
 
@@ -31,14 +32,6 @@ describe('AuthController', () => {
     accessToken: 'access-token',
     refreshToken: 'refresh-token',
     user: mockUserInfo,
-  };
-
-  const mockRegisterApplicationResponse = {
-    id: 'application-123',
-    email: 'test@example.com',
-    shopName: 'Test Shop',
-    shopSlug: 'test-shop',
-    status: 'PENDING',
   };
 
   const expectedPublicAuthResponse = {
@@ -77,29 +70,6 @@ describe('AuthController', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-  });
-
-  describe('register', () => {
-    it('should create a registration application and return success response', async () => {
-      const registerDto: RegisterDto = {
-        email: 'test@example.com',
-        password: 'password123',
-        shopName: 'Test Shop',
-        shopSlug: 'test-shop',
-      };
-
-      service.register.mockResolvedValue(
-        mockRegisterApplicationResponse as any,
-      );
-
-      const result = await controller.register(registerDto);
-
-      expect(result).toEqual({
-        success: true,
-        data: mockRegisterApplicationResponse,
-        message: 'Registration application created successfully',
-      });
-    });
   });
 
   describe('login', () => {

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
 
 export class UserInfoDto {
@@ -17,6 +17,13 @@ export class UserInfoDto {
   @ApiProperty({ description: 'Shop ID', example: 'uuid' })
   @Expose()
   shopId: string;
+
+  @ApiPropertyOptional({
+    description: 'Evotor user ID',
+    example: '01-000000000000001',
+  })
+  @Expose()
+  evotorUserId: string | null;
 
   @ApiProperty({ description: 'User active status', example: true })
   @Expose()

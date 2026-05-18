@@ -16,6 +16,7 @@ export function createUser(overrides: UserOverrides = {}): User {
     role: Role.OWNER,
     isActive: true,
     shopId: createShop({ index }).id,
+    evotorUserId: null,
     shop: null,
     createdAt: now,
     updatedAt: now,

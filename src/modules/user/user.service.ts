@@ -81,6 +81,10 @@ export class UserService {
     return this.userRepository.findByShopId(shopId);
   }
 
+  async findByEvotorUserId(evotorUserId: string): Promise<User | null> {
+    return this.userRepository.findByEvotorUserId(evotorUserId);
+  }
+
   async updateRole(id: string, role: string): Promise<User> {
     const user = await this.findById(id);
     user.role = role;
@@ -129,6 +133,10 @@ export class UserService {
     const updated = await this.userRepository.save(user);
     await this.invalidateUserCache(updated.id, updated.email);
     return updated;
+  }
+
+  async invalidateCache(user: Pick<User, 'id' | 'email'>): Promise<void> {
+    await this.invalidateUserCache(user.id, user.email);
   }
 
   private async invalidateUserCache(

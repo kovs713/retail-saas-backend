@@ -1,6 +1,6 @@
 import { Roles } from '@/common/decorators';
 import { ApiResponse as AppApiResponse } from '@/common/dto';
-import { Role } from '@/common/enums';
+import { RegistrationStatus, Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import {
   EvotorAdminCloudTokenDto,
@@ -8,8 +8,11 @@ import {
   EvotorAdminLinkStoreDto,
   EvotorAdminListQueryDto,
   EvotorAdminSyncDto,
+  EvotorApplicationDto,
+  RejectEvotorApplicationDto,
 } from './dto';
 import { EvotorApiService } from './evotor-api.service';
+import { EvotorApplicationService } from './evotor-application.service';
 import { EvotorService } from './evotor.service';
 
 import {
@@ -40,7 +43,58 @@ export class EvotorAdminController {
   constructor(
     private readonly evotorApiService: EvotorApiService,
     private readonly evotorService: EvotorService,
+    private readonly evotorApplicationService: EvotorApplicationService,
   ) {}
+
+  @Get('applications')
+  @ApiOperation({ summary: 'List Evotor integration applications' })
+  async listApplications(
+    @Query('status')
+    status: RegistrationStatus,
+  ): Promise<AppApiResponse<EvotorApplicationDto[]>> {
+    const applications = await this.evotorApplicationService.list(status);
+    return {
+      success: true,
+      data: EvotorApplicationDto.fromEntities(applications),
+    };
+  }
+
+  @Post('applications/:id/approve')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Approve Evotor integration application' })
+  @ApiParam({ name: 'id', type: String })
+  async approveApplication(
+    @Param('id')
+    id: string,
+  ): Promise<AppApiResponse<EvotorApplicationDto>> {
+    const application = await this.evotorApplicationService.approve(id);
+    return {
+      success: true,
+      data: EvotorApplicationDto.fromEntity(application),
+      message: 'Evotor application approved successfully',
+    };
+  }
+
+  @Post('applications/:id/reject')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reject Evotor integration application' })
+  @ApiParam({ name: 'id', type: String })
+  async rejectApplication(
+    @Param('id')
+    id: string,
+    @Body()
+    body: RejectEvotorApplicationDto,
+  ): Promise<AppApiResponse<EvotorApplicationDto>> {
+    const application = await this.evotorApplicationService.reject(
+      id,
+      body.reason,
+    );
+    return {
+      success: true,
+      data: EvotorApplicationDto.fromEntity(application),
+      message: 'Evotor application rejected successfully',
+    };
+  }
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Get Evotor bridge dashboard state' })

@@ -2,6 +2,7 @@ import { AuthGuard, RolesGuard } from '@/common/guards';
 import { mockAuthGuard, mockGuard } from '@/common/utils';
 import { EvotorAdminController } from './evotor-admin.controller';
 import { EvotorApiService } from './evotor-api.service';
+import { EvotorApplicationService } from './evotor-application.service';
 import { EvotorService } from './evotor.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
@@ -14,6 +15,7 @@ describe('EvotorAdminController', () => {
   let controller: EvotorAdminController;
   let evotorApiService: DeepMocked<EvotorApiService>;
   let evotorService: DeepMocked<EvotorService>;
+  let evotorApplicationService: DeepMocked<EvotorApplicationService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -21,6 +23,10 @@ describe('EvotorAdminController', () => {
       providers: [
         { provide: EvotorApiService, useValue: createMock<EvotorApiService>() },
         { provide: EvotorService, useValue: createMock<EvotorService>() },
+        {
+          provide: EvotorApplicationService,
+          useValue: createMock<EvotorApplicationService>(),
+        },
         { provide: JwtService, useValue: createMock<JwtService>() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
         Reflector,
@@ -42,6 +48,81 @@ describe('EvotorAdminController', () => {
     controller = module.get(EvotorAdminController);
     evotorApiService = module.get(EvotorApiService);
     evotorService = module.get(EvotorService);
+    evotorApplicationService = module.get(EvotorApplicationService);
+  });
+
+  it('lists Evotor applications', async () => {
+    evotorApplicationService.list.mockResolvedValue([
+      {
+        id: 'application-1',
+        userId: 'owner-1',
+        shopId: 'shop-1',
+        evotorUserId: 'evotor-user-1',
+        status: 'PENDING',
+        rejectionReason: null,
+        reviewedAt: null,
+        createdAt: new Date('2026-05-18T00:00:00.000Z'),
+      },
+    ] as never);
+
+    const result = await controller.listApplications(undefined as never);
+
+    expect(evotorApplicationService.list).toHaveBeenCalledWith(undefined);
+    expect(result).toEqual({
+      success: true,
+      data: [expect.objectContaining({ id: 'application-1' })],
+    });
+  });
+
+  it('approves Evotor application', async () => {
+    evotorApplicationService.approve.mockResolvedValue({
+      id: 'application-1',
+      userId: 'owner-1',
+      shopId: 'shop-1',
+      evotorUserId: 'evotor-user-1',
+      status: 'APPROVED',
+      rejectionReason: null,
+      reviewedAt: new Date('2026-05-18T00:00:00.000Z'),
+      createdAt: new Date('2026-05-18T00:00:00.000Z'),
+    } as never);
+
+    const result = await controller.approveApplication('application-1');
+
+    expect(evotorApplicationService.approve).toHaveBeenCalledWith(
+      'application-1',
+    );
+    expect(result).toEqual({
+      success: true,
+      data: expect.objectContaining({ id: 'application-1' }),
+      message: 'Evotor application approved successfully',
+    });
+  });
+
+  it('rejects Evotor application', async () => {
+    evotorApplicationService.reject.mockResolvedValue({
+      id: 'application-1',
+      userId: 'owner-1',
+      shopId: 'shop-1',
+      evotorUserId: 'evotor-user-1',
+      status: 'REJECTED',
+      rejectionReason: 'bad account',
+      reviewedAt: new Date('2026-05-18T00:00:00.000Z'),
+      createdAt: new Date('2026-05-18T00:00:00.000Z'),
+    } as never);
+
+    const result = await controller.rejectApplication('application-1', {
+      reason: 'bad account',
+    });
+
+    expect(evotorApplicationService.reject).toHaveBeenCalledWith(
+      'application-1',
+      'bad account',
+    );
+    expect(result).toEqual({
+      success: true,
+      data: expect.objectContaining({ id: 'application-1' }),
+      message: 'Evotor application rejected successfully',
+    });
   });
 
   it('returns dashboard state', async () => {

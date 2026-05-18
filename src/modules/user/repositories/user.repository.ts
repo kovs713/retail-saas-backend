@@ -38,6 +38,14 @@ export class UserRepository extends Repository<User> {
     });
   }
 
+  async findByEvotorUserId(evotorUserId: string): Promise<User | null> {
+    return this.repository.findOne({
+      where: {
+        evotorUserId,
+      },
+    });
+  }
+
   async existsByEmail(email: string): Promise<boolean> {
     return this.repository.existsBy({ email });
   }

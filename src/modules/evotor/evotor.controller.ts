@@ -3,7 +3,13 @@ import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { Request } from '@/common/types';
-import { ConnectEvotorDto, SyncEvotorDto } from './dto';
+import {
+  ConnectEvotorDto,
+  CreateEvotorApplicationDto,
+  EvotorApplicationDto,
+  SyncEvotorDto,
+} from './dto';
+import { EvotorApplicationService } from './evotor-application.service';
 import { EvotorService } from './evotor.service';
 
 import {
@@ -31,7 +37,10 @@ import {
 @Controller('evotor/shops')
 @UseGuards(AuthGuard, RolesGuard)
 export class EvotorController {
-  constructor(private readonly evotorService: EvotorService) {}
+  constructor(
+    private readonly evotorService: EvotorService,
+    private readonly evotorApplicationService: EvotorApplicationService,
+  ) {}
 
   @Post(':shopId/connect')
   @Roles(Role.ADMIN)
@@ -77,6 +86,33 @@ export class EvotorController {
       success: true,
       data: result,
       message: 'Evotor bridge sync started successfully',
+    };
+  }
+
+  @Post(':shopId/applications')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create Evotor integration application',
+  })
+  @ApiParam({ name: 'shopId', type: String })
+  async createApplication(
+    @Param('shopId')
+    shopId: string,
+    @Body()
+    body: CreateEvotorApplicationDto,
+    @Req()
+    req: Request,
+  ): Promise<AppApiResponse<EvotorApplicationDto>> {
+    this.assertShopAccess(shopId, req);
+    const application = await this.evotorApplicationService.create(
+      shopId,
+      body,
+    );
+    return {
+      success: true,
+      data: EvotorApplicationDto.fromEntity(application),
+      message: 'Evotor application created successfully',
     };
   }
 
