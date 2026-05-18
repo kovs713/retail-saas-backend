@@ -10,6 +10,7 @@ import {
   EvotorAdminStoreSyncDto,
   EvotorAdminSyncDto,
   EvotorApplicationDto,
+  EvotorInboxEventDto,
   RejectEvotorApplicationDto,
 } from './dto';
 import { EvotorApiService } from './evotor-api.service';
@@ -117,9 +118,12 @@ export class EvotorAdminController {
   @ApiOperation({ summary: 'List Evotor bridge inbox events' })
   async listInboxEvents(
     @Query() query: EvotorAdminListQueryDto,
-  ): Promise<AppApiResponse<unknown[]>> {
+  ): Promise<AppApiResponse<EvotorInboxEventDto[]>> {
     const events = await this.evotorApiService.listAdminInboxEvents(query);
-    return { success: true, data: this.redactSensitive(events) };
+    return {
+      success: true,
+      data: this.redactSensitive(events) as EvotorInboxEventDto[],
+    };
   }
 
   @Get('stores')

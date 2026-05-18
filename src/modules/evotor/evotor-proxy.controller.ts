@@ -40,7 +40,6 @@ export class EvotorProxyController {
       success: true,
       data: {
         data: result.data,
-        paging: result.paging,
         meta: result.meta,
       },
     };
@@ -62,7 +61,6 @@ export class EvotorProxyController {
       success: true,
       data: {
         data: result.data,
-        paging: result.paging,
         meta: result.meta,
       },
     };
@@ -86,7 +84,6 @@ export class EvotorProxyController {
       success: true,
       data: {
         data: result.data,
-        paging: result.paging,
         meta: result.meta,
       },
     };
@@ -140,7 +137,6 @@ export class EvotorProxyController {
       success: true,
       data: {
         data: result.data,
-        paging: result.paging,
         meta: result.meta,
       },
     };

@@ -8,6 +8,8 @@ import {
   Matches,
 } from 'class-validator';
 
+import { EvotorInboxEventType } from '../types';
+
 const EVOTOR_USER_ID_PATTERN = /^[0-9a-f]{2}-[0-9a-f]{15}$/i;
 const EVOTOR_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,6 +56,27 @@ export class EvotorAdminListQueryDto {
   @IsOptional()
   @IsDateString()
   dateTo?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter inbox events by type',
+    example: 'evotor.document.sell',
+    enum: [
+      'evotor.documents.received',
+      'evotor.products.received',
+      'evotor.document.sell',
+      'evotor.document.z_report',
+      'evotor.document.close_session',
+      'evotor.document.open_session',
+      'evotor.document.pos_open_session',
+      'evotor.document.payback',
+      'evotor.cloud_token.received',
+      'evotor.user.verified',
+      'evotor.user.created',
+    ],
+  })
+  @IsOptional()
+  @IsString()
+  eventType?: EvotorInboxEventType;
 }
 
 export class EvotorAdminSyncDto {
@@ -178,9 +201,46 @@ export class EvotorAdminLinkStoreDto {
 
 export type EvotorAdminDashboard = {
   accounts: unknown[];
-  inboxEvents: unknown[];
+  inboxEvents: EvotorInboxEventDto[];
   stores: unknown[];
   devices: unknown[];
   products: unknown[];
   documents: unknown[];
 };
+
+export class EvotorInboxEventDto {
+  @ApiProperty({ description: 'Unique event identifier' })
+  eventId: string;
+
+  @ApiProperty({ description: 'Event source', example: 'evotor' })
+  source: string;
+
+  @ApiProperty({
+    description: 'Event type',
+    example: 'evotor.documents.received',
+  })
+  eventType: string;
+
+  @ApiPropertyOptional({ description: 'Evotor user ID' })
+  evotorUserId: string | null;
+
+  @ApiPropertyOptional({ description: 'Evotor store UUID' })
+  storeUuid: string | null;
+
+  @ApiProperty({ description: 'When the event occurred in Evotor' })
+  occurredAt: string;
+
+  @ApiProperty({ description: 'When the bridge received the event' })
+  receivedAt: string;
+
+  @ApiProperty({ description: 'Event payload (varies by eventType)' })
+  payload: Record<string, unknown>;
+
+  @ApiProperty({ description: 'Event metadata' })
+  meta: {
+    schemaVersion: 1;
+    bridge: 'evotor-bridge';
+    idempotencyKey: string;
+    externalEventId?: string;
+  };
+}

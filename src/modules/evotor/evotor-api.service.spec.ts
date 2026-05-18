@@ -39,14 +39,12 @@ describe('EvotorApiService', () => {
     fetchMock
       .mockResolvedValueOnce(
         jsonResponse({
-          data: { items: [firstProduct] },
-          paging: { nextCursor: 'cursor-2' },
+          data: { items: [firstProduct], paging: { nextCursor: 'cursor-2' } },
         }),
       )
       .mockResolvedValueOnce(
         jsonResponse({
-          data: [secondProduct],
-          paging: {},
+          data: { items: [secondProduct], paging: {} },
         }),
       );
 
@@ -71,36 +69,35 @@ describe('EvotorApiService', () => {
 
   it('reads admin dashboard resources through bridge admin endpoints', async () => {
     fetchMock
-      .mockResolvedValueOnce(jsonResponse([{ id: 'account-1' }]))
-      .mockResolvedValueOnce(jsonResponse([{ id: 'event-1' }]))
       .mockResolvedValueOnce(jsonResponse([{ id: 'store-1' }]))
-      .mockResolvedValueOnce(jsonResponse([{ id: 'device-1' }]))
-      .mockResolvedValueOnce(jsonResponse([{ id: 'product-1' }]))
-      .mockResolvedValueOnce(jsonResponse([{ id: 'document-1' }]));
+      .mockResolvedValueOnce(jsonResponse({ data: { items: [{ id: 'device-1' }] } }))
+      .mockResolvedValueOnce(jsonResponse([{ id: 'event-1' }]));
 
     const result = await service.getAdminDashboard();
 
     expect(result).toEqual({
-      accounts: [{ id: 'account-1' }],
+      accounts: [],
       inboxEvents: [{ id: 'event-1' }],
       stores: [{ id: 'store-1' }],
       devices: [{ id: 'device-1' }],
-      products: [{ id: 'product-1' }],
-      documents: [{ id: 'document-1' }],
+      products: [],
+      documents: [],
     });
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      'https://bridge.example.com/api/evotor/accounts',
-      'https://bridge.example.com/api/evotor/inbox-events',
-      'https://bridge.example.com/api/evotor/stores',
+      'https://bridge.example.com/admin/evotor/stores',
       'https://bridge.example.com/api/evotor/devices',
-      'https://bridge.example.com/api/evotor/products',
-      'https://bridge.example.com/api/evotor/documents',
+      'https://bridge.example.com/admin/evotor/inbox-events',
     ]);
   });
 
   it('passes filters to bridge admin list endpoints', async () => {
     const query = { evotorUserId: 'evotor-user-1', storeId: 'store-1' };
-    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse([])));
+    fetchMock.mockImplementation((url: string) => {
+      const isAdminEndpoint = url.includes('/admin/evotor/');
+      return Promise.resolve(
+        jsonResponse(isAdminEndpoint ? [] : { data: { items: [] } }),
+      );
+    });
 
     await service.listAdminAccounts(query);
     await service.listAdminInboxEvents(query);
@@ -111,11 +108,11 @@ describe('EvotorApiService', () => {
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       'https://bridge.example.com/api/evotor/accounts?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/api/evotor/inbox-events?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/api/evotor/stores?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/admin/evotor/inbox-events?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/admin/evotor/stores?evotorUserId=evotor-user-1&storeId=store-1',
       'https://bridge.example.com/api/evotor/devices?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/api/evotor/products?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/api/evotor/documents?evotorUserId=evotor-user-1&storeId=store-1',
+      'https://bridge.example.com/api/evotor/stores/store-1/products?evotorUserId=evotor-user-1',
+      'https://bridge.example.com/api/evotor/stores/store-1/documents?evotorUserId=evotor-user-1',
     ]);
   });
 

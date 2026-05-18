@@ -6,6 +6,7 @@ import {
   EvotorAdminListQueryDto,
   EvotorAdminStoreSyncDto,
   EvotorAdminSyncDto,
+  EvotorInboxEventDto,
   RemoteProduct,
 } from './dto';
 
@@ -20,9 +21,9 @@ import {
 import { randomUUID } from 'node:crypto';
 
 interface EvotorBridgeEnvelope<T> {
-  data: T;
-  paging?: {
-    nextCursor?: string | null;
+  data: {
+    items: T;
+    paging?: Record<string, unknown>;
   };
   meta?: {
     evotorStatus?: number;
@@ -35,9 +36,9 @@ interface EvotorBridgeEnvelope<T> {
 }
 
 export interface EvotorProxyResponse<T> {
-  data: T;
-  paging?: {
-    nextCursor?: string | null;
+  data: {
+    items: T;
+    paging?: Record<string, unknown>;
   };
   meta?: {
     evotorStatus?: number;
@@ -49,7 +50,6 @@ export interface EvotorProxyResponse<T> {
   };
 }
 
-type EvotorProductData = RemoteProduct[] | { items?: RemoteProduct[] };
 
 interface RequestOptions {
   evotorUserId?: string | null;
@@ -59,7 +59,7 @@ interface RequestOptions {
 
 type EvotorAdminListQuery = Pick<
   EvotorAdminListQueryDto,
-  'evotorUserId' | 'storeId' | 'cursor' | 'dateFrom' | 'dateTo'
+  'evotorUserId' | 'storeId' | 'cursor' | 'dateFrom' | 'dateTo' | 'eventType'
 >;
 
 type EvotorAdminResource =
@@ -88,7 +88,7 @@ export class EvotorApiService {
 
     do {
       const response = await this.request<
-        EvotorBridgeEnvelope<EvotorProductData>
+        EvotorBridgeEnvelope<RemoteProduct[]>
       >(
         this.buildPath(
           `/api/evotor/stores/${encodeURIComponent(storeId)}/products`,
@@ -101,8 +101,8 @@ export class EvotorApiService {
         { evotorUserId, retry: true },
       );
 
-      products.push(...this.extractProducts(response.data));
-      cursor = response.paging?.nextCursor ?? undefined;
+      products.push(...response.data.items);
+      cursor = (response.data.paging as { nextCursor?: string })?.nextCursor ?? undefined;
     } while (cursor);
 
     return products;
@@ -178,14 +178,15 @@ export class EvotorApiService {
   }
 
   async getAdminDashboard(): Promise<EvotorAdminDashboard> {
-    const [stores, devices] = await Promise.all([
+    const [stores, devices, inboxEvents] = await Promise.all([
       this.listAdminStores({}),
       this.listAdminDevices({}),
+      this.listAdminInboxEvents({}),
     ]);
 
     return {
       accounts: [],
-      inboxEvents: [],
+      inboxEvents: inboxEvents as EvotorInboxEventDto[],
       stores,
       devices,
       products: [],
@@ -231,7 +232,7 @@ export class EvotorApiService {
       { evotorUserId: query.evotorUserId, retry: true },
     );
 
-    return Array.isArray(response.data) ? response.data : [];
+    return Array.isArray(response.data?.items) ? response.data.items : [];
   }
 
   async listAdminDocuments(
@@ -250,7 +251,7 @@ export class EvotorApiService {
       { evotorUserId: query.evotorUserId, retry: true },
     );
 
-    return Array.isArray(response.data) ? response.data : [];
+    return Array.isArray(response.data?.items) ? response.data.items : [];
   }
 
   async syncAdmin(payload: EvotorAdminSyncDto): Promise<unknown> {
@@ -375,16 +376,27 @@ export class EvotorApiService {
     resource: EvotorAdminResource,
     query: Partial<EvotorAdminListQuery> = {},
   ): Promise<unknown[]> {
+    const isAdminEndpoint = resource === 'inbox-events' || resource === 'stores';
+    const path = isAdminEndpoint
+      ? `/admin/evotor/${resource}`
+      : `/api/evotor/${resource}`;
+
+    if (isAdminEndpoint) {
+      const response = await this.request<unknown[]>(
+        this.buildPath(path, query as Record<string, string | undefined>),
+        { method: 'GET' },
+        { evotorUserId: query.evotorUserId, retry: true },
+      );
+      return Array.isArray(response) ? response : [];
+    }
+
     const response = await this.request<EvotorBridgeEnvelope<unknown[]>>(
-      this.buildPath(
-        `/api/evotor/${resource}`,
-        query as Record<string, string | undefined>,
-      ),
+      this.buildPath(path, query as Record<string, string | undefined>),
       { method: 'GET' },
       { evotorUserId: query.evotorUserId, retry: true },
     );
 
-    return Array.isArray(response.data) ? response.data : [];
+    return Array.isArray(response.data?.items) ? response.data.items : [];
   }
 
   private buildHeaders(
@@ -403,14 +415,6 @@ export class EvotorApiService {
     }
 
     return headers;
-  }
-
-  private extractProducts(data: EvotorProductData): RemoteProduct[] {
-    if (Array.isArray(data)) {
-      return data;
-    }
-
-    return data.items ?? [];
   }
 
   private buildError(status: number): HttpException {
