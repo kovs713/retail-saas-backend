@@ -150,27 +150,36 @@ describe('EvotorAdminController', () => {
     });
   });
 
-  it('returns account list', async () => {
-    evotorApiService.listAdminAccounts.mockResolvedValue([
-      { id: 'account-1', cloudTokenEncrypted: 'secret' },
-    ]);
+  it('returns accounts list response from bridge', async () => {
+    evotorApiService.listAdminAccounts.mockResolvedValue({
+      items: [{ id: 'account-1' }],
+      total: 1,
+      skip: 0,
+      take: 20,
+    });
 
     const result = await controller.listAccounts({});
 
     expect(result).toEqual({
       success: true,
-      data: [{ id: 'account-1', cloudTokenEncrypted: '[redacted]' }],
+      data: { items: [{ id: 'account-1' }], total: 1, skip: 0, take: 20 },
     });
   });
 
   it('proxies admin list query filters', async () => {
-    const query = { evotorUserId: 'evotor-user-1', storeId: 'store-1' };
-    evotorApiService.listAdminAccounts.mockResolvedValue([]);
-    evotorApiService.listAdminInboxEvents.mockResolvedValue([]);
-    evotorApiService.listAdminStores.mockResolvedValue([]);
-    evotorApiService.listAdminDevices.mockResolvedValue([]);
-    evotorApiService.listAdminProducts.mockResolvedValue([]);
-    evotorApiService.listAdminDocuments.mockResolvedValue([]);
+    const query = {
+      evotorUserId: 'evotor-user-1',
+      storeId: 'store-1',
+      skip: 0,
+      take: 20,
+    };
+    const empty = { items: [], total: 0, skip: 0, take: 20 };
+    evotorApiService.listAdminAccounts.mockResolvedValue(empty);
+    evotorApiService.listAdminInboxEvents.mockResolvedValue(empty);
+    evotorApiService.listAdminStores.mockResolvedValue(empty);
+    evotorApiService.listAdminDevices.mockResolvedValue(empty);
+    evotorApiService.listAdminProducts.mockResolvedValue(empty);
+    evotorApiService.listAdminDocuments.mockResolvedValue(empty);
 
     await controller.listAccounts(query);
     await controller.listInboxEvents(query);

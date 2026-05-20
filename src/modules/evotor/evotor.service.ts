@@ -340,10 +340,8 @@ export class EvotorService {
   }
 
   private async getBridgeAccount(evotorUserId: string): Promise<BridgeRecord> {
-    const accounts = await this.evotorApiService.listAdminAccounts({
-      evotorUserId,
-    });
-    const account = this.findBridgeAccount(accounts, evotorUserId);
+    const account =
+      await this.evotorApiService.findRawBridgeAccount(evotorUserId);
 
     if (!account) {
       throw new NotFoundException('Evotor account not found in bridge');
@@ -356,11 +354,10 @@ export class EvotorService {
     evotorUserId: string,
     storeId: string,
   ): Promise<BridgeRecord> {
-    const stores = await this.evotorApiService.listAdminStores({
+    const store = await this.evotorApiService.findRawBridgeStore(
       evotorUserId,
       storeId,
-    });
-    const store = this.findBridgeStore(stores, evotorUserId, storeId);
+    );
 
     if (!store) {
       throw new NotFoundException('Evotor store not found in bridge');
@@ -374,12 +371,7 @@ export class EvotorService {
     storeId: string,
     deviceId: string,
   ): Promise<BridgeRecord> {
-    const devices = await this.evotorApiService.listAdminDevices({
-      evotorUserId,
-      storeId,
-    });
-    const device = this.findBridgeDevice(
-      devices,
+    const device = await this.evotorApiService.findRawBridgeDevice(
       evotorUserId,
       storeId,
       deviceId,
@@ -390,112 +382,6 @@ export class EvotorService {
     }
 
     return device;
-  }
-
-  private findBridgeAccount(
-    records: unknown[],
-    evotorUserId: string,
-  ): BridgeRecord | null {
-    return this.findBridgeRecord(records, (record) =>
-      this.matchesBridgeValue(
-        record,
-        ['evotorUserId', 'evotor_user_id', 'externalUserId', 'userId', 'id'],
-        evotorUserId,
-      ),
-    );
-  }
-
-  private findBridgeStore(
-    records: unknown[],
-    evotorUserId: string,
-    storeId: string,
-  ): BridgeRecord | null {
-    return this.findBridgeRecord(
-      records,
-      (record) =>
-        this.matchesBridgeValue(
-          record,
-          ['storeId', 'store_id', 'externalStoreId', 'uuid', 'id'],
-          storeId,
-        ) &&
-        this.matchesBridgeValue(
-          record,
-          ['evotorUserId', 'evotor_user_id', 'externalUserId', 'userId'],
-          evotorUserId,
-          true,
-        ),
-    );
-  }
-
-  private findBridgeDevice(
-    records: unknown[],
-    evotorUserId: string,
-    storeId: string,
-    deviceId: string,
-  ): BridgeRecord | null {
-    return this.findBridgeRecord(
-      records,
-      (record) =>
-        this.matchesBridgeValue(
-          record,
-          ['deviceId', 'device_id', 'externalDeviceId', 'uuid', 'id'],
-          deviceId,
-        ) &&
-        this.matchesBridgeValue(
-          record,
-          ['storeId', 'store_id', 'externalStoreId'],
-          storeId,
-          true,
-        ) &&
-        this.matchesBridgeValue(
-          record,
-          ['evotorUserId', 'evotor_user_id', 'externalUserId', 'userId'],
-          evotorUserId,
-          true,
-        ),
-    );
-  }
-
-  private findBridgeRecord(
-    records: unknown[],
-    predicate: (record: BridgeRecord) => boolean,
-  ): BridgeRecord | null {
-    for (const item of records) {
-      const record = this.asBridgeRecord(item);
-
-      if (record && predicate(record)) {
-        return record;
-      }
-    }
-
-    return null;
-  }
-
-  private asBridgeRecord(item: unknown): BridgeRecord | null {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) {
-      return null;
-    }
-
-    return item as BridgeRecord;
-  }
-
-  private matchesBridgeValue(
-    record: BridgeRecord,
-    keys: string[],
-    expected: string,
-    allowMissing = false,
-  ): boolean {
-    const values = keys
-      .map((key) => record[key])
-      .filter((value): value is string | number =>
-        ['string', 'number'].includes(typeof value),
-      );
-
-    if (values.length === 0) {
-      return allowMissing;
-    }
-
-    return values.some((value) => String(value) === expected);
   }
 
   private async syncCatalogProduct(product: Product): Promise<void> {

@@ -1,12 +1,17 @@
 import { EvotorConfig, EvotorOptions } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
 import {
+  EvotorAccountDto,
   EvotorAdminCloudTokenDto,
   EvotorAdminDashboard,
   EvotorAdminListQueryDto,
+  EvotorAdminListResponse,
   EvotorAdminStoreSyncDto,
   EvotorAdminSyncDto,
+  EvotorDeviceDto,
   EvotorInboxEventDto,
+  EvotorProductDto,
+  EvotorStoreDto,
   RemoteProduct,
 } from './dto';
 
@@ -19,6 +24,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+
+interface BridgeListResponse<T> {
+  items: T[];
+  total: number;
+  skip: number;
+  take: number;
+}
 
 interface EvotorBridgeEnvelope<T> {
   data: {
@@ -50,7 +62,6 @@ export interface EvotorProxyResponse<T> {
   };
 }
 
-
 interface RequestOptions {
   evotorUserId?: string | null;
   retry?: boolean;
@@ -59,16 +70,14 @@ interface RequestOptions {
 
 type EvotorAdminListQuery = Pick<
   EvotorAdminListQueryDto,
-  'evotorUserId' | 'storeId' | 'cursor' | 'dateFrom' | 'dateTo' | 'eventType'
+  | 'evotorUserId'
+  | 'storeId'
+  | 'skip'
+  | 'take'
+  | 'dateFrom'
+  | 'dateTo'
+  | 'eventType'
 >;
-
-type EvotorAdminResource =
-  | 'accounts'
-  | 'inbox-events'
-  | 'stores'
-  | 'devices'
-  | 'products'
-  | 'documents';
 
 @Injectable()
 export class EvotorApiService {
@@ -94,7 +103,7 @@ export class EvotorApiService {
           `/api/evotor/stores/${encodeURIComponent(storeId)}/products`,
           {
             cursor,
-            evotorUserId,
+            evotorUserId: evotorUserId ?? undefined,
           },
         ),
         { method: 'GET' },
@@ -102,7 +111,9 @@ export class EvotorApiService {
       );
 
       products.push(...response.data.items);
-      cursor = (response.data.paging as { nextCursor?: string })?.nextCursor ?? undefined;
+      cursor =
+        (response.data.paging as { nextCursor?: string })?.nextCursor ??
+        undefined;
     } while (cursor);
 
     return products;
@@ -178,17 +189,18 @@ export class EvotorApiService {
   }
 
   async getAdminDashboard(): Promise<EvotorAdminDashboard> {
-    const [stores, devices, inboxEvents] = await Promise.all([
+    const [accounts, stores, devices, inboxEvents] = await Promise.all([
+      this.listAdminAccounts({}),
       this.listAdminStores({}),
       this.listAdminDevices({}),
       this.listAdminInboxEvents({}),
     ]);
 
     return {
-      accounts: [],
-      inboxEvents: inboxEvents as EvotorInboxEventDto[],
-      stores,
-      devices,
+      accounts: accounts.items,
+      inboxEvents: inboxEvents.items,
+      stores: stores.items,
+      devices: devices.items,
       products: [],
       documents: [],
     };
@@ -196,62 +208,79 @@ export class EvotorApiService {
 
   async listAdminAccounts(
     query: Partial<EvotorAdminListQuery> = {},
-  ): Promise<unknown[]> {
-    return this.listAdminResource('accounts', query);
+  ): Promise<EvotorAdminListResponse<EvotorAccountDto>> {
+    return this.listAdminResource<EvotorAccountDto>('accounts', query);
   }
 
   async listAdminInboxEvents(
     query: Partial<EvotorAdminListQuery> = {},
-  ): Promise<unknown[]> {
-    return this.listAdminResource('inbox-events', query);
+  ): Promise<EvotorAdminListResponse<EvotorInboxEventDto>> {
+    return this.listAdminResource<EvotorInboxEventDto>('inbox-events', query);
   }
 
   async listAdminStores(
     query: Partial<EvotorAdminListQuery> = {},
-  ): Promise<unknown[]> {
-    return this.listAdminResource('stores', query);
+  ): Promise<EvotorAdminListResponse<EvotorStoreDto>> {
+    return this.listAdminResource<EvotorStoreDto>('stores', query);
   }
 
   async listAdminDevices(
     query: Partial<EvotorAdminListQuery> = {},
-  ): Promise<unknown[]> {
-    return this.listAdminResource('devices', query);
+  ): Promise<EvotorAdminListResponse<EvotorDeviceDto>> {
+    return this.listAdminResource<EvotorDeviceDto>('devices', query);
   }
 
   async listAdminProducts(
     query: Partial<EvotorAdminListQuery> = {},
-  ): Promise<unknown[]> {
-    if (!query.storeId) return [];
-
-    const response = await this.request<EvotorBridgeEnvelope<unknown[]>>(
-      this.buildPath(`/api/evotor/stores/${query.storeId}/products`, {
-        cursor: query.cursor,
-        evotorUserId: query.evotorUserId,
-      }),
-      { method: 'GET' },
-      { evotorUserId: query.evotorUserId, retry: true },
-    );
-
-    return Array.isArray(response.data?.items) ? response.data.items : [];
+  ): Promise<EvotorAdminListResponse<EvotorProductDto>> {
+    return this.listAdminResource<EvotorProductDto>('products', query);
   }
 
   async listAdminDocuments(
     query: Partial<EvotorAdminListQuery> = {},
-  ): Promise<unknown[]> {
-    if (!query.storeId) return [];
+  ): Promise<EvotorAdminListResponse<unknown>> {
+    return this.listAdminResource<unknown>('documents', query);
+  }
 
-    const response = await this.request<EvotorBridgeEnvelope<unknown[]>>(
-      this.buildPath(`/api/evotor/stores/${query.storeId}/documents`, {
-        cursor: query.cursor,
-        evotorUserId: query.evotorUserId,
-        dateFrom: query.dateFrom,
-        dateTo: query.dateTo,
-      }),
-      { method: 'GET' },
-      { evotorUserId: query.evotorUserId, retry: true },
+  async findRawBridgeAccount(
+    evotorUserId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const res = await this.listAdminResource('accounts', {
+      evotorUserId,
+      take: 1,
+      skip: 0,
+    });
+    return (res.items[0] as Record<string, unknown>) ?? null;
+  }
+
+  async findRawBridgeStore(
+    evotorUserId: string,
+    storeId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const res = await this.listAdminResource('stores', {
+      evotorUserId,
+      storeId,
+      take: 1,
+      skip: 0,
+    });
+    return (res.items[0] as Record<string, unknown>) ?? null;
+  }
+
+  async findRawBridgeDevice(
+    evotorUserId: string,
+    storeId: string,
+    deviceId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const res = await this.listAdminResource('devices', {
+      evotorUserId,
+      storeId,
+    });
+    const items = res.items as Record<string, unknown>[];
+    return (
+      items.find((d) =>
+        ['uuid', 'deviceId', 'device_id', 'id'].some((k) => d[k] === deviceId),
+      ) ?? null
     );
-
-    return Array.isArray(response.data?.items) ? response.data.items : [];
   }
 
   async syncAdmin(payload: EvotorAdminSyncDto): Promise<unknown> {
@@ -279,6 +308,46 @@ export class EvotorApiService {
       },
       { evotorUserId: payload.evotorUserId },
     );
+  }
+
+  // ── private helpers ──────────────────────────────────────
+
+  private async listAdminResource<T>(
+    resource: string,
+    query: Partial<EvotorAdminListQuery> = {},
+  ): Promise<EvotorAdminListResponse<T>> {
+    const params: Record<string, string | undefined> = {};
+
+    if (query.skip !== undefined) params.skip = String(query.skip);
+    if (query.take !== undefined) params.take = String(query.take);
+    if (query.evotorUserId) params.evotorUserId = query.evotorUserId;
+
+    // Only pass resource-specific filters
+    const storeResources = ['stores', 'devices', 'products', 'documents'];
+    const inboxResources = ['inbox-events'];
+
+    if (storeResources.includes(resource)) {
+      if (query.storeId) params.storeId = query.storeId;
+    }
+
+    if (inboxResources.includes(resource)) {
+      if (query.eventType) params.eventType = query.eventType;
+      if (query.dateFrom) params.dateFrom = query.dateFrom;
+      if (query.dateTo) params.dateTo = query.dateTo;
+    }
+
+    const response = await this.request<BridgeListResponse<T>>(
+      this.buildPath(`/admin/evotor/${resource}`, params),
+      { method: 'GET' },
+      { evotorUserId: query.evotorUserId, retry: true },
+    );
+
+    return {
+      items: Array.isArray(response.items) ? response.items : [],
+      total: response.total ?? 0,
+      skip: response.skip ?? query.skip ?? 0,
+      take: response.take ?? query.take ?? 20,
+    };
   }
 
   private async request<T>(
@@ -358,45 +427,18 @@ export class EvotorApiService {
 
   private buildPath(
     path: string,
-    query: Record<string, string | undefined | null> = {},
+    query: Record<string, string | undefined> = {},
   ): string {
     const params = new URLSearchParams();
 
     for (const [key, value] of Object.entries(query)) {
-      if (value) {
+      if (value != null && value !== '') {
         params.set(key, value);
       }
     }
 
     const search = params.toString();
     return search ? `${path}?${search}` : path;
-  }
-
-  private async listAdminResource(
-    resource: EvotorAdminResource,
-    query: Partial<EvotorAdminListQuery> = {},
-  ): Promise<unknown[]> {
-    const isAdminEndpoint = resource === 'inbox-events' || resource === 'stores';
-    const path = isAdminEndpoint
-      ? `/admin/evotor/${resource}`
-      : `/api/evotor/${resource}`;
-
-    if (isAdminEndpoint) {
-      const response = await this.request<unknown[]>(
-        this.buildPath(path, query as Record<string, string | undefined>),
-        { method: 'GET' },
-        { evotorUserId: query.evotorUserId, retry: true },
-      );
-      return Array.isArray(response) ? response : [];
-    }
-
-    const response = await this.request<EvotorBridgeEnvelope<unknown[]>>(
-      this.buildPath(path, query as Record<string, string | undefined>),
-      { method: 'GET' },
-      { evotorUserId: query.evotorUserId, retry: true },
-    );
-
-    return Array.isArray(response.data?.items) ? response.data.items : [];
   }
 
   private buildHeaders(

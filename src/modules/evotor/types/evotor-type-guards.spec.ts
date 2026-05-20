@@ -70,7 +70,7 @@ const validProductsPayload = [
 ];
 
 function mockEvent(partial: Partial<EvotorInboxEvent>): EvotorInboxEvent {
-  return partial as EvotorInboxEvent;
+  return partial;
 }
 
 describe('isEvotorSellDocumentPayload', () => {

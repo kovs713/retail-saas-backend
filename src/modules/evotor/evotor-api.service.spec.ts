@@ -69,35 +69,62 @@ describe('EvotorApiService', () => {
 
   it('reads admin dashboard resources through bridge admin endpoints', async () => {
     fetchMock
-      .mockResolvedValueOnce(jsonResponse([{ id: 'store-1' }]))
-      .mockResolvedValueOnce(jsonResponse({ data: { items: [{ id: 'device-1' }] } }))
-      .mockResolvedValueOnce(jsonResponse([{ id: 'event-1' }]));
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [{ id: 'account-1' }],
+          total: 1,
+          skip: 0,
+          take: 20,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [{ id: 'store-1' }],
+          total: 1,
+          skip: 0,
+          take: 20,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [{ id: 'device-1' }],
+          total: 1,
+          skip: 0,
+          take: 20,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [{ id: 'event-1' }],
+          total: 1,
+          skip: 0,
+          take: 20,
+        }),
+      );
 
     const result = await service.getAdminDashboard();
 
-    expect(result).toEqual({
-      accounts: [],
-      inboxEvents: [{ id: 'event-1' }],
-      stores: [{ id: 'store-1' }],
-      devices: [{ id: 'device-1' }],
-      products: [],
-      documents: [],
-    });
+    expect(result.accounts).toHaveLength(1);
+    expect(result.accounts[0]).toMatchObject({ id: 'account-1' });
+    expect(result.stores).toHaveLength(1);
+    expect(result.devices).toHaveLength(1);
+    expect(result.inboxEvents).toHaveLength(1);
+    expect(result.products).toEqual([]);
+    expect(result.documents).toEqual([]);
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      'https://bridge.example.com/admin/evotor/accounts',
       'https://bridge.example.com/admin/evotor/stores',
-      'https://bridge.example.com/api/evotor/devices',
+      'https://bridge.example.com/admin/evotor/devices',
       'https://bridge.example.com/admin/evotor/inbox-events',
     ]);
   });
 
   it('passes filters to bridge admin list endpoints', async () => {
     const query = { evotorUserId: 'evotor-user-1', storeId: 'store-1' };
-    fetchMock.mockImplementation((url: string) => {
-      const isAdminEndpoint = url.includes('/admin/evotor/');
-      return Promise.resolve(
-        jsonResponse(isAdminEndpoint ? [] : { data: { items: [] } }),
-      );
-    });
+    // Return fresh Response each call to avoid body-consumed issues with retry
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(jsonResponse({ items: [], total: 0, skip: 0, take: 20 })),
+    );
 
     await service.listAdminAccounts(query);
     await service.listAdminInboxEvents(query);
@@ -106,14 +133,186 @@ describe('EvotorApiService', () => {
     await service.listAdminProducts(query);
     await service.listAdminDocuments(query);
 
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      'https://bridge.example.com/api/evotor/accounts?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/admin/evotor/inbox-events?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/admin/evotor/stores?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/api/evotor/devices?evotorUserId=evotor-user-1&storeId=store-1',
-      'https://bridge.example.com/api/evotor/stores/store-1/products?evotorUserId=evotor-user-1',
-      'https://bridge.example.com/api/evotor/stores/store-1/documents?evotorUserId=evotor-user-1',
-    ]);
+    const getUrl = (n: number) =>
+      (fetchMock.mock.calls[n][0] as URL | string).toString();
+
+    // accounts — gets evotorUserId but NOT storeId (accounts doesn't support it)
+    expect(getUrl(0)).toContain('/admin/evotor/accounts');
+    expect(getUrl(0)).toContain('evotorUserId=evotor-user-1');
+    expect(getUrl(0)).not.toContain('storeId');
+    // inbox-events — gets evotorUserId but NOT storeId
+    expect(getUrl(1)).toContain('/admin/evotor/inbox-events');
+    expect(getUrl(1)).toContain('evotorUserId=evotor-user-1');
+    expect(getUrl(1)).not.toContain('storeId');
+    // stores
+    expect(getUrl(2)).toContain('/admin/evotor/stores');
+    expect(getUrl(2)).toContain('evotorUserId=evotor-user-1');
+    expect(getUrl(2)).toContain('storeId=store-1');
+    // devices
+    expect(getUrl(3)).toContain('/admin/evotor/devices');
+    expect(getUrl(3)).toContain('evotorUserId=evotor-user-1');
+    expect(getUrl(3)).toContain('storeId=store-1');
+    // products
+    expect(getUrl(4)).toContain('/admin/evotor/products');
+    expect(getUrl(4)).toContain('evotorUserId=evotor-user-1');
+    expect(getUrl(4)).toContain('storeId=store-1');
+    // documents
+    expect(getUrl(5)).toContain('/admin/evotor/documents');
+    expect(getUrl(5)).toContain('evotorUserId=evotor-user-1');
+    expect(getUrl(5)).toContain('storeId=store-1');
+  });
+
+  it('returns accounts list from bridge', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: '01-000000000000001',
+            name: 'Account One',
+            email: 'a@test.com',
+          },
+        ],
+        total: 1,
+        skip: 0,
+        take: 20,
+      }),
+    );
+
+    const result = await service.listAdminAccounts({});
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: '01-000000000000001',
+      name: 'Account One',
+    });
+    expect(result.total).toBe(1);
+    expect(result.skip).toBe(0);
+    expect(result.take).toBe(20);
+  });
+
+  it('returns stores list from bridge', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [{ id: 'store-uuid-1', name: 'Store 1', devicesCount: 2 }],
+        total: 1,
+        skip: 0,
+        take: 20,
+      }),
+    );
+
+    const result = await service.listAdminStores({
+      evotorUserId: '01-000000000000001',
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 'store-uuid-1',
+      name: 'Store 1',
+    });
+  });
+
+  it('returns devices list from bridge', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          { id: 'device-uuid-1', name: 'Terminal 1', serialNumber: 'SN-001' },
+        ],
+        total: 1,
+        skip: 0,
+        take: 20,
+      }),
+    );
+
+    const result = await service.listAdminDevices({});
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 'device-uuid-1',
+      name: 'Terminal 1',
+    });
+  });
+
+  it('returns products list from bridge', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          { id: 'product-1', article_number: 'SKU-001', name: 'Product 1' },
+        ],
+        total: 1,
+        skip: 0,
+        take: 20,
+      }),
+    );
+
+    const result = await service.listAdminProducts({
+      storeId: 'store-uuid-1',
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 'product-1',
+      article_number: 'SKU-001',
+      name: 'Product 1',
+    });
+  });
+
+  it('returns empty products when no filters', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ items: [], total: 0, skip: 0, take: 20 }),
+    );
+    const result = await service.listAdminProducts({});
+
+    expect(result.items).toHaveLength(0);
+    expect(result.total).toBe(0);
+  });
+
+  it('applies skip/take pagination', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ items: [], total: 0, skip: 10, take: 5 }),
+    );
+
+    const result = await service.listAdminDevices({ skip: 10, take: 5 });
+
+    expect(result.skip).toBe(10);
+    expect(result.take).toBe(5);
+    const url = (fetchMock.mock.calls[0][0] as URL | string).toString();
+    expect(url).toContain('skip=10');
+    expect(url).toContain('take=5');
+  });
+
+  it('finds raw bridge account by userId', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [{ evotorUserId: '01-000000000000001', name: 'Test' }],
+        total: 1,
+        skip: 0,
+        take: 1,
+      }),
+    );
+
+    const result = await service.findRawBridgeAccount('01-000000000000001');
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('Test');
+  });
+
+  it('finds raw bridge store by storeId', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [{ uuid: 'store-uuid-1', name: 'Store' }],
+        total: 1,
+        skip: 0,
+        take: 1,
+      }),
+    );
+
+    const result = await service.findRawBridgeStore(
+      '01-000000000000001',
+      'store-uuid-1',
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('Store');
   });
 
   it('triggers admin sync through the bridge', async () => {

@@ -1,11 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
+  Max,
+  Min,
 } from 'class-validator';
 
 import { EvotorInboxEventType } from '../types';
@@ -16,7 +20,30 @@ const EVOTOR_UUID_PATTERN =
 
 export class EvotorAdminListQueryDto {
   @ApiPropertyOptional({
-    description: 'Evotor user id filter. If omitted, returns all accounts.',
+    description: 'Offset for pagination',
+    example: 0,
+    default: 0,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  skip?: number = 0;
+
+  @ApiPropertyOptional({
+    description: 'Items per page',
+    example: 20,
+    default: 20,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @Type(() => Number)
+  take?: number = 20;
+
+  @ApiPropertyOptional({
+    description: 'Evotor user id filter',
     example: '01-000000000000001',
   })
   @IsOptional()
@@ -32,14 +59,6 @@ export class EvotorAdminListQueryDto {
   @IsString()
   @Matches(EVOTOR_UUID_PATTERN, { message: 'Invalid storeId format' })
   storeId?: string;
-
-  @ApiPropertyOptional({
-    description: 'Pagination cursor for next page',
-    example: 'eyJpZCI6InByb2QtMTUwIn0=',
-  })
-  @IsOptional()
-  @IsString()
-  cursor?: string;
 
   @ApiPropertyOptional({
     description: 'Documents filter start date',
@@ -199,12 +218,147 @@ export class EvotorAdminLinkStoreDto {
   syncProducts?: boolean;
 }
 
+export class EvotorAdminListResponse<T> {
+  @ApiProperty({ description: 'List items' })
+  items: T[];
+
+  @ApiProperty({ description: 'Total items matching filter', example: 42 })
+  total: number;
+
+  @ApiProperty({ description: 'Offset used', example: 0 })
+  skip: number;
+
+  @ApiProperty({ description: 'Limit used', example: 20 })
+  take: number;
+}
+
+export class EvotorAccountDto {
+  @ApiProperty({ description: 'Evotor user ID', example: '01-000000000000001' })
+  id: string;
+
+  @ApiPropertyOptional({ description: 'Account name' })
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Account email' })
+  email?: string;
+
+  @ApiPropertyOptional({ description: 'Account status' })
+  status?: string;
+
+  @ApiPropertyOptional({ description: 'When the account was created' })
+  createdAt?: string;
+
+  @ApiPropertyOptional({ description: 'When the account was last updated' })
+  updatedAt?: string;
+
+  [key: string]: unknown;
+}
+
+export class EvotorStoreDto {
+  @ApiProperty({
+    description: 'Evotor store UUID',
+    example: '20190607-4F3B-40E0-80F0-00155D012500',
+  })
+  id: string;
+
+  @ApiPropertyOptional({ description: 'Store name' })
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Store address' })
+  address?: string;
+
+  @ApiPropertyOptional({ description: 'Store status' })
+  status?: string;
+
+  @ApiPropertyOptional({ description: 'Evotor user ID that owns this store' })
+  evotorUserId?: string;
+
+  @ApiPropertyOptional({ description: 'Store timezone' })
+  timezone?: string;
+
+  @ApiPropertyOptional({ description: 'When the store was created' })
+  createdAt?: string;
+
+  @ApiPropertyOptional({ description: 'When the store was last updated' })
+  updatedAt?: string;
+
+  [key: string]: unknown;
+}
+
+export class EvotorDeviceDto {
+  @ApiProperty({
+    description: 'Evotor device UUID',
+    example: '20190607-4F3B-40E0-80F0-00155D012501',
+  })
+  id: string;
+
+  @ApiPropertyOptional({ description: 'Device/terminal name' })
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Device serial number' })
+  serialNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Device model' })
+  model?: string;
+
+  @ApiPropertyOptional({ description: 'Device status' })
+  status?: string;
+
+  @ApiPropertyOptional({ description: 'Store UUID this device belongs to' })
+  storeId?: string;
+
+  @ApiPropertyOptional({ description: 'Evotor user ID' })
+  evotorUserId?: string;
+
+  @ApiPropertyOptional({ description: 'App version on device' })
+  appVersion?: string;
+
+  @ApiPropertyOptional({ description: 'When the device was last seen' })
+  lastSeenAt?: string;
+
+  @ApiPropertyOptional({ description: 'When the device was created' })
+  createdAt?: string;
+
+  @ApiPropertyOptional({ description: 'When the device was last updated' })
+  updatedAt?: string;
+
+  [key: string]: unknown;
+}
+
+export class EvotorProductDto {
+  @ApiProperty({ description: 'Evotor product UUID' })
+  id: string;
+
+  @ApiPropertyOptional({ description: 'Product article number (SKU)' })
+  articleNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Product name' })
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Product price in kopecks' })
+  price?: number;
+
+  @ApiPropertyOptional({ description: 'Available quantity' })
+  quantity?: number;
+
+  @ApiPropertyOptional({ description: 'Store UUID this product belongs to' })
+  storeId?: string;
+
+  @ApiPropertyOptional({ description: 'Evotor user ID' })
+  evotorUserId?: string;
+
+  @ApiPropertyOptional({ description: 'Evotor account relation' })
+  evotorAccount?: Record<string, unknown>;
+
+  [key: string]: unknown;
+}
+
 export type EvotorAdminDashboard = {
-  accounts: unknown[];
+  accounts: EvotorAccountDto[];
   inboxEvents: EvotorInboxEventDto[];
-  stores: unknown[];
-  devices: unknown[];
-  products: unknown[];
+  stores: EvotorStoreDto[];
+  devices: EvotorDeviceDto[];
+  products: EvotorProductDto[];
   documents: unknown[];
 };
 
