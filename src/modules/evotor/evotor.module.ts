@@ -7,7 +7,6 @@ import { EvotorApiModule } from './evotor-api.module';
 import { EvotorApplicationService } from './evotor-application.service';
 import { EvotorController } from './evotor.controller';
 import { EvotorProxyController } from './evotor-proxy.controller';
-import { EvotorApiService } from './evotor-api.service';
 import { EvotorService } from './evotor.service';
 import { EvotorIntegrationRepository } from './repositories';
 
@@ -31,7 +30,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     EvotorService,
     EvotorApplicationService,
     EvotorIntegrationRepository,
-    EvotorApiService,
+    EvotorApiModule,
   ],
   controllers: [EvotorController, EvotorAdminController, EvotorProxyController],
 })
