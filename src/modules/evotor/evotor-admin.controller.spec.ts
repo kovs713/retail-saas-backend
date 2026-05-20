@@ -246,6 +246,26 @@ describe('EvotorAdminController', () => {
     });
   });
 
+  it('processes received bridge inbox events', async () => {
+    const query = {
+      evotorUserId: '01-000000000000001',
+      take: 100,
+    };
+    const response = { processed: 3, skipped: 1, failed: 0 };
+    evotorApiService.processAdminInboxEvents.mockResolvedValue(response);
+
+    const result = await controller.processInboxEvents(query);
+
+    expect(evotorApiService.processAdminInboxEvents).toHaveBeenCalledWith(
+      query,
+    );
+    expect(result).toEqual({
+      success: true,
+      data: response,
+      message: 'Evotor inbox events processed successfully',
+    });
+  });
+
   it('forwards cloud token for bridge admin recovery', async () => {
     const payload = {
       evotorUserId: 'evotor-user-1',

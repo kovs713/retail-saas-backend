@@ -9,6 +9,7 @@ import {
   EvotorAdminLinkStoreDto,
   EvotorAdminListQueryDto,
   EvotorAdminListResponse,
+  EvotorAdminProcessInboxEventsQueryDto,
   EvotorAdminStoreSyncDto,
   EvotorAdminSyncDto,
   EvotorDeviceDto,
@@ -134,6 +135,20 @@ export class EvotorAdminController {
     };
   }
 
+  @Post('inbox-events/process')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Process received Evotor bridge inbox events' })
+  async processInboxEvents(
+    @Query() query: EvotorAdminProcessInboxEventsQueryDto,
+  ): Promise<AppApiResponse<unknown>> {
+    const result = await this.evotorApiService.processAdminInboxEvents(query);
+    return {
+      success: true,
+      data: this.redactSensitive(result),
+      message: 'Evotor inbox events processed successfully',
+    };
+  }
+
   @Get('stores')
   @ApiOperation({ summary: 'List persisted Evotor stores with pagination' })
   async listStores(
@@ -174,7 +189,7 @@ export class EvotorAdminController {
   @ApiOperation({ summary: 'List persisted Evotor documents with pagination' })
   async listDocuments(
     @Query() query: EvotorAdminListQueryDto,
-  ): Promise<AppApiResponse<EvotorAdminListResponse<unknown>>> {
+  ): Promise<AppApiResponse<EvotorAdminListResponse<EvotorInboxEventDto>>> {
     const result = await this.evotorApiService.listAdminDocuments(query);
     return {
       success: true,

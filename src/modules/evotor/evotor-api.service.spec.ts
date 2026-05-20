@@ -39,12 +39,36 @@ describe('EvotorApiService', () => {
     fetchMock
       .mockResolvedValueOnce(
         jsonResponse({
-          data: { items: [firstProduct], paging: { nextCursor: 'cursor-2' } },
+          data: {
+            items: [
+              {
+                uuid: 'product-1',
+                articleNumber: 'SKU-001',
+                name: 'First Product',
+                price: 1200,
+                quantity: 7,
+              },
+            ],
+          },
+          paging: { nextCursor: 'cursor-2' },
         }),
       )
       .mockResolvedValueOnce(
         jsonResponse({
-          data: { items: [secondProduct], paging: {} },
+          data: {
+            items: [
+              {
+                name: 'Second Product',
+                rawPayload: {
+                  uuid: 'product-2',
+                  articleNumber: 'SKU-002',
+                  price: 1500,
+                  quantity: 3,
+                },
+              },
+            ],
+            paging: {},
+          },
         }),
       );
 
@@ -100,6 +124,22 @@ describe('EvotorApiService', () => {
           skip: 0,
           take: 20,
         }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [{ id: 'product-1' }],
+          total: 1,
+          skip: 0,
+          take: 20,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [{ id: 'document-1' }],
+          total: 1,
+          skip: 0,
+          take: 20,
+        }),
       );
 
     const result = await service.getAdminDashboard();
@@ -109,13 +149,15 @@ describe('EvotorApiService', () => {
     expect(result.stores).toHaveLength(1);
     expect(result.devices).toHaveLength(1);
     expect(result.inboxEvents).toHaveLength(1);
-    expect(result.products).toEqual([]);
-    expect(result.documents).toEqual([]);
+    expect(result.products).toHaveLength(1);
+    expect(result.documents).toHaveLength(1);
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       'https://bridge.example.com/admin/evotor/accounts',
       'https://bridge.example.com/admin/evotor/stores',
       'https://bridge.example.com/admin/evotor/devices',
       'https://bridge.example.com/admin/evotor/inbox-events',
+      'https://bridge.example.com/admin/evotor/products',
+      'https://bridge.example.com/admin/evotor/inbox-events?eventType=evotor.documents.received',
     ]);
   });
 
@@ -156,10 +198,11 @@ describe('EvotorApiService', () => {
     expect(getUrl(4)).toContain('/admin/evotor/products');
     expect(getUrl(4)).toContain('evotorUserId=evotor-user-1');
     expect(getUrl(4)).toContain('storeId=store-1');
-    // documents
-    expect(getUrl(5)).toContain('/admin/evotor/documents');
+    // documents — now reads from inbox-events with eventType filter
+    expect(getUrl(5)).toContain('/admin/evotor/inbox-events');
     expect(getUrl(5)).toContain('evotorUserId=evotor-user-1');
-    expect(getUrl(5)).toContain('storeId=store-1');
+    expect(getUrl(5)).toContain('eventType=evotor.documents.received');
+    expect(getUrl(5)).not.toContain('storeId');
   });
 
   it('returns accounts list from bridge', async () => {
@@ -331,10 +374,29 @@ describe('EvotorApiService', () => {
 
     expect(result).toEqual(response);
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://bridge.example.com/api/evotor/sync',
+      'https://bridge.example.com/admin/evotor/sync',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(payload),
+        headers: expect.any(Headers),
+      }),
+    );
+  });
+
+  it('processes admin inbox events through the bridge', async () => {
+    const response = { processed: 3, skipped: 1, failed: 0 };
+    fetchMock.mockResolvedValueOnce(jsonResponse(response));
+
+    const result = await service.processAdminInboxEvents({
+      evotorUserId: '01-000000000000001',
+      take: 100,
+    });
+
+    expect(result).toEqual(response);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://bridge.example.com/admin/evotor/inbox-events/process?evotorUserId=01-000000000000001&take=100',
+      expect.objectContaining({
+        method: 'POST',
         headers: expect.any(Headers),
       }),
     );

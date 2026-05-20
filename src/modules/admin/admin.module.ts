@@ -1,3 +1,4 @@
+import { UserModule } from '@/modules/user/user.module';
 import { AnalyticsModule } from '@/modules/analytics/analytics.module';
 import { EvotorModule } from '@/modules/evotor/evotor.module';
 import { OrderModule } from '@/modules/order/order.module';
@@ -8,6 +9,7 @@ import { RegistrationApplicationModule } from '@/modules/registration-applicatio
 import { ShopModule } from '@/modules/shop/shop.module';
 import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
+import { AdminUsersController } from './admin-users.controller';
 
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -22,8 +24,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     AnalyticsModule,
     OrderModule,
     RegistrationApplicationModule,
+    UserModule,
   ],
   providers: [AdminDashboardService],
-  controllers: [AdminDashboardController],
+  controllers: [AdminDashboardController, AdminUsersController],
 })
 export class AdminModule {}

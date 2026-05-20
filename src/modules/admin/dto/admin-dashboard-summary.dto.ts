@@ -14,47 +14,34 @@ class AdminDashboardPeriodDto {
   to: string;
 }
 
-class AdminDashboardKpiDto {
-  @ApiProperty({ description: 'Total shops' })
-  totalShops: number;
+class AdminDashboardOverviewDto {
+  @ApiProperty({ description: 'Active storefronts (published shops)' })
+  activeStorefronts: number;
 
-  @ApiProperty({ description: 'Active shops' })
-  activeShops: number;
+  @ApiProperty({ description: 'Shops with active Evotor integration' })
+  evotorConnectedShops: number;
 
-  @ApiProperty({ description: 'Shops with public storefront (active shops)' })
-  publicStorefronts: number;
+  @ApiProperty({ description: 'Total products synced across all shops' })
+  productsSynced: number;
 
-  @ApiProperty({ description: 'Active Evotor connections' })
-  evotorConnections: number;
-
-  @ApiProperty({ description: 'Total products' })
-  products: number;
-
-  @ApiProperty({
-    description: 'Total knowledge sources (document groups in vector store)',
-  })
-  knowledgeSources: number;
-
-  @ApiProperty({ description: 'Total documents (vector store chunks)' })
-  documents: number;
+  @ApiProperty({ description: 'Storefront views in period' })
+  storefrontViews: number;
 
   @ApiProperty({ description: 'Chat sessions in period' })
   chatSessions: number;
 
-  @ApiProperty({ description: 'Total errors / attention items' })
-  errors: number;
+  @ApiProperty({ description: 'Pending registration applications' })
+  pendingRegistrations: number;
 
   @ApiProperty({
-    description: 'Pending registration applications',
-    required: false,
+    description: 'Evotor connection rate (connected / active storefronts)',
   })
-  pendingApplications?: number;
+  evotorConnectionRate: number;
 
-  @ApiProperty({ description: 'Total orders', required: false })
-  ordersCount?: number;
-
-  @ApiProperty({ description: 'Pending orders', required: false })
-  pendingOrdersCount?: number;
+  @ApiProperty({
+    description: 'Catalog readiness rate (shops with products / total shops)',
+  })
+  catalogReadinessRate: number;
 }
 
 class AdminDashboardAttentionDto {
@@ -64,23 +51,14 @@ class AdminDashboardAttentionDto {
   @ApiProperty({ description: 'Shops without products' })
   shopsWithoutProducts: number;
 
-  @ApiProperty({ description: 'Shops without knowledge base' })
-  shopsWithoutKnowledgeBase: number;
+  @ApiProperty({ description: 'Pending registration applications' })
+  pendingRegistrations: number;
 
-  @ApiProperty({
-    description: 'Pending registration applications',
-    required: false,
-  })
-  pendingApplications?: number;
-
-  @ApiProperty({ description: 'Pending orders', required: false })
-  pendingOrders?: number;
+  @ApiProperty({ description: 'Pending orders' })
+  pendingOrders: number;
 }
 
 class AdminDashboardActivityDto {
-  @ApiProperty({ description: 'Storefront views in period' })
-  storefrontViews: number;
-
   @ApiProperty({ description: 'Chat events in period' })
   chatEvents: number;
 
@@ -107,7 +85,10 @@ class AdminDashboardRecentShopDto {
   @ApiProperty({ description: 'Evotor integration status' })
   evotorStatus: string;
 
-  @ApiProperty({ description: 'RAG knowledge base status' })
+  @ApiProperty({
+    description: 'RAG knowledge base status',
+    enum: ['NOT_CONFIGURED', 'CATALOG_ONLY', 'READY'],
+  })
   ragStatus: string;
 
   @ApiProperty({ description: 'Created at' })
@@ -120,14 +101,7 @@ class AdminDashboardRecentEventDto {
 
   @ApiProperty({
     description: 'Event type',
-    enum: [
-      'EVOTOR_WEBHOOK',
-      'SYNC_JOB',
-      'DOCUMENT',
-      'CHAT_EVENT',
-      'ORDER',
-      'REGISTRATION',
-    ],
+    enum: ['CHAT_EVENT', 'ORDER'],
   })
   type: string;
 
@@ -148,8 +122,8 @@ export class AdminDashboardSummaryDto {
   @ApiProperty({ type: AdminDashboardPeriodDto })
   period: AdminDashboardPeriodDto;
 
-  @ApiProperty({ type: AdminDashboardKpiDto })
-  kpi: AdminDashboardKpiDto;
+  @ApiProperty({ type: AdminDashboardOverviewDto })
+  overview: AdminDashboardOverviewDto;
 
   @ApiProperty({ type: AdminDashboardAttentionDto })
   attention: AdminDashboardAttentionDto;

@@ -6,6 +6,7 @@ import {
   EvotorAdminDashboard,
   EvotorAdminListQueryDto,
   EvotorAdminListResponse,
+  EvotorAdminProcessInboxEventsQueryDto,
   EvotorAdminStoreSyncDto,
   EvotorAdminSyncDto,
   EvotorDeviceDto,
@@ -37,6 +38,7 @@ interface EvotorBridgeEnvelope<T> {
     items: T;
     paging?: Record<string, unknown>;
   };
+  paging?: Record<string, unknown>;
   meta?: {
     evotorStatus?: number;
     rateLimit?: {
@@ -96,9 +98,7 @@ export class EvotorApiService {
     let cursor: string | undefined;
 
     do {
-      const response = await this.request<
-        EvotorBridgeEnvelope<RemoteProduct[]>
-      >(
+      const response = await this.request<EvotorBridgeEnvelope<unknown[]>>(
         this.buildPath(
           `/api/evotor/stores/${encodeURIComponent(storeId)}/products`,
           {
@@ -110,9 +110,18 @@ export class EvotorApiService {
         { evotorUserId, retry: true },
       );
 
-      products.push(...response.data.items);
+      const items = Array.isArray(response.data.items)
+        ? response.data.items
+        : [];
+      products.push(
+        ...items
+          .map((item) => this.normalizeRemoteProduct(item))
+          .filter((item): item is RemoteProduct => item !== null),
+      );
       cursor =
-        (response.data.paging as { nextCursor?: string })?.nextCursor ??
+        (response.data.paging as { nextCursor?: string } | undefined)
+          ?.nextCursor ??
+        (response.paging as { nextCursor?: string } | undefined)?.nextCursor ??
         undefined;
     } while (cursor);
 
@@ -189,20 +198,23 @@ export class EvotorApiService {
   }
 
   async getAdminDashboard(): Promise<EvotorAdminDashboard> {
-    const [accounts, stores, devices, inboxEvents] = await Promise.all([
-      this.listAdminAccounts({}),
-      this.listAdminStores({}),
-      this.listAdminDevices({}),
-      this.listAdminInboxEvents({}),
-    ]);
+    const [accounts, stores, devices, inboxEvents, products, documents] =
+      await Promise.all([
+        this.listAdminAccounts({}),
+        this.listAdminStores({}),
+        this.listAdminDevices({}),
+        this.listAdminInboxEvents({}),
+        this.listAdminProducts({}),
+        this.listAdminDocuments({}),
+      ]);
 
     return {
       accounts: accounts.items,
       inboxEvents: inboxEvents.items,
       stores: stores.items,
       devices: devices.items,
-      products: [],
-      documents: [],
+      products: products.items,
+      documents: documents.items,
     };
   }
 
@@ -216,6 +228,22 @@ export class EvotorApiService {
     query: Partial<EvotorAdminListQuery> = {},
   ): Promise<EvotorAdminListResponse<EvotorInboxEventDto>> {
     return this.listAdminResource<EvotorInboxEventDto>('inbox-events', query);
+  }
+
+  async processAdminInboxEvents(
+    query: EvotorAdminProcessInboxEventsQueryDto,
+  ): Promise<unknown> {
+    return this.request(
+      this.buildPath('/admin/evotor/inbox-events/process', {
+        evotorUserId: query.evotorUserId,
+        take: String(query.take ?? 100),
+      }),
+      { method: 'POST' },
+      {
+        evotorUserId: query.evotorUserId,
+        timeoutMs: Math.max(this.evotorConfig.timeoutMs, 30000),
+      },
+    );
   }
 
   async listAdminStores(
@@ -238,8 +266,11 @@ export class EvotorApiService {
 
   async listAdminDocuments(
     query: Partial<EvotorAdminListQuery> = {},
-  ): Promise<EvotorAdminListResponse<unknown>> {
-    return this.listAdminResource<unknown>('documents', query);
+  ): Promise<EvotorAdminListResponse<EvotorInboxEventDto>> {
+    return this.listAdminResource<EvotorInboxEventDto>('inbox-events', {
+      ...query,
+      eventType: 'evotor.documents.received',
+    });
   }
 
   async findRawBridgeAccount(
@@ -285,7 +316,7 @@ export class EvotorApiService {
 
   async syncAdmin(payload: EvotorAdminSyncDto): Promise<unknown> {
     return this.request(
-      '/api/evotor/sync',
+      '/admin/evotor/sync',
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -500,5 +531,86 @@ export class EvotorApiService {
     this.logger.debug(
       `Evotor bridge ${method} ${path} status=${status} evotorUserId=${evotorUserId ?? 'n/a'} requestId=${requestId}`,
     );
+  }
+
+  private normalizeRemoteProduct(value: unknown): RemoteProduct | null {
+    const product = this.asRecord(value);
+    if (!product) {
+      return null;
+    }
+
+    const rawPayload = this.asRecord(product.rawPayload);
+    const records = [product, rawPayload];
+    const id = this.pickString(records, ['id', 'uuid', 'productId']);
+    if (!id) {
+      return null;
+    }
+
+    const articleNumber =
+      this.pickString(records, [
+        'article_number',
+        'articleNumber',
+        'article',
+        'code',
+      ]) ?? id;
+
+    return {
+      id,
+      article_number: articleNumber,
+      name: this.pickString(records, ['name']) ?? articleNumber,
+      price: this.pickNumber(records, ['price']) ?? 0,
+      quantity:
+        this.pickNumber(records, ['quantity', 'stock', 'stockQuantity']) ?? 0,
+    };
+  }
+
+  private asRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return null;
+    }
+
+    return value as Record<string, unknown>;
+  }
+
+  private pickString(
+    records: Array<Record<string, unknown> | null>,
+    keys: string[],
+  ): string | null {
+    for (const record of records) {
+      if (!record) continue;
+
+      for (const key of keys) {
+        const value = record[key];
+        if (typeof value === 'string' && value.trim() !== '') {
+          return value;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private pickNumber(
+    records: Array<Record<string, unknown> | null>,
+    keys: string[],
+  ): number | null {
+    for (const record of records) {
+      if (!record) continue;
+
+      for (const key of keys) {
+        const value = record[key];
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return value;
+        }
+        if (typeof value === 'string' && value.trim() !== '') {
+          const parsed = Number(value);
+          if (Number.isFinite(parsed)) {
+            return parsed;
+          }
+        }
+      }
+    }
+
+    return null;
   }
 }

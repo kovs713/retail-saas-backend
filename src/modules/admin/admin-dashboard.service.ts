@@ -55,7 +55,6 @@ export class AdminDashboardService {
       chatSessions,
       recentShops,
       pendingApplications,
-      totalOrders,
       pendingOrders,
       shopsWithoutProducts,
     ] = await Promise.all([
@@ -71,39 +70,41 @@ export class AdminDashboardService {
       this.registrationAppRepository.count({
         where: { status: RegistrationStatus.PENDING },
       }),
-      this.orderRepository.countAll(),
       this.orderRepository.countByStatus('PENDING'),
       this.productRepository.countByShopWithoutProducts(),
     ]);
 
-    const totalErrors =
-      disconnectedEvotor + shopsWithoutProducts + Math.max(0, activeShops);
+    const shopsWithProducts = Math.max(0, totalShops - shopsWithoutProducts);
 
-    const kpi = {
-      totalShops,
-      activeShops,
-      publicStorefronts: activeShops,
-      evotorConnections: activeEvotor,
-      products: totalProducts,
-      knowledgeSources: 0,
-      documents: 0,
+    const evotorConnectionRate =
+      activeShops > 0
+        ? Math.round((activeEvotor / activeShops) * 100) / 100
+        : 0;
+
+    const catalogReadinessRate =
+      totalShops > 0
+        ? Math.round((shopsWithProducts / totalShops) * 100) / 100
+        : 0;
+
+    const overview = {
+      activeStorefronts: activeShops,
+      evotorConnectedShops: activeEvotor,
+      productsSynced: totalProducts,
+      storefrontViews,
       chatSessions,
-      errors: totalErrors,
-      pendingApplications,
-      ordersCount: totalOrders,
-      pendingOrdersCount: pendingOrders,
+      pendingRegistrations: pendingApplications,
+      evotorConnectionRate,
+      catalogReadinessRate,
     };
 
     const attention = {
       disconnectedEvotor,
       shopsWithoutProducts,
-      shopsWithoutKnowledgeBase: Math.max(0, activeShops),
-      pendingApplications,
+      pendingRegistrations: pendingApplications,
       pendingOrders,
     };
 
     const activity = {
-      storefrontViews,
       chatEvents,
       chatSessions,
     };
@@ -116,7 +117,7 @@ export class AdminDashboardService {
         from: from.toISOString(),
         to: to.toISOString(),
       },
-      kpi,
+      overview,
       attention,
       activity,
       recentShops: recentShopsDto,
@@ -198,6 +199,9 @@ export class AdminDashboardService {
           : 'DISCONNECTED'
         : 'NOT_CONNECTED';
 
+      const ragStatus =
+        productsCount > 0 ? 'CATALOG_ONLY' : 'NOT_CONFIGURED';
+
       result.push({
         id: shop.id,
         name: shop.name,
@@ -205,7 +209,7 @@ export class AdminDashboardService {
         status: shop.isActive ? 'ACTIVE' : 'INACTIVE',
         productsCount,
         evotorStatus,
-        ragStatus: 'UNKNOWN',
+        ragStatus,
         createdAt: shop.createdAt.toISOString(),
       });
     }

@@ -126,6 +126,29 @@ export class EvotorAdminSyncDto {
   dateTo?: string;
 }
 
+export class EvotorAdminProcessInboxEventsQueryDto {
+  @ApiProperty({
+    description: 'Evotor user id to process inbox events for',
+    example: '01-000000000000001',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @Matches(EVOTOR_USER_ID_PATTERN, { message: 'Invalid evotorUserId format' })
+  evotorUserId: string;
+
+  @ApiPropertyOptional({
+    description: 'Number of received inbox events to process',
+    example: 100,
+    default: 100,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @Type(() => Number)
+  take?: number = 100;
+}
+
 export class EvotorAdminStoreSyncDto {
   @ApiProperty({
     description: 'Evotor user id that owns the store',
@@ -359,7 +382,7 @@ export type EvotorAdminDashboard = {
   stores: EvotorStoreDto[];
   devices: EvotorDeviceDto[];
   products: EvotorProductDto[];
-  documents: unknown[];
+  documents: EvotorInboxEventDto[];
 };
 
 export class EvotorInboxEventDto {
