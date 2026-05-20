@@ -1,4 +1,5 @@
 import { AnalyticsRepository } from '@/modules/analytics/repositories';
+import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { EvotorIntegrationRepository } from '@/modules/evotor/repositories';
 import { OrderRepository } from '@/modules/order/repositories';
 import { ProductRepository } from '@/modules/product/repositories';
@@ -35,6 +36,7 @@ export class AdminDashboardService {
     private readonly analyticsRepository: AnalyticsRepository,
     private readonly chatSessionRepository: ChatSessionRepository,
     private readonly orderRepository: OrderRepository,
+    private readonly evotorApiService: EvotorApiService,
     @InjectRepository(RegistrationApplication)
     private readonly registrationAppRepository: Repository<RegistrationApplication>,
   ) {}
@@ -47,8 +49,6 @@ export class AdminDashboardService {
     const [
       totalShops,
       activeShops,
-      totalProducts,
-      activeEvotor,
       disconnectedEvotor,
       storefrontViews,
       chatEvents,
@@ -57,11 +57,11 @@ export class AdminDashboardService {
       pendingApplications,
       pendingOrders,
       shopsWithoutProducts,
+      bridgeStores,
+      bridgeProducts,
     ] = await Promise.all([
       this.shopRepository.countAll(),
       this.shopRepository.countActive(),
-      this.productRepository.countAll(),
-      this.evotorRepository.countActive(),
       this.evotorRepository.countByStatus('disconnected'),
       this.analyticsRepository.countStorefrontViewsByPeriod(from, to),
       this.analyticsRepository.countChatEventsByPeriod(from, to),
@@ -72,14 +72,17 @@ export class AdminDashboardService {
       }),
       this.orderRepository.countByStatus('PENDING'),
       this.productRepository.countByShopWithoutProducts(),
+      this.evotorApiService
+        .listAdminStores({ take: 1 })
+        .then((r) => r.total)
+        .catch(() => 0),
+      this.evotorApiService
+        .listAdminProducts({ take: 1 })
+        .then((r) => r.total)
+        .catch(() => 0),
     ]);
 
     const shopsWithProducts = Math.max(0, totalShops - shopsWithoutProducts);
-
-    const evotorConnectionRate =
-      activeShops > 0
-        ? Math.round((activeEvotor / activeShops) * 100) / 100
-        : 0;
 
     const catalogReadinessRate =
       totalShops > 0
@@ -88,12 +91,15 @@ export class AdminDashboardService {
 
     const overview = {
       activeStorefronts: activeShops,
-      evotorConnectedShops: activeEvotor,
-      productsSynced: totalProducts,
+      evotorConnectedShops: bridgeStores,
+      productsSynced: bridgeProducts,
       storefrontViews,
       chatSessions,
       pendingRegistrations: pendingApplications,
-      evotorConnectionRate,
+      evotorConnectionRate:
+        activeShops > 0
+          ? Math.round((bridgeStores / activeShops) * 100) / 100
+          : 0,
       catalogReadinessRate,
     };
 
@@ -199,8 +205,7 @@ export class AdminDashboardService {
           : 'DISCONNECTED'
         : 'NOT_CONNECTED';
 
-      const ragStatus =
-        productsCount > 0 ? 'CATALOG_ONLY' : 'NOT_CONFIGURED';
+      const ragStatus = productsCount > 0 ? 'CATALOG_ONLY' : 'NOT_CONFIGURED';
 
       result.push({
         id: shop.id,
