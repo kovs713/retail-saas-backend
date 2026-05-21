@@ -308,6 +308,46 @@ export class EvotorApiService {
     return this.listAdminResource<EvotorInboxEventDto>('inbox-events', query);
   }
 
+  async countSellEvents(
+    evotorUserId: string,
+    storeId?: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<number> {
+    const take = 100;
+    let skip = 0;
+    let sellCount = 0;
+
+    while (true) {
+      const response = await this.listAdminResource<EvotorInboxEventDto>(
+        'inbox-events',
+        {
+          evotorUserId,
+          storeId,
+          eventType: 'evotor.documents.received',
+          dateFrom,
+          dateTo,
+          skip,
+          take,
+        },
+      );
+
+      if (!response.items.length) break;
+
+      for (const event of response.items) {
+        const payload = event.payload as Record<string, unknown> | undefined;
+        if (payload?.type === 'SELL') {
+          sellCount += 1;
+        }
+      }
+
+      if (response.items.length < take) break;
+      skip += take;
+    }
+
+    return sellCount;
+  }
+
   async processAdminInboxEvents(
     query: EvotorAdminProcessInboxEventsQueryDto,
   ): Promise<unknown> {

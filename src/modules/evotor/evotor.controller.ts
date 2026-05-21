@@ -7,6 +7,7 @@ import {
   ConnectEvotorDto,
   CreateEvotorApplicationDto,
   EvotorApplicationDto,
+  EvotorSellEventsCountDto,
   SyncEvotorDto,
 } from './dto';
 import { EvotorApplicationService } from './evotor-application.service';
@@ -22,6 +23,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -134,6 +136,34 @@ export class EvotorController {
     this.assertShopAccess(shopId, req);
     const integration = await this.evotorService.getStatus(shopId);
     return { success: true, data: integration };
+  }
+
+  @Get(':shopId/sell-events-count')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Get sell events count from Evotor for a shop',
+  })
+  @ApiParam({
+    name: 'shopId',
+    type: String,
+  })
+  async getSellEventsCount(
+    @Param('shopId')
+    shopId: string,
+    @Req()
+    req: Request,
+    @Query('dateFrom')
+    dateFrom?: string,
+    @Query('dateTo')
+    dateTo?: string,
+  ): Promise<AppApiResponse<EvotorSellEventsCountDto>> {
+    this.assertShopAccess(shopId, req);
+    const result = await this.evotorService.getSellEventsCount(
+      shopId,
+      dateFrom,
+      dateTo,
+    );
+    return { success: true, data: result };
   }
 
   @Get(':shopId/presentation-status')

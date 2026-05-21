@@ -332,6 +332,33 @@ export class EvotorService {
     return this.repository.findOne({ where: { shopId } });
   }
 
+  async getSellEventsCount(
+    shopId: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<{ totalCount: number; periodCount: number }> {
+    const integration = await this.getConnectedIntegration(shopId);
+
+    if (!integration.externalUserId) {
+      return { totalCount: 0, periodCount: 0 };
+    }
+
+    const [totalCount, periodCount] = await Promise.all([
+      this.evotorApiService.countSellEvents(
+        integration.externalUserId,
+        integration.externalStoreId,
+      ),
+      this.evotorApiService.countSellEvents(
+        integration.externalUserId,
+        integration.externalStoreId,
+        dateFrom,
+        dateTo,
+      ),
+    ]);
+
+    return { totalCount, periodCount };
+  }
+
   async disconnect(shopId: string): Promise<EvotorIntegration> {
     const integration = await this.getConnectedIntegration(shopId, false);
     integration.status = 'disconnected';

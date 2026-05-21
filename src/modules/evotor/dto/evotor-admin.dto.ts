@@ -417,3 +417,17 @@ export class EvotorInboxEventDto {
     externalEventId?: string;
   };
 }
+
+export class EvotorSellEventsCountDto {
+  @ApiProperty({ description: 'Total sell events count' })
+  totalCount: number;
+
+  @ApiProperty({ description: 'Sell events count within the period' })
+  periodCount: number;
+
+  @ApiPropertyOptional({ description: 'Period start date' })
+  dateFrom?: string;
+
+  @ApiPropertyOptional({ description: 'Period end date' })
+  dateTo?: string;
+}
