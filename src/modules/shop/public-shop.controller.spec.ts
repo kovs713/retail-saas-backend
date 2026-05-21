@@ -366,4 +366,64 @@ describe('PublicShopController', () => {
     expect(result.data.pagination.total).toBe(0);
     expect(result.data.pagination.totalPages).toBe(0);
   });
+
+  it('should return single product by ID and shop slug', async () => {
+    const mockProduct = {
+      id: 'prod-1',
+      sku: 'SKU001',
+      name: 'Test Product',
+      description: 'Test Description',
+      price: 99.99,
+      quantity: 50,
+      category: { id: 'cat-1', name: 'Test Category' },
+      images: [
+        {
+          id: 'img-1',
+          s3Key: 'products/prod-1/images/photo.jpg',
+          publicUrl: '/public/media/test-shop/products/prod-1/photo.jpg',
+          isPrimary: true,
+          sortOrder: 0,
+          contentType: 'image/jpeg',
+          size: 12345,
+        },
+      ],
+    };
+
+    productRepository.findByIdAndShopSlug.mockResolvedValue(mockProduct as any);
+
+    const result = await controller.getProduct('test-shop', 'prod-1');
+
+    expect(result.success).toBe(true);
+    expect(result.data.id).toBe('prod-1');
+    expect(result.data.name).toBe('Test Product');
+    expect(result.data.availability).toBe('IN_STOCK');
+    expect(result.data.images).toHaveLength(1);
+    expect(result.data.images[0].publicUrl).toContain('/public/media/');
+  });
+
+  it('should mark product as OUT_OF_STOCK when quantity is 0', async () => {
+    const mockProduct = {
+      id: 'prod-1',
+      sku: 'SKU001',
+      name: 'Out of Stock Product',
+      price: 50,
+      quantity: 0,
+      category: null,
+      images: [],
+    };
+
+    productRepository.findByIdAndShopSlug.mockResolvedValue(mockProduct as any);
+
+    const result = await controller.getProduct('test-shop', 'prod-1');
+
+    expect(result.data.availability).toBe('OUT_OF_STOCK');
+  });
+
+  it('should throw BadRequestException when product not found', async () => {
+    productRepository.findByIdAndShopSlug.mockResolvedValue(null);
+
+    await expect(
+      controller.getProduct('test-shop', 'non-existent-id'),
+    ).rejects.toThrow(BadRequestException);
+  });
 });

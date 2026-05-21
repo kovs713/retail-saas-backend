@@ -137,6 +137,75 @@ export class PublicShopController {
     return { success: true, data: response };
   }
 
+  @Get(':slug/products/:productId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get a single public product by ID (no authentication required)',
+  })
+  @ApiParam({
+    name: 'slug',
+    description: 'Shop slug',
+    example: 'my-shop',
+  })
+  @ApiParam({
+    name: 'productId',
+    description: 'Product ID',
+    example: 'daffdf77-9826-4a17-aa0b-cf77fe615a45',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successful response',
+    type: StorefrontProductDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Shop or product not found',
+  })
+  async getProduct(
+    @Param('slug')
+    slug: string,
+    @Param('productId')
+    productId: string,
+  ): Promise<{ success: true; data: StorefrontProductDto }> {
+    const product = await this.productRepository.findByIdAndShopSlug(
+      productId,
+      slug,
+    );
+
+    if (!product) {
+      throw new BadRequestException('Product not found or shop is not active');
+    }
+
+    let availability: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+    if (product.quantity <= 0) {
+      availability = 'OUT_OF_STOCK';
+    } else if (product.quantity < 10) {
+      availability = 'LOW_STOCK';
+    } else {
+      availability = 'IN_STOCK';
+    }
+
+    const productData: StorefrontProductDto = {
+      id: product.id,
+      sku: product.sku,
+      name: product.name,
+      description: product.description,
+      price: Number(product.price),
+      quantity: product.quantity,
+      category: product.category?.name || null,
+      images: product.images?.length
+        ? ProductImageDto.fromEntities(product.images)
+        : null,
+      availability,
+    };
+
+    this.logger.log(
+      `Product data fetched for shop ${slug}, product ${productId}`,
+    );
+
+    return { success: true, data: productData };
+  }
+
   @Get(':slug/products')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
