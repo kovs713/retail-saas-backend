@@ -31,6 +31,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -67,7 +68,7 @@ export class EvotorAdminController {
     };
   }
 
-  @Post('applications/:id/approve')
+  @Patch('applications/:id/approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Approve Evotor integration application' })
   @ApiParam({ name: 'id', type: String })
@@ -83,7 +84,7 @@ export class EvotorAdminController {
     };
   }
 
-  @Post('applications/:id/reject')
+  @Patch('applications/:id/reject')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reject Evotor integration application' })
   @ApiParam({ name: 'id', type: String })
