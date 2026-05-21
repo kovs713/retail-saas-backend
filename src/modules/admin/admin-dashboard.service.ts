@@ -241,11 +241,16 @@ export class AdminDashboardService {
       createdAt: Date;
     }> = [];
 
-    const [recentChatEvents, recentOrders, recentSessions] = await Promise.all([
-      this.analyticsRepository.findRecentChatEvents(5),
-      this.orderRepository.findRecent(5),
-      this.chatSessionRepository.findRecent(5),
-    ]);
+    const [recentChatEvents, recentOrders, recentSessions, recentEvotorEvents] =
+      await Promise.all([
+        this.analyticsRepository.findRecentChatEvents(5),
+        this.orderRepository.findRecent(5),
+        this.chatSessionRepository.findRecent(5),
+        this.evotorApiService
+          .listAdminInboxEvents({ take: 5 })
+          .then((r) => r.items)
+          .catch(() => []),
+      ]);
 
     for (const event of recentChatEvents) {
       events.push({
@@ -277,6 +282,17 @@ export class AdminDashboardService {
         shopName: null,
         status: session.status,
         createdAt: session.createdAt,
+      });
+    }
+
+    for (const evotorEvent of recentEvotorEvents) {
+      events.push({
+        id: evotorEvent.eventId,
+        type: evotorEvent.eventType,
+        title: evotorEvent.eventType,
+        shopName: null,
+        status: 'received',
+        createdAt: new Date(evotorEvent.receivedAt),
       });
     }
 
