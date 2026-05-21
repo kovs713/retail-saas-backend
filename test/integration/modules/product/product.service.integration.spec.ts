@@ -207,7 +207,10 @@ describe('ProductService Integration', () => {
     });
 
     const total = await productService.count(shopId);
-    const byCategory = await productService.countByCategory(category.id, shopId);
+    const byCategory = await productService.countByCategory(
+      category.id,
+      shopId,
+    );
 
     expect(total).toBe(2);
     expect(byCategory).toBe(2);
