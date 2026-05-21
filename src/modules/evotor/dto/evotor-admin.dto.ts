@@ -78,19 +78,15 @@ export class EvotorAdminListQueryDto {
 
   @ApiPropertyOptional({
     description: 'Filter inbox events by type',
-    example: 'evotor.document.sell',
+    example: 'evotor.documents.received',
     enum: [
       'evotor.documents.received',
       'evotor.products.received',
-      'evotor.document.sell',
-      'evotor.document.z_report',
-      'evotor.document.close_session',
-      'evotor.document.open_session',
-      'evotor.document.pos_open_session',
-      'evotor.document.payback',
-      'evotor.cloud_token.received',
-      'evotor.user.verified',
-      'evotor.user.created',
+      'evotor.store.changed',
+      'evotor.device.changed',
+      'evotor.employee.changed',
+      'evotor.subscription.event',
+      'evotor.installation.event',
     ],
   })
   @IsOptional()

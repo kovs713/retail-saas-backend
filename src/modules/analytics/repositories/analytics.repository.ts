@@ -2,7 +2,7 @@ import { ChatEvent, StorefrontView } from '../entities';
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 
 @Injectable()
 export class AnalyticsRepository {
@@ -99,7 +99,10 @@ export class AnalyticsRepository {
   }
 
   async findRecentChatEvents(limit: number = 10): Promise<ChatEvent[]> {
+    const now = new Date();
+    const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     return this.chatEventRepository.find({
+      where: { createdAt: Between(from, now) },
       order: { createdAt: 'DESC' },
       take: limit,
     });

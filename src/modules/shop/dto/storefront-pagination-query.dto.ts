@@ -1,16 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import {
-  IsBoolean,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
-export class Pagination {
+export class StorefrontPaginationQuery {
   @ApiPropertyOptional({ description: 'Page number', example: 1, default: 1 })
   @IsOptional()
   @IsInt()
@@ -31,8 +23,8 @@ export class Pagination {
   limit?: number = 10;
 
   @ApiPropertyOptional({
-    description: 'Filter by category',
-    example: 'Electronics',
+    description: 'Filter by category ID',
+    example: 'category-uuid',
   })
   @IsOptional()
   @IsString()
@@ -80,7 +72,7 @@ export class Pagination {
   sortOrder?: 'ASC' | 'DESC';
 
   @ApiPropertyOptional({
-    description: 'Search term (name or SKU)',
+    description: 'Search term (name, SKU, description, barcode, category)',
     example: 'Wireless',
   })
   @IsOptional()

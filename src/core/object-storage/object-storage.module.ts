@@ -1,7 +1,10 @@
 import { S3Client, S3Config, S3Options } from '@/common/types';
 import { ObjectStorageService } from './object-storage.service';
 
-import { S3Client as AwsS3Client } from '@aws-sdk/client-s3';
+import {
+  CreateBucketCommand,
+  S3Client as AwsS3Client,
+} from '@aws-sdk/client-s3';
 import { DynamicModule, Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
@@ -28,10 +31,10 @@ export class ObjectStorageModule {
         {
           provide: S3Client,
           inject: [S3Config],
-          useFactory: (s3Options: S3Options): AwsS3Client => {
+          useFactory: async (s3Options: S3Options): Promise<AwsS3Client> => {
             const protocol = s3Options.useSSL ? 'https' : 'http';
 
-            return new AwsS3Client({
+            const client = new AwsS3Client({
               region: s3Options.region,
               endpoint: `${protocol}://${s3Options.host}:${s3Options.port}`,
               forcePathStyle: true,
@@ -40,6 +43,24 @@ export class ObjectStorageModule {
                 secretAccessKey: s3Options.secretKey,
               },
             });
+
+            try {
+              await client.send(
+                new CreateBucketCommand({ Bucket: s3Options.bucket }),
+              );
+            } catch (error: unknown) {
+              const code =
+                (error as { Code?: string; code?: string })?.Code ??
+                (error as { Code?: string; code?: string })?.code;
+              if (
+                code !== 'BucketAlreadyExists' &&
+                code !== 'BucketAlreadyOwnedByYou'
+              ) {
+                throw error;
+              }
+            }
+
+            return client;
           },
         },
 

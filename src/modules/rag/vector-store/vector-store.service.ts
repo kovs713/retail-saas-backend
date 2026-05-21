@@ -69,7 +69,9 @@ export class VectorStoreService {
     }
 
     const documents = await collection.get({
-      where: { shopId, documentGroupId },
+      where: {
+        $and: [{ shopId }, { documentGroupId }],
+      },
     });
 
     if (!documents.ids?.length) {
@@ -104,6 +106,24 @@ export class VectorStoreService {
   }
 
   async addDocuments(documents: Document[], shopId: string): Promise<string[]> {
+    const documentGroupId = crypto.randomUUID();
+    const result = await this.addDocumentsWithGroupId(
+      documents,
+      shopId,
+      documentGroupId,
+    );
+    return result.chunkIds;
+  }
+
+  async addDocumentsWithGroupId(
+    documents: Document[],
+    shopId: string,
+    documentGroupId: string,
+  ): Promise<{
+    documentGroupId: string;
+    chunkIds: string[];
+    totalChunks: number;
+  }> {
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
       chunkOverlap: 200,
@@ -111,7 +131,6 @@ export class VectorStoreService {
 
     const splitDocs: Document[] = [];
     for (const doc of documents) {
-      const documentGroupId = crypto.randomUUID();
       const docWithTenant = {
         ...doc,
         metadata: this.sanitizeMetadata({
@@ -143,7 +162,7 @@ export class VectorStoreService {
     this.logger.log(
       `Added ${splitDocs.length} document chunks to vector store for organization: ${shopId}`,
     );
-    return ids;
+    return { documentGroupId, chunkIds: ids, totalChunks: splitDocs.length };
   }
 
   async addTexts(
@@ -242,7 +261,9 @@ export class VectorStoreService {
     }
 
     const documents = await collection.get({
-      where: { shopId, documentGroupId },
+      where: {
+        $and: [{ shopId }, { documentGroupId }],
+      },
     });
 
     if (!documents.ids?.length) {
@@ -258,6 +279,59 @@ export class VectorStoreService {
       `Deleted ${documents.ids.length} chunks for documentGroupId: ${documentGroupId}`,
     );
     return documents.ids.length;
+  }
+
+  async updateDocumentGroup(
+    documentGroupId: string,
+    shopId: string,
+    documents: Document[],
+  ): Promise<number> {
+    const collection = this.chromaDBClient.collection;
+
+    if (!collection) {
+      return 0;
+    }
+
+    const existingDocs = await collection.get({
+      where: {
+        $and: [{ shopId }, { documentGroupId }],
+      },
+    });
+
+    if (!existingDocs.ids?.length) {
+      return 0;
+    }
+
+    await this.chromaDBClient.delete({ ids: existingDocs.ids });
+
+    const splitDocs: Document[] = [];
+    for (const doc of documents) {
+      const docWithTenant = {
+        ...doc,
+        metadata: this.sanitizeMetadata({
+          ...doc.metadata,
+          shopId,
+          documentGroupId,
+        }),
+      };
+      splitDocs.push(docWithTenant);
+    }
+
+    for (let i = 0; i < splitDocs.length; i++) {
+      splitDocs[i].metadata = {
+        ...splitDocs[i].metadata,
+        documentGroupId,
+        chunkIndex: i,
+        totalChunks: splitDocs.length,
+      };
+    }
+
+    const ids = await this.chromaDBClient.addDocuments(splitDocs);
+
+    this.logger.log(
+      `Updated ${ids.length} chunks for documentGroupId: ${documentGroupId}`,
+    );
+    return ids.length;
   }
 
   async deleteDocumentsByFilter(

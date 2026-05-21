@@ -179,7 +179,10 @@ export class OrderRepository extends Repository<Order> {
   }
 
   async findRecent(limit: number = 10): Promise<Order[]> {
+    const now = new Date();
+    const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     return this.repository.find({
+      where: { createdAt: Between(from, now) },
       order: { createdAt: 'DESC' },
       take: limit,
     });

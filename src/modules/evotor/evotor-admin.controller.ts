@@ -77,6 +77,10 @@ export class EvotorAdminController {
     id: string,
   ): Promise<AppApiResponse<EvotorApplicationDto>> {
     const application = await this.evotorApplicationService.approve(id);
+    await this.evotorService.syncApprovedIntegration(
+      application.shopId,
+      application.evotorUserId,
+    );
     return {
       success: true,
       data: EvotorApplicationDto.fromEntity(application),

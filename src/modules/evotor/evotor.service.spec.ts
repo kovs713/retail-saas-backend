@@ -1,6 +1,8 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { createProduct } from '@/core/database/factories';
+import { Order } from '@/modules/order/entities';
+import { OrderRepository } from '@/modules/order/repositories';
 import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import { Product } from '@/modules/product/entities';
 import { ProductRepository } from '@/modules/product/repositories';
@@ -18,6 +20,7 @@ describe('EvotorService', () => {
   let service: EvotorService;
   let integrationRepository: DeepMocked<EvotorIntegrationRepository>;
   let productRepository: DeepMocked<ProductRepository>;
+  let orderRepository: DeepMocked<OrderRepository>;
   let evotorApiService: DeepMocked<EvotorApiService>;
   let shopService: DeepMocked<ShopService>;
   let catalogIndexService: DeepMocked<CatalogIndexService>;
@@ -35,6 +38,10 @@ describe('EvotorService', () => {
           useValue: createMock<ProductRepository>(),
         },
         {
+          provide: OrderRepository,
+          useValue: createMock<OrderRepository>(),
+        },
+        {
           provide: CatalogIndexService,
           useValue: createMock<CatalogIndexService>(),
         },
@@ -47,6 +54,7 @@ describe('EvotorService', () => {
     service = module.get(EvotorService);
     integrationRepository = module.get(EvotorIntegrationRepository);
     productRepository = module.get(ProductRepository);
+    orderRepository = module.get(OrderRepository);
     evotorApiService = module.get(EvotorApiService);
     shopService = module.get(ShopService);
     catalogIndexService = module.get(CatalogIndexService);
@@ -54,6 +62,10 @@ describe('EvotorService', () => {
       Promise.resolve(value as Product),
     );
     productRepository.findBySku.mockResolvedValue(null);
+    orderRepository.create.mockImplementation((value) => value as Order);
+    orderRepository.save.mockImplementation(async (value) =>
+      Promise.resolve(value as Order),
+    );
   });
 
   it('connects a shop to an Evotor store', async () => {
@@ -89,19 +101,18 @@ describe('EvotorService', () => {
 
   it('links a shop to an Evotor bridge store', async () => {
     shopService.findById.mockResolvedValue({ id: 'shop-1' } as never);
-    evotorApiService.listAdminAccounts.mockResolvedValue([
-      { evotor_user_id: 'evotor-user-1' },
-    ]);
-    evotorApiService.listAdminStores.mockResolvedValue([
-      {
-        storeId: 'store-1',
-        evotor_user_id: 'evotor-user-1',
-        name: 'Main Store',
-      },
-    ]);
-    evotorApiService.listAdminDevices.mockResolvedValue([
-      { deviceId: 'device-1', storeId: 'store-1' },
-    ]);
+    evotorApiService.findRawBridgeAccount.mockResolvedValue({
+      evotor_user_id: 'evotor-user-1',
+    });
+    evotorApiService.findRawBridgeStore.mockResolvedValue({
+      storeId: 'store-1',
+      evotor_user_id: 'evotor-user-1',
+      name: 'Main Store',
+    });
+    evotorApiService.findRawBridgeDevice.mockResolvedValue({
+      deviceId: 'device-1',
+      storeId: 'store-1',
+    });
     integrationRepository.findConnectedByExternalStore.mockResolvedValue(null);
     integrationRepository.findByShopId.mockResolvedValue(null);
     integrationRepository.create.mockImplementation(
@@ -118,17 +129,18 @@ describe('EvotorService', () => {
       deviceId: 'device-1',
     });
 
-    expect(evotorApiService.listAdminAccounts).toHaveBeenCalledWith({
-      evotorUserId: 'evotor-user-1',
-    });
-    expect(evotorApiService.listAdminStores).toHaveBeenCalledWith({
-      evotorUserId: 'evotor-user-1',
-      storeId: 'store-1',
-    });
-    expect(evotorApiService.listAdminDevices).toHaveBeenCalledWith({
-      evotorUserId: 'evotor-user-1',
-      storeId: 'store-1',
-    });
+    expect(evotorApiService.findRawBridgeAccount).toHaveBeenCalledWith(
+      'evotor-user-1',
+    );
+    expect(evotorApiService.findRawBridgeStore).toHaveBeenCalledWith(
+      'evotor-user-1',
+      'store-1',
+    );
+    expect(evotorApiService.findRawBridgeDevice).toHaveBeenCalledWith(
+      'evotor-user-1',
+      'store-1',
+      'device-1',
+    );
     expect(result).toEqual(
       expect.objectContaining({
         shopId: 'shop-1',
@@ -149,12 +161,13 @@ describe('EvotorService', () => {
 
   it('rejects linking an Evotor store already linked to another shop', async () => {
     shopService.findById.mockResolvedValue({ id: 'shop-1' } as never);
-    evotorApiService.listAdminAccounts.mockResolvedValue([
-      { evotor_user_id: 'evotor-user-1' },
-    ]);
-    evotorApiService.listAdminStores.mockResolvedValue([
-      { storeId: 'store-1', evotor_user_id: 'evotor-user-1' },
-    ]);
+    evotorApiService.findRawBridgeAccount.mockResolvedValue({
+      evotor_user_id: 'evotor-user-1',
+    });
+    evotorApiService.findRawBridgeStore.mockResolvedValue({
+      storeId: 'store-1',
+      evotor_user_id: 'evotor-user-1',
+    });
     integrationRepository.findConnectedByExternalStore.mockResolvedValue({
       id: 'integration-2',
       shopId: 'shop-2',
@@ -176,10 +189,10 @@ describe('EvotorService', () => {
 
   it('rejects linking when bridge store is missing', async () => {
     shopService.findById.mockResolvedValue({ id: 'shop-1' } as never);
-    evotorApiService.listAdminAccounts.mockResolvedValue([
-      { evotor_user_id: 'evotor-user-1' },
-    ]);
-    evotorApiService.listAdminStores.mockResolvedValue([]);
+    evotorApiService.findRawBridgeAccount.mockResolvedValue({
+      evotor_user_id: 'evotor-user-1',
+    });
+    evotorApiService.findRawBridgeStore.mockResolvedValue(null);
 
     await expect(
       service.linkStore({
@@ -193,8 +206,24 @@ describe('EvotorService', () => {
   });
 
   it('syncs bridge account by evotor_user_id', async () => {
+    const integration = {
+      id: 'integration-1',
+      shopId: 'shop-1',
+      status: 'connected',
+      externalStoreId: 'store-shop-1',
+      externalUserId: 'evotor-user-1',
+    } as EvotorIntegration;
+
     shopService.findById.mockResolvedValue({ id: 'shop-1' } as never);
     evotorApiService.syncAdmin.mockResolvedValue({ batchId: 'batch-1' });
+    integrationRepository.findByShopId.mockResolvedValue(integration);
+    integrationRepository.findOne.mockResolvedValue(integration);
+    integrationRepository.save.mockImplementation(async (value) =>
+      Promise.resolve(value as EvotorIntegration),
+    );
+    productRepository.findSyncedByShop.mockResolvedValue([]);
+    evotorApiService.getProducts.mockResolvedValue([]);
+    evotorApiService.getDocuments.mockResolvedValue([]);
 
     const result = await service.syncBridgeAccount('shop-1', {
       evotor_user_id: 'evotor-user-1',
@@ -207,7 +236,89 @@ describe('EvotorService', () => {
       dateFrom: '2026-05-01',
       dateTo: '2026-05-16',
     });
-    expect(result).toEqual({ batchId: 'batch-1' });
+    expect(evotorApiService.getProducts).toHaveBeenCalledWith(
+      'store-shop-1',
+      'evotor-user-1',
+    );
+    expect(evotorApiService.getDocuments).toHaveBeenCalledWith(
+      'store-shop-1',
+      'evotor-user-1',
+      '2026-05-01',
+      '2026-05-16',
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        bridgeSync: { batchId: 'batch-1' },
+        storeId: 'store-shop-1',
+        products: expect.objectContaining({ importedCount: 0 }),
+        orders: expect.objectContaining({ importedCount: 0 }),
+      }),
+    );
+  });
+
+  it('imports SELL documents from bridge as completed orders', async () => {
+    const integration = {
+      id: 'integration-1',
+      shopId: 'shop-1',
+      status: 'connected',
+      externalStoreId: 'store-shop-1',
+      externalUserId: 'evotor-user-1',
+    } as EvotorIntegration;
+    const product = createProduct({
+      id: 'prod-1',
+      shopId: 'shop-1',
+      sku: 'SKU-001',
+      externalSource: 'evotor',
+      externalId: 'remote-1',
+      externalStoreId: 'store-shop-1',
+    });
+
+    integrationRepository.findOne.mockResolvedValue(integration);
+    evotorApiService.getDocuments.mockResolvedValue([
+      {
+        id: 'sell-doc-1',
+        type: 'SELL',
+        close_date: '2026-05-18T10:00:00.000Z',
+        body: {
+          positions: [
+            {
+              id: 1,
+              product_id: 'remote-1',
+              product_type: 'NORMAL',
+              quantity: 2,
+              price: 500,
+              result_price: 450,
+              sum: 1000,
+              result_sum: 900,
+              tax: { type: 'NO_VAT', sum: 0, result_sum: 0 },
+            },
+          ],
+          payments: [],
+          result_sum: 900,
+          customer_phone: '+79990000000',
+        },
+      },
+    ]);
+    productRepository.findSyncedByShop.mockResolvedValue([product]);
+    orderRepository.findById.mockResolvedValue(null);
+
+    const result = await service.syncSellOrders('shop-1');
+
+    expect(orderRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.any(String),
+        shopId: 'shop-1',
+        customerName: 'Evotor customer',
+        customerPhone: '+79990000000',
+        items: [{ productId: 'prod-1', quantity: 2, price: 450 }],
+        totalAmount: 900,
+        status: 'COMPLETED',
+        createdAt: new Date('2026-05-18T10:00:00.000Z'),
+        updatedAt: new Date('2026-05-18T10:00:00.000Z'),
+      }),
+    );
+    expect(result.importedCount).toBe(1);
+    expect(result.skippedCount).toBe(0);
   });
 
   it('syncs remote products into local persisted catalog and soft-deletes missing synced items', async () => {

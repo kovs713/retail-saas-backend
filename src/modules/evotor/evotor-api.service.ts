@@ -128,6 +128,84 @@ export class EvotorApiService {
     return products;
   }
 
+  async getDocuments(
+    storeId: string,
+    evotorUserId?: string | null,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<unknown[]> {
+    const documents: unknown[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const response = await this.request<EvotorBridgeEnvelope<unknown[]>>(
+        this.buildPath(
+          `/api/evotor/stores/${encodeURIComponent(storeId)}/documents`,
+          {
+            cursor,
+            evotorUserId: evotorUserId ?? undefined,
+            dateFrom,
+            dateTo,
+          },
+        ),
+        { method: 'GET' },
+        { evotorUserId, retry: true },
+      );
+
+      const items = Array.isArray(response.data.items)
+        ? response.data.items
+        : [];
+      documents.push(
+        ...items.map((item) => this.normalizeRemoteDocument(item)),
+      );
+      cursor =
+        (response.data.paging as { nextCursor?: string } | undefined)
+          ?.nextCursor ??
+        (response.paging as { nextCursor?: string } | undefined)?.nextCursor ??
+        undefined;
+    } while (cursor);
+
+    return documents;
+  }
+
+  async getAdminDocuments(
+    evotorUserId: string,
+    storeId?: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<unknown[]> {
+    const documents: unknown[] = [];
+    const take = 100;
+    let skip = 0;
+    let total = 0;
+
+    do {
+      const response = await this.listAdminDocuments({
+        evotorUserId,
+        dateFrom,
+        dateTo,
+        skip,
+        take,
+      });
+
+      total = response.total;
+
+      for (const item of response.items) {
+        const event = this.asRecord(item);
+
+        if (storeId && event && !this.recordMatchesStore(event, storeId)) {
+          continue;
+        }
+
+        documents.push(this.normalizeRemoteDocument(item));
+      }
+
+      skip += response.items.length;
+    } while (skip < total && skip > 0);
+
+    return documents;
+  }
+
   async proxyRequest<T>(
     path: string,
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
@@ -562,6 +640,30 @@ export class EvotorApiService {
       quantity:
         this.pickNumber(records, ['quantity', 'stock', 'stockQuantity']) ?? 0,
     };
+  }
+
+  private normalizeRemoteDocument(value: unknown): unknown {
+    const document = this.asRecord(value);
+    if (!document) {
+      return value;
+    }
+
+    return document.rawPayload ?? document.payload ?? value;
+  }
+
+  private recordMatchesStore(record: Record<string, unknown>, storeId: string) {
+    const payload = this.asRecord(record.payload);
+
+    return [
+      record.storeUuid,
+      record.storeId,
+      record.store_id,
+      record.externalStoreId,
+      payload?.store_id,
+      payload?.storeId,
+      payload?.storeUuid,
+      payload?.externalStoreId,
+    ].some((value) => value === storeId);
   }
 
   private asRecord(value: unknown): Record<string, unknown> | null {

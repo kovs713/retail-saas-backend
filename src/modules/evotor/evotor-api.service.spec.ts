@@ -91,6 +91,70 @@ describe('EvotorApiService', () => {
     expect(headers.get('X-Authorization')).toBeNull();
   });
 
+  it('reads documents through the bridge proxy with pagination', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            items: [
+              {
+                rawPayload: {
+                  id: 'doc-1',
+                  type: 'SELL',
+                  body: { positions: [], payments: [], result_sum: 1200 },
+                },
+              },
+            ],
+          },
+          paging: { nextCursor: 'cursor-2' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            items: [
+              {
+                id: 'doc-2',
+                type: 'BUY',
+                body: {},
+              },
+            ],
+            paging: {},
+          },
+        }),
+      );
+
+    const result = await service.getDocuments(
+      'store/1',
+      'evotor-user-1',
+      '2026-05-01',
+      '2026-05-16',
+    );
+
+    expect(result).toEqual([
+      {
+        id: 'doc-1',
+        type: 'SELL',
+        body: { positions: [], payments: [], result_sum: 1200 },
+      },
+      {
+        id: 'doc-2',
+        type: 'BUY',
+        body: {},
+      },
+    ]);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'https://bridge.example.com/api/evotor/stores/store%2F1/documents?evotorUserId=evotor-user-1&dateFrom=2026-05-01&dateTo=2026-05-16',
+      expect.objectContaining({ method: 'GET', headers: expect.any(Headers) }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://bridge.example.com/api/evotor/stores/store%2F1/documents?cursor=cursor-2&evotorUserId=evotor-user-1&dateFrom=2026-05-01&dateTo=2026-05-16',
+      expect.objectContaining({ method: 'GET', headers: expect.any(Headers) }),
+    );
+  });
+
   it('reads admin dashboard resources through bridge admin endpoints', async () => {
     fetchMock
       .mockResolvedValueOnce(

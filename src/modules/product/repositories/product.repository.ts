@@ -74,6 +74,10 @@ export class ProductRepository extends Repository<Product> {
       });
     }
 
+    if (query.inStock) {
+      queryBuilder.andWhere('product.quantity > 0');
+    }
+
     if (query.search) {
       const search = `%${this.escapeLikePattern(query.search)}%`;
       queryBuilder.andWhere(
@@ -507,11 +511,13 @@ export class ProductRepository extends Repository<Product> {
     sortBy?: string,
     sortOrder?: 'ASC' | 'DESC',
   ): Record<string, 'ASC' | 'DESC'> {
-    const order: Record<string, 'ASC' | 'DESC'> = { createdAt: 'DESC' };
+    const order: Record<string, 'ASC' | 'DESC'> = {};
 
     if (sortBy) {
       order[sortBy] = sortOrder ?? 'ASC';
     }
+
+    order.createdAt = 'DESC';
 
     return order;
   }

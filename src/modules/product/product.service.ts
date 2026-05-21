@@ -256,6 +256,11 @@ export class ProductService {
       query.limit ?? 10,
       query.category || 'all',
       query.search || '',
+      query.minPrice ?? 'min-all',
+      query.maxPrice ?? 'max-all',
+      query.inStock === undefined ? 'stock-all' : String(query.inStock),
+      query.sortBy || 'sort-default',
+      query.sortOrder || 'order-default',
     );
 
     const cached =
