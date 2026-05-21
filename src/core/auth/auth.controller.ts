@@ -3,13 +3,7 @@ import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { AuthGuard } from '@/common/guards';
 import { AuthConfig, AuthOptions, Request, TokenPayload } from '@/common/types';
 import { AuthService } from './auth.service';
-import {
-  AuthResponseDto,
-  RegisterApplicationResponseDto,
-  RegisterDto,
-  SignInDto,
-  UserInfoDto,
-} from './dto';
+import { AuthResponseDto, SignInDto, UserInfoDto } from './dto';
 
 import {
   Body,
@@ -41,37 +35,6 @@ export class AuthController {
     private readonly authConfig: AuthOptions,
     private readonly authService: AuthService,
   ) {}
-
-  @Post('register')
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: 'Create a registration application',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Registration application created successfully',
-    type: RegisterApplicationResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request - Invalid input',
-  })
-  @ApiResponse({
-    status: 409,
-    description: 'Conflict - Email or shop slug already exists',
-  })
-  async register(
-    @Body()
-    registerDto: RegisterDto,
-  ): Promise<AppApiResponse<RegisterApplicationResponseDto>> {
-    const result = await this.authService.register(registerDto);
-
-    return {
-      success: true,
-      data: result,
-      message: 'Registration application created successfully',
-    };
-  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

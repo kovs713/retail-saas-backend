@@ -48,6 +48,14 @@ describe('Pagination', () => {
       expect(dto.maxPrice).toBe(100);
     });
 
+    it('should parse in-stock filter', () => {
+      const raw = { inStock: 'true' };
+
+      const dto = plainToInstance(Pagination, raw);
+
+      expect(dto.inStock).toBe(true);
+    });
+
     it('should accept sort parameters', () => {
       const raw = { sortBy: 'price', sortOrder: 'DESC' };
 
@@ -72,6 +80,7 @@ describe('Pagination', () => {
         category: 'Electronics',
         minPrice: 10,
         maxPrice: 100,
+        inStock: 'true',
         sortBy: 'price',
         sortOrder: 'ASC',
         search: 'mouse',
@@ -84,6 +93,7 @@ describe('Pagination', () => {
       expect(dto.category).toBe('Electronics');
       expect(dto.minPrice).toBe(10);
       expect(dto.maxPrice).toBe(100);
+      expect(dto.inStock).toBe(true);
       expect(dto.sortBy).toBe('price');
       expect(dto.sortOrder).toBe('ASC');
       expect(dto.search).toBe('mouse');

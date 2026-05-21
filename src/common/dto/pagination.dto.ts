@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
@@ -41,13 +42,28 @@ export class Pagination {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Transform(({ value }: { value: unknown }) => parseFloat(String(value)))
   minPrice?: number;
 
   @ApiPropertyOptional({ description: 'Maximum price filter', example: 100 })
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Transform(({ value }: { value: unknown }) => parseFloat(String(value)))
   maxPrice?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filter only products with stock quantity greater than zero',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return value;
+  })
+  inStock?: boolean;
 
   @ApiPropertyOptional({ description: 'Sort by field', example: 'price' })
   @IsOptional()

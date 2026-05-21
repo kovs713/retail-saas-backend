@@ -1,8 +1,9 @@
 import { User } from '../entities';
+import { FindAllUsersQuery } from './types';
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { ILike, Not, Repository } from 'typeorm';
 
 @Injectable()
 export class UserRepository extends Repository<User> {
@@ -26,6 +27,7 @@ export class UserRepository extends Repository<User> {
       where: {
         id,
       },
+      relations: ['shop'],
     });
   }
 
@@ -38,6 +40,14 @@ export class UserRepository extends Repository<User> {
     });
   }
 
+  async findByEvotorUserId(evotorUserId: string): Promise<User | null> {
+    return this.repository.findOne({
+      where: {
+        evotorUserId,
+      },
+    });
+  }
+
   async existsByEmail(email: string): Promise<boolean> {
     return this.repository.existsBy({ email });
   }
@@ -47,5 +57,47 @@ export class UserRepository extends Repository<User> {
       email,
       id: Not(id),
     });
+  }
+
+  async findAllPaginated(query: FindAllUsersQuery) {
+    const {
+      page = 1,
+      limit = 10,
+      role,
+      isActive,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = query;
+
+    const where: Record<string, unknown> = {};
+
+    if (role) {
+      where.role = role;
+    }
+
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+
+    if (search) {
+      where.email = ILike(`%${search}%`);
+    }
+
+    const [data, total] = await this.repository.findAndCount({
+      where,
+      relations: ['shop'],
+      order: { [sortBy]: sortOrder },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

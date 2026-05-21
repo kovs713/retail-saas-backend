@@ -1,4 +1,5 @@
 import { RegistrationApplication } from './entities';
+import { RegistrationApplicationPublicController } from './registration-application-public.controller';
 import { RegistrationApplicationController } from './registration-application.controller';
 import { RegistrationApplicationService } from './registration-application.service';
 
@@ -9,6 +10,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
   imports: [TypeOrmModule.forFeature([RegistrationApplication])],
   providers: [RegistrationApplicationService],
   exports: [RegistrationApplicationService],
-  controllers: [RegistrationApplicationController],
+  controllers: [
+    RegistrationApplicationController,
+    RegistrationApplicationPublicController,
+  ],
 })
 export class RegistrationApplicationModule {}

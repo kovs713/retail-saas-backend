@@ -1,7 +1,11 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
+import { EvotorApplication } from '@/modules/evotor/entities';
+import { EvotorApplicationRepository } from '@/modules/evotor/repositories';
 import { Order } from '@/modules/order/entities';
+import { ChatMessage, ChatSession } from '@/modules/rag/chat/entities';
+import { ChatSessionRepository } from '@/modules/rag/chat/repositories';
 import { Location, Shop } from '@/modules/shop/entities';
 import {
   LocationRepository,
@@ -47,11 +51,16 @@ describe('UserService Integration', () => {
           ChatEvent,
           StorefrontView,
           Order,
+          ChatSession,
+          ChatMessage,
+          EvotorApplication,
         ]),
       ],
       providers: [
         UserService,
         UserRepository,
+        ChatSessionRepository,
+        EvotorApplicationRepository,
         ShopService,
         ShopRepository,
         LocationRepository,
@@ -79,7 +88,13 @@ describe('UserService Integration', () => {
   });
 
   afterEach(async () => {
+    if (!dataSource?.isInitialized) {
+      return;
+    }
     await dataSource.query('UPDATE users SET "shopId" = NULL');
+    await dataSource.query('DELETE FROM chat_messages');
+    await dataSource.query('DELETE FROM chat_sessions');
+    await dataSource.query('DELETE FROM evotor_applications');
     await dataSource.query('DELETE FROM shops');
     await dataSource.query('DELETE FROM users');
   });

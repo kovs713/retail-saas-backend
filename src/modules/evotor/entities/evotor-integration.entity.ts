@@ -13,6 +13,10 @@ import {
 
 @Entity('evotor_integrations')
 @Index(['shopId'], { unique: true })
+@Index(['provider', 'externalStoreId'], {
+  unique: true,
+  where: "status = 'connected'",
+})
 @Index(['status'])
 export class EvotorIntegration {
   @PrimaryGeneratedColumn('uuid')
@@ -25,7 +29,7 @@ export class EvotorIntegration {
   @JoinColumn({ name: 'shopId' })
   shop: Shop;
 
-  @Column({ type: 'varchar', length: 50, default: 'mock' })
+  @Column({ type: 'varchar', length: 50, default: 'evotor' })
   provider: string;
 
   @Column({ type: 'varchar', length: 50, default: 'connected' })

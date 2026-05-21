@@ -1,14 +1,13 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
 import { createProduct } from '@/core/database/factories';
+import { ProductImageDto } from './dto';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import type { Response } from 'express';
-import { Readable } from 'stream';
 
 describe('ProductController', () => {
   let controller: ProductController;
@@ -50,25 +49,6 @@ describe('ProductController', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-  });
-
-  describe('create', () => {
-    it('should create a product successfully', async () => {
-      service.create.mockResolvedValue(mockProduct);
-      const result = await controller.create(
-        {
-          sku: 'PROD-001',
-          name: 'Test',
-          price: 99.99,
-          quantity: 100,
-        },
-        tenantContext,
-      );
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data?.sku).toBe(mockProduct.sku);
-      expect(result.message).toBe('Product created successfully');
-    });
   });
 
   describe('findAll', () => {
@@ -144,74 +124,8 @@ describe('ProductController', () => {
     });
   });
 
-  describe('remove', () => {
-    it('should delete a product', async () => {
-      service.remove.mockResolvedValue(undefined);
-      const result = await controller.remove('prod_1', tenantContext);
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('restore', () => {
-    it('should restore a product', async () => {
-      service.restore.mockResolvedValue({
-        message: 'Product restored successfully',
-      });
-      const result = await controller.restore('prod_1', tenantContext);
-      expect(result.success).toBe(true);
-      expect(result.message).toBe('Product restored successfully');
-    });
-  });
-
-  describe('updateStock', () => {
-    it('should update stock', async () => {
-      service.updateStock.mockResolvedValue({ ...mockProduct, quantity: 150 });
-      const result = await controller.updateStock(
-        'prod_1',
-        { quantity: 150 },
-        tenantContext,
-      );
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data!.quantity).toBe(150);
-    });
-  });
-
-  describe('adjustStock', () => {
-    it('should adjust stock', async () => {
-      service.adjustStock.mockResolvedValue({ ...mockProduct, quantity: 150 });
-      const result = await controller.adjustStock(
-        'prod_1',
-        { adjustment: 50 },
-        tenantContext,
-      );
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data!.quantity).toBe(150);
-    });
-  });
-
-  describe('createImageUploadUrl', () => {
-    it('should return presigned upload payload', async () => {
-      service.createImageUploadUrl.mockResolvedValue({
-        uploadUrl: 'https://upload-url',
-        publicUrl: '/public/media/shop-1/products/prod_1/photo.jpg',
-        key: 'products/prod_1/images/photo.jpg',
-      });
-
-      const result = await controller.createImageUploadUrl(
-        'prod_1',
-        { fileName: 'photo.jpg' },
-        tenantContext,
-      );
-
-      expect(result.success).toBe(true);
-      expect(result.data?.uploadUrl).toBe('https://upload-url');
-    });
-  });
-
   describe('uploadImage', () => {
-    it('should upload image and return persisted payload', async () => {
+    it('should upload image and return ProductImageDto', async () => {
       const file = {
         originalname: 'photo.jpg',
         mimetype: 'image/jpeg',
@@ -219,13 +133,19 @@ describe('ProductController', () => {
         buffer: Buffer.from('image-data'),
       } as Express.Multer.File;
 
-      service.uploadProductImage.mockResolvedValue({
-        key: 'products/prod_1/images/photo.jpg',
+      const mockImageDto: ProductImageDto = {
+        id: 'img_1',
+        s3Key: 'products/prod_1/images/photo.jpg',
         publicUrl: '/public/media/shop-1/products/prod_1/photo.jpg',
+        isPrimary: true,
+        sortOrder: 0,
+        altText: null,
         contentType: 'image/jpeg',
         size: 1024,
-        etag: 'etag-1',
-      });
+        createdAt: '2025-01-01T00:00:00.000Z',
+      };
+
+      service.uploadProductImage.mockResolvedValue(mockImageDto as any);
 
       const result = await controller.uploadImage(
         'prod_1',
@@ -234,7 +154,7 @@ describe('ProductController', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.publicUrl).toBe(
+      expect(result.data?.image.publicUrl).toBe(
         '/public/media/shop-1/products/prod_1/photo.jpg',
       );
       expect(service.uploadProductImage).toHaveBeenCalledWith(
@@ -245,54 +165,93 @@ describe('ProductController', () => {
     });
   });
 
-  describe('getPrivateImage', () => {
-    it('should stream image for authenticated owner/admin', async () => {
-      const mockSetHeader = jest.fn();
-      const res = {
-        setHeader: mockSetHeader,
-        statusCode: 200,
-        get: () => {},
-      } as unknown as Response;
+  describe('getImages', () => {
+    it('should return all product images', async () => {
+      const mockImages = [
+        { id: 'img_1', sortOrder: 0 },
+        { id: 'img_2', sortOrder: 1 },
+      ];
 
-      const mockStream = new Readable({ read() {} });
-      const pipeSpy = jest
-        .spyOn(mockStream, 'pipe')
-        .mockReturnValue(res as any);
-      service.getPrivateImageStream.mockResolvedValue({
-        stream: mockStream,
-        contentType: 'image/jpeg',
-        etag: 'etag-1',
-        lastModified: new Date('2025-01-01'),
-      });
+      service.findImagesByProductId.mockResolvedValue(mockImages as any);
 
-      await controller.getPrivateImage(
-        'prod_1',
-        'photo.jpg',
-        tenantContext,
-        res,
-      );
+      const result = await controller.getImages('prod_1', tenantContext);
 
-      expect(mockSetHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
-      expect(mockSetHeader).toHaveBeenCalledWith(
-        'Cache-Control',
-        'private, max-age=0, must-revalidate',
-      );
-      expect(pipeSpy).toHaveBeenCalledWith(res);
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(2);
     });
   });
 
   describe('deleteImage', () => {
-    it('should delete product image', async () => {
+    it('should delete product image by UUID', async () => {
       service.deleteImage.mockResolvedValue();
 
       const result = await controller.deleteImage(
         'prod_1',
-        'photo.jpg',
+        'img_1',
         tenantContext,
       );
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Product image deleted successfully');
+      expect(service.deleteImage).toHaveBeenCalledWith(
+        'img_1',
+        tenantContext.shopId,
+      );
+    });
+  });
+
+  describe('reorderImage', () => {
+    it('should reorder product image', async () => {
+      const mockImageDto: ProductImageDto = {
+        id: 'img_1',
+        s3Key: 'key',
+        publicUrl: '/url',
+        isPrimary: false,
+        sortOrder: 5,
+        altText: null,
+        contentType: 'image/jpeg',
+        size: 1024,
+        createdAt: '2025-01-01T00:00:00.000Z',
+      };
+
+      service.reorderImage.mockResolvedValue(mockImageDto as any);
+
+      const result = await controller.reorderImage(
+        'prod_1',
+        'img_1',
+        { sortOrder: 5 },
+        tenantContext,
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data?.sortOrder).toBe(5);
+    });
+  });
+
+  describe('setPrimaryImage', () => {
+    it('should set primary image', async () => {
+      const mockImageDto: ProductImageDto = {
+        id: 'img_1',
+        s3Key: 'key',
+        publicUrl: '/url',
+        isPrimary: true,
+        sortOrder: 0,
+        altText: null,
+        contentType: 'image/jpeg',
+        size: 1024,
+        createdAt: '2025-01-01T00:00:00.000Z',
+      };
+
+      service.setPrimaryImage.mockResolvedValue(mockImageDto as any);
+
+      const result = await controller.setPrimaryImage(
+        'prod_1',
+        'img_1',
+        tenantContext,
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data?.isPrimary).toBe(true);
     });
   });
 

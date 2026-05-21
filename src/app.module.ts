@@ -3,6 +3,8 @@ import { AuthModule } from './core/auth/auth.module';
 import { CacheModule } from './core/cache/cache.module';
 import { TypeOrmConfigService } from './core/database/config';
 import { LoggerModule } from './core/logger/logger.module';
+import { ObjectStorageModule } from './core/object-storage/object-storage.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { DocPreprocessorModule } from './modules/doc-preprocessor/doc-preprocessor.module';
 import { EvotorModule } from './modules/evotor/evotor.module';
@@ -11,7 +13,6 @@ import { ProductModule } from './modules/product/product.module';
 import { RagModule } from './modules/rag/rag.module';
 import { RegistrationApplicationModule } from './modules/registration-application/registration-application.module';
 import { ShopModule } from './modules/shop/shop.module';
-import { StorageModule } from './modules/storage/storage.module';
 import { UserModule } from './modules/user/user.module';
 
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
@@ -30,6 +31,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         const host = configService.getOrThrow<string>('REDIS_HOST');
         const port = configService.getOrThrow<number>('REDIS_PORT');
         const password = configService.getOrThrow<string>('REDIS_PASSWORD');
+        const throttlerStorage = new ThrottlerStorageRedisService(
+          `redis://${host}:${port}`,
+          {
+            password: password || undefined,
+          },
+        );
+
+        const storageInternal = throttlerStorage as unknown as {
+          redis?: { on?: (event: string, callback: () => void) => void };
+        };
+        storageInternal.redis?.on?.('error', () => undefined);
+
         return {
           throttlers: [
             {
@@ -38,9 +51,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
               limit: configService.getOrThrow<number>('THROTTLE_LIMIT'),
             },
           ],
-          storage: new ThrottlerStorageRedisService(`redis://${host}:${port}`, {
-            password,
-          }),
+          storage: throttlerStorage,
         };
       },
     }),
@@ -51,6 +62,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     CacheModule.forRootAsync(),
     LoggerModule,
 
+    AdminModule,
     AnalyticsModule,
     DocPreprocessorModule,
     EvotorModule,
@@ -59,7 +71,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     RagModule.forRoot(),
     RegistrationApplicationModule,
     ShopModule,
-    StorageModule.forRoot(),
+    ObjectStorageModule.forRoot(),
     UserModule,
   ],
 })

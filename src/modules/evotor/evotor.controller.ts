@@ -3,7 +3,14 @@ import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { Request } from '@/common/types';
-import { ConnectEvotorDto } from './dto';
+import {
+  ConnectEvotorDto,
+  CreateEvotorApplicationDto,
+  EvotorApplicationDto,
+  EvotorSellEventsCountDto,
+  SyncEvotorDto,
+} from './dto';
+import { EvotorApplicationService } from './evotor-application.service';
 import { EvotorService } from './evotor.service';
 
 import {
@@ -12,8 +19,11 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -29,12 +39,15 @@ import {
 @Controller('evotor/shops')
 @UseGuards(AuthGuard, RolesGuard)
 export class EvotorController {
-  constructor(private readonly evotorService: EvotorService) {}
+  constructor(
+    private readonly evotorService: EvotorService,
+    private readonly evotorApplicationService: EvotorApplicationService,
+  ) {}
 
   @Post(':shopId/connect')
-  @Roles(Role.OWNER, Role.ADMIN)
+  @Roles(Role.ADMIN)
   @ApiOperation({
-    summary: 'Connect a shop to evotor mock',
+    summary: 'Connect a shop to Evotor',
   })
   @ApiParam({ name: 'shopId', type: String })
   async connect(
@@ -50,7 +63,58 @@ export class EvotorController {
     return {
       success: true,
       data: integration,
-      message: 'Evotor mock connected successfully',
+      message: 'Evotor connected successfully',
+    };
+  }
+
+  @Post(':shopId/sync')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Sync Evotor bridge account by evotor_user_id',
+  })
+  @ApiParam({ name: 'shopId', type: String })
+  async syncBridgeAccount(
+    @Param('shopId')
+    shopId: string,
+    @Body()
+    body: SyncEvotorDto,
+    @Req()
+    req: Request,
+  ): Promise<AppApiResponse<unknown>> {
+    this.assertShopAccess(shopId, req);
+    const result = await this.evotorService.syncBridgeAccount(shopId, body);
+    return {
+      success: true,
+      data: result,
+      message: 'Evotor bridge sync started successfully',
+    };
+  }
+
+  @Post(':shopId/applications')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create Evotor integration application',
+  })
+  @ApiParam({ name: 'shopId', type: String })
+  async createApplication(
+    @Param('shopId')
+    shopId: string,
+    @Body()
+    body: CreateEvotorApplicationDto,
+    @Req()
+    req: Request,
+  ): Promise<AppApiResponse<EvotorApplicationDto>> {
+    this.assertShopAccess(shopId, req);
+    const application = await this.evotorApplicationService.create(
+      shopId,
+      body,
+    );
+    return {
+      success: true,
+      data: EvotorApplicationDto.fromEntity(application),
+      message: 'Evotor application created successfully',
     };
   }
 
@@ -74,10 +138,38 @@ export class EvotorController {
     return { success: true, data: integration };
   }
 
+  @Get(':shopId/sell-events-count')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Get sell events count from Evotor for a shop',
+  })
+  @ApiParam({
+    name: 'shopId',
+    type: String,
+  })
+  async getSellEventsCount(
+    @Param('shopId')
+    shopId: string,
+    @Req()
+    req: Request,
+    @Query('dateFrom')
+    dateFrom?: string,
+    @Query('dateTo')
+    dateTo?: string,
+  ): Promise<AppApiResponse<EvotorSellEventsCountDto>> {
+    this.assertShopAccess(shopId, req);
+    const result = await this.evotorService.getSellEventsCount(
+      shopId,
+      dateFrom,
+      dateTo,
+    );
+    return { success: true, data: result };
+  }
+
   @Get(':shopId/presentation-status')
   @Roles(Role.OWNER, Role.ADMIN)
   @ApiOperation({
-    summary: 'Get presentation status for the demo flow',
+    summary: 'Get Evotor integration presentation status',
   })
   @ApiParam({
     name: 'shopId',
@@ -94,34 +186,10 @@ export class EvotorController {
     return { success: true, data: status };
   }
 
-  @Post(':shopId/demo-setup')
-  @Roles(Role.OWNER, Role.ADMIN)
-  @ApiOperation({
-    summary: 'Run one-click demo setup for evotor mock',
-  })
-  @ApiParam({
-    name: 'shopId',
-    type: String,
-  })
-  async demoSetup(
-    @Param('shopId')
-    shopId: string,
-    @Req()
-    req: Request,
-  ): Promise<AppApiResponse<unknown>> {
-    this.assertShopAccess(shopId, req);
-    const status = await this.evotorService.demoSetup(shopId);
-    return {
-      success: true,
-      data: status,
-      message: 'Evotor demo setup completed successfully',
-    };
-  }
-
   @Delete(':shopId/connect')
   @Roles(Role.OWNER, Role.ADMIN)
   @ApiOperation({
-    summary: 'Disconnect a shop from evotor mock',
+    summary: 'Disconnect a shop from Evotor',
   })
   @ApiParam({
     name: 'shopId',
@@ -138,14 +206,14 @@ export class EvotorController {
     return {
       success: true,
       data: integration,
-      message: 'Evotor mock disconnected successfully',
+      message: 'Evotor disconnected successfully',
     };
   }
 
   @Post(':shopId/sync/products')
   @Roles(Role.OWNER, Role.ADMIN)
   @ApiOperation({
-    summary: 'Sync products from evotor mock into local catalog',
+    summary: 'Sync products from Evotor into local catalog',
   })
   @ApiParam({
     name: 'shopId',

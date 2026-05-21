@@ -1,12 +1,15 @@
 import { createMockTenantContext, mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
 import { createCategory, createProduct } from '@/core/database/factories';
-import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
-import { StorageService } from '@/modules/storage/storage.service';
+import { ObjectStorageService } from '@/core/object-storage/object-storage.service';
 import { CatalogIndexService } from './catalog-index.service';
-import { Product } from './entities';
+import { Product, ProductImage } from './entities';
 import { ProductService } from './product.service';
-import { CategoryRepository, ProductRepository } from './repositories';
+import {
+  CategoryRepository,
+  ProductImageRepository,
+  ProductRepository,
+} from './repositories';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import {
@@ -14,18 +17,16 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UpdateResult } from 'typeorm';
 
 describe('ProductService', () => {
   let service: ProductService;
   let productRepository: DeepMocked<ProductRepository>;
+  let productImageRepository: DeepMocked<ProductImageRepository>;
   let categoryRepository: DeepMocked<CategoryRepository>;
   let cacheService: DeepMocked<CacheService>;
-  let storageService: DeepMocked<StorageService>;
-  let configService: DeepMocked<ConfigService>;
-  let evotorApiService: DeepMocked<EvotorApiService>;
+  let storageService: DeepMocked<ObjectStorageService>;
   let catalogIndexService: DeepMocked<CatalogIndexService>;
 
   const mockProduct: Product = createProduct({ id: 'prod_1', index: 1 });
@@ -47,6 +48,10 @@ describe('ProductService', () => {
           useValue: createMock<ProductRepository>(),
         },
         {
+          provide: ProductImageRepository,
+          useValue: createMock<ProductImageRepository>(),
+        },
+        {
           provide: CategoryRepository,
           useValue: createMock<CategoryRepository>(),
         },
@@ -55,16 +60,8 @@ describe('ProductService', () => {
           useValue: mockCacheService(),
         },
         {
-          provide: StorageService,
-          useValue: createMock<StorageService>(),
-        },
-        {
-          provide: ConfigService,
-          useValue: createMock<ConfigService>(),
-        },
-        {
-          provide: EvotorApiService,
-          useValue: createMock<EvotorApiService>(),
+          provide: ObjectStorageService,
+          useValue: createMock<ObjectStorageService>(),
         },
         {
           provide: CatalogIndexService,
@@ -75,69 +72,26 @@ describe('ProductService', () => {
 
     service = module.get<ProductService>(ProductService);
     productRepository = module.get(ProductRepository);
+    productImageRepository = module.get(ProductImageRepository);
     categoryRepository = module.get(CategoryRepository);
     cacheService = module.get(CacheService);
-    storageService = module.get(StorageService);
-    configService = module.get(ConfigService);
-    evotorApiService = module.get(EvotorApiService);
+    storageService = module.get(ObjectStorageService);
     catalogIndexService = module.get(CatalogIndexService);
-    configService.get.mockImplementation((key: string, defaultValue?: any) => {
-      const config: Record<string, any> = {
-        MEDIA_UPLOAD_PRESIGNED_TTL: 900,
-      };
-      return key in config ? config[key] : defaultValue;
-    });
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('create', () => {
-    it('should create a product successfully', async () => {
-      const createDto = {
-        sku: 'PROD-001',
-        name: 'Test',
-        price: 99.99,
-        quantity: 100,
-      };
-      productRepository.existsBySkuAndShop.mockResolvedValue(false);
-      productRepository.create.mockReturnValue(mockProduct);
-      productRepository.save.mockResolvedValue(mockProduct);
-
-      const result = await service.create(createDto, mockTenantContext);
-
-      expect(result).toEqual(mockProduct);
-      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(
-        mockProduct,
-      );
-    });
-
-    it('should throw ConflictException when SKU exists', async () => {
-      productRepository.existsBySkuAndShop.mockResolvedValue(true);
-      await expect(
-        service.create(
-          {
-            sku: 'PROD-001',
-            name: 'Test',
-            price: 99.99,
-            quantity: 100,
-          },
-          mockTenantContext,
-        ),
-      ).rejects.toThrow(ConflictException);
-    });
-  });
-
   describe('findOne', () => {
     it('should return a product by id', async () => {
-      productRepository.findById.mockResolvedValue(mockProduct);
+      productRepository.findSyncedById.mockResolvedValue(mockProduct);
       const result = await service.findOne('prod_1', mockTenantContext);
       expect(result).toEqual(mockProduct);
     });
 
     it('should throw NotFoundException when not found', async () => {
-      productRepository.findById.mockResolvedValue(null);
+      productRepository.findSyncedById.mockResolvedValue(null);
       await expect(
         service.findOne('non-existent', mockTenantContext),
       ).rejects.toThrow(NotFoundException);
@@ -146,18 +100,18 @@ describe('ProductService', () => {
 
   describe('update', () => {
     it('should update a product successfully', async () => {
-      productRepository.findById.mockResolvedValue(mockProduct);
-      productRepository.existsBySkuAndShop.mockResolvedValue(false);
+      productRepository.findSyncedById
+        .mockResolvedValueOnce(mockProduct)
+        .mockResolvedValueOnce({
+          ...mockProduct,
+          name: 'Updated',
+        });
       const mockUpdateResult: UpdateResult = {
         affected: 1,
         generatedMaps: [],
         raw: [],
       };
       productRepository.update.mockResolvedValue(mockUpdateResult);
-      productRepository.findById.mockResolvedValue({
-        ...mockProduct,
-        name: 'Updated',
-      });
 
       const result = await service.update(
         'prod_1',
@@ -171,242 +125,69 @@ describe('ProductService', () => {
     });
 
     it('should throw NotFoundException for non-existent product', async () => {
-      productRepository.findById.mockResolvedValue(null);
+      productRepository.findSyncedById.mockResolvedValue(null);
       await expect(
         service.update('non-existent', { name: 'Updated' }, mockTenantContext),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw ConflictException for duplicate SKU', async () => {
-      productRepository.findById.mockResolvedValue(mockProduct);
-      productRepository.existsBySkuAndShop.mockResolvedValue(true);
-      await expect(
-        service.update('prod_1', { sku: 'EXISTING' }, mockTenantContext),
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('should push evotor-managed field edits to mock before saving locally', async () => {
-      const managedProduct = createProduct({
-        id: 'prod_1',
-        shopId: mockTenantContext.shopId,
-        sku: 'SYNC-001',
-        name: 'Synced Product',
-        externalSource: 'evotor',
-        externalId: 'evotor-prod-1',
-        externalStoreId: 'store-test-shop-id',
-      });
-
-      productRepository.findById.mockResolvedValue(managedProduct);
+    it('should verify category belongs to shop', async () => {
+      productRepository.findSyncedById
+        .mockResolvedValueOnce(mockProduct)
+        .mockResolvedValueOnce({
+          ...mockProduct,
+          categoryId: mockCategory.id,
+        });
+      categoryRepository.findByIdAndShop.mockResolvedValue(mockCategory);
       productRepository.update.mockResolvedValue({
         affected: 1,
         generatedMaps: [],
         raw: [],
       });
-      productRepository.findById.mockResolvedValue({
-        ...managedProduct,
-        price: 4500,
-      });
 
-      await service.update('prod_1', { price: 4500 }, mockTenantContext.shopId);
-
-      expect(evotorApiService.upsertProducts).toHaveBeenCalledWith(
-        'store-test-shop-id',
-        [
-          expect.objectContaining({
-            id: 'evotor-prod-1',
-            article_number: 'SYNC-001',
-            name: 'Synced Product',
-            price: 4500,
-          }),
-        ],
-      );
-    });
-  });
-
-  describe('remove', () => {
-    it('should soft delete a product', async () => {
-      productRepository.findById.mockResolvedValue(mockProduct);
-      productRepository.softDeleteById.mockResolvedValue();
-      await service.remove('prod_1', mockTenantContext);
-
-      expect(catalogIndexService.removeProduct).toHaveBeenCalledWith(
+      const result = await service.update(
         'prod_1',
-        mockTenantContext,
+        { categoryId: mockCategory.id },
+        mockTenantContext.shopId,
       );
+
+      expect(categoryRepository.findByIdAndShop).toHaveBeenCalledWith(
+        mockCategory.id,
+        mockTenantContext.shopId,
+      );
+      expect(result.categoryId).toBe(mockCategory.id);
     });
 
-    it('should throw NotFoundException for non-existent product', async () => {
-      productRepository.findById.mockResolvedValue(null);
+    it('should reject category from another shop', async () => {
+      productRepository.findSyncedById.mockResolvedValue(mockProduct);
+      categoryRepository.findByIdAndShop.mockResolvedValue(null);
+
       await expect(
-        service.remove('non-existent', mockTenantContext),
+        service.update(
+          'prod_1',
+          { categoryId: '123e4567-e89b-12d3-a456-426614174000' },
+          mockTenantContext.shopId,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
-  });
 
-  describe('restore', () => {
-    it('should restore a soft deleted product', async () => {
-      productRepository.findOneWithDeleted.mockResolvedValue(mockProduct);
-      const mockRestoreResult: UpdateResult = {
-        affected: 1,
-        generatedMaps: [],
-        raw: [],
-      };
-      productRepository.restoreById.mockResolvedValue(mockRestoreResult);
-      productRepository.findById.mockResolvedValue(mockProduct);
-      const result = await service.restore('prod_1', mockTenantContext);
-      expect(result.message).toBe('Product restored successfully');
-      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(
-        mockProduct,
-      );
-    });
+    it('should return existing product for empty local update', async () => {
+      productRepository.findSyncedById.mockResolvedValue(mockProduct);
 
-    it('should throw NotFoundException when nothing restored', async () => {
-      const mockRestoreResult: UpdateResult = {
-        affected: 0,
-        generatedMaps: [],
-        raw: [],
-      };
-      productRepository.restoreById.mockResolvedValue(mockRestoreResult);
-      await expect(
-        service.restore('non-existent', mockTenantContext),
-      ).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('updateStock', () => {
-    it('should update stock quantity', async () => {
-      productRepository.findById.mockResolvedValue(mockProduct);
-      productRepository.updateQuantity.mockResolvedValue();
-      productRepository.findById.mockResolvedValue({
-        ...mockProduct,
-        quantity: 150,
-      });
-
-      const result = await service.updateStock(
+      const result = await service.update(
         'prod_1',
-        150,
-        mockTenantContext,
-      );
-      expect(result.quantity).toBe(150);
-      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'prod_1', quantity: 150 }),
-      );
-    });
-
-    it('should scope stock update by tenant before writing', async () => {
-      productRepository.findById.mockResolvedValue(mockProduct);
-      productRepository.updateQuantity.mockResolvedValue();
-      productRepository.findById
-        .mockResolvedValueOnce(mockProduct)
-        .mockResolvedValueOnce({ ...mockProduct, quantity: 150 });
-
-      const result = await service.updateStock(
-        'prod_1',
-        150,
-        mockTenantContext,
+        {},
+        mockTenantContext.shopId,
       );
 
-      expect(result.quantity).toBe(150);
-    });
-
-    it('should push stock updates for evotor-managed products to mock', async () => {
-      const managedProduct = createProduct({
-        id: 'prod_1',
-        shopId: mockTenantContext.shopId,
-        sku: 'SYNC-001',
-        name: 'Synced Product',
-        quantity: 100,
-        externalSource: 'evotor',
-        externalId: 'evotor-prod-1',
-        externalStoreId: 'store-test-shop-id',
-      });
-
-      productRepository.findById.mockResolvedValue(managedProduct);
-      productRepository.updateQuantity.mockResolvedValue();
-      productRepository.findById.mockResolvedValue({
-        ...managedProduct,
-        quantity: 150,
-      });
-
-      await service.updateStock('prod_1', 150, mockTenantContext.shopId);
-
-      expect(evotorApiService.upsertProducts).toHaveBeenCalledWith(
-        'store-test-shop-id',
-        [
-          expect.objectContaining({
-            id: 'evotor-prod-1',
-            article_number: 'SYNC-001',
-            name: 'Synced Product',
-            quantity: 150,
-          }),
-        ],
-      );
-    });
-  });
-
-  describe('adjustStock', () => {
-    it('should increase stock', async () => {
-      productRepository.findById.mockResolvedValue(mockProduct);
-      productRepository.incrementQuantity.mockResolvedValue();
-      productRepository.findById.mockResolvedValue({
-        ...mockProduct,
-        quantity: 150,
-      });
-
-      const result = await service.adjustStock('prod_1', 50, mockTenantContext);
-      expect(result.quantity).toBe(150);
-      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'prod_1', quantity: 150 }),
-      );
-    });
-
-    it('should scope stock adjustment by tenant before writing', async () => {
-      productRepository.findById
-        .mockResolvedValueOnce(mockProduct)
-        .mockResolvedValueOnce({ ...mockProduct, quantity: 150 });
-      productRepository.incrementQuantity.mockResolvedValue();
-
-      const result = await service.adjustStock('prod_1', 50, mockTenantContext);
-
-      expect(result.quantity).toBe(150);
-    });
-
-    it('should push stock adjustments for evotor-managed products to mock', async () => {
-      const managedProduct = createProduct({
-        id: 'prod_1',
-        shopId: mockTenantContext.shopId,
-        sku: 'SYNC-001',
-        name: 'Synced Product',
-        quantity: 100,
-        externalSource: 'evotor',
-        externalId: 'evotor-prod-1',
-        externalStoreId: 'store-test-shop-id',
-      });
-
-      productRepository.findById
-        .mockResolvedValueOnce(managedProduct)
-        .mockResolvedValueOnce({ ...managedProduct, quantity: 150 });
-      productRepository.incrementQuantity.mockResolvedValue();
-
-      await service.adjustStock('prod_1', 50, mockTenantContext.shopId);
-
-      expect(evotorApiService.upsertProducts).toHaveBeenCalledWith(
-        'store-test-shop-id',
-        [
-          expect.objectContaining({
-            id: 'evotor-prod-1',
-            article_number: 'SYNC-001',
-            name: 'Synced Product',
-            quantity: 150,
-          }),
-        ],
-      );
+      expect(result).toEqual(mockProduct);
+      expect(productRepository.update).not.toHaveBeenCalled();
     });
   });
 
   describe('findAll', () => {
     it('should return paginated products', async () => {
-      productRepository.findAll.mockResolvedValue([[mockProduct], 1]);
+      productRepository.findSyncedAll.mockResolvedValue([[mockProduct], 1]);
 
       const result = await service.findAll(
         { page: 1, limit: 10 },
@@ -417,7 +198,7 @@ describe('ProductService', () => {
     });
 
     it('should filter by category', async () => {
-      productRepository.findAll.mockResolvedValue([[mockProduct], 1]);
+      productRepository.findSyncedAll.mockResolvedValue([[mockProduct], 1]);
 
       const result = await service.findAll(
         {
@@ -431,7 +212,7 @@ describe('ProductService', () => {
     });
 
     it('should search by name', async () => {
-      productRepository.findAll.mockResolvedValue([[mockProduct], 1]);
+      productRepository.findSyncedAll.mockResolvedValue([[mockProduct], 1]);
 
       const result = await service.findAll(
         {
@@ -451,7 +232,7 @@ describe('ProductService', () => {
         createProduct({ id: 'prod_2', quantity: 7 }),
         createProduct({ id: 'prod_1', quantity: 3 }),
       ];
-      productRepository.findAvailableByShop.mockResolvedValue(
+      productRepository.findSyncedAvailableByShop.mockResolvedValue(
         availableProducts,
       );
 
@@ -460,7 +241,7 @@ describe('ProductService', () => {
         25,
       );
 
-      expect(productRepository.findAvailableByShop).toHaveBeenCalledWith(
+      expect(productRepository.findSyncedAvailableByShop).toHaveBeenCalledWith(
         mockTenantContext.shopId,
         25,
       );
@@ -472,7 +253,7 @@ describe('ProductService', () => {
     it('should clear catalog docs and reindex all active products', async () => {
       const firstProduct = createProduct({ id: 'prod_1', shopId: 'shop-1' });
       const secondProduct = createProduct({ id: 'prod_2', shopId: 'shop-1' });
-      productRepository.findActiveByShop.mockResolvedValue([
+      productRepository.findSyncedActiveByShop.mockResolvedValue([
         firstProduct,
         secondProduct,
       ]);
@@ -498,13 +279,13 @@ describe('ProductService', () => {
         index: 1,
         sku: 'TEST-001',
       });
-      productRepository.findBySku.mockResolvedValue(productWithSku);
+      productRepository.findSyncedBySku.mockResolvedValue(productWithSku);
       const result = await service.findOneBySku('TEST-001', mockTenantContext);
       expect(result.sku).toBe('TEST-001');
     });
 
     it('should throw NotFoundException for non-existent SKU', async () => {
-      productRepository.findBySku.mockResolvedValue(null);
+      productRepository.findSyncedBySku.mockResolvedValue(null);
       await expect(
         service.findOneBySku('NON-EXISTENT', mockTenantContext),
       ).rejects.toThrow(NotFoundException);
@@ -513,7 +294,7 @@ describe('ProductService', () => {
 
   describe('count', () => {
     it('should return total product count', async () => {
-      productRepository.countByShop.mockResolvedValue(50);
+      productRepository.countSyncedByShop.mockResolvedValue(50);
       const result = await service.count(mockTenantContext);
       expect(result).toBe(50);
     });
@@ -521,7 +302,7 @@ describe('ProductService', () => {
 
   describe('countByCategory', () => {
     it('should return count for specific category', async () => {
-      productRepository.countByCategory.mockResolvedValue(25);
+      productRepository.countSyncedByCategory.mockResolvedValue(25);
       const result = await service.countByCategory(
         'Electronics',
         mockTenantContext.shopId,
@@ -536,7 +317,7 @@ describe('ProductService', () => {
         index: 1,
         quantity: 5,
       });
-      productRepository.findLowStock.mockResolvedValue([lowStockProduct]);
+      productRepository.findSyncedLowStock.mockResolvedValue([lowStockProduct]);
 
       const result = await service.findLowStock(10, mockTenantContext);
       expect(result).toHaveLength(1);
@@ -590,69 +371,34 @@ describe('ProductService', () => {
     });
   });
 
-  describe('createImageUploadUrl', () => {
-    it('should return upload and public URLs', async () => {
-      const productWithShop = {
-        ...mockProduct,
-        id: 'prod_1',
-        shopId: mockTenantContext.shopId,
-        shop: { slug: 'my-shop' } as any,
-      } as Product;
-      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
-      storageService.getPresignedPutUrl.mockResolvedValue('https://upload-url');
-
-      const result = await service.createImageUploadUrl(
-        'prod_1',
-        'image-1.jpg',
-        mockTenantContext,
-      );
-
-      expect(result.uploadUrl).toBe('https://upload-url');
-      expect(result.publicUrl).toBe(
-        '/public/media/my-shop/products/prod_1/image-1.jpg',
-      );
-      expect(result.key).toBe('products/prod_1/images/image-1.jpg');
-    });
-
-    it('should throw for invalid file name', async () => {
-      const productWithShop = {
-        ...mockProduct,
-        id: 'prod_1',
-        shopId: mockTenantContext.shopId,
-        shop: { slug: 'my-shop' } as any,
-      } as Product;
-      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
-
-      await expect(
-        service.createImageUploadUrl(
-          'prod_1',
-          '../evil.jpg',
-          mockTenantContext,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-  });
-
   describe('uploadProductImage', () => {
-    it('should upload image and persist public url on product', async () => {
+    it('should upload image and create ProductImage entity', async () => {
       const productWithShop = {
         ...mockProduct,
         id: 'prod_1',
         shopId: mockTenantContext.shopId,
-        images: ['/public/media/my-shop/products/prod_1/old.jpg'],
         shop: { slug: 'my-shop' } as any,
       } as Product;
-      const uploadedProduct = {
-        ...productWithShop,
-        images: [
-          ...(productWithShop.images ?? []),
-          '/public/media/my-shop/products/prod_1/photo.jpg',
-        ],
-      } as Product;
 
-      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
+      const mockImage = {
+        id: 'img_1',
+        productId: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        s3Key: 'products/prod_1/images/photo.jpg',
+        publicUrl: '/public/media/my-shop/products/prod_1/photo.jpg',
+        isPrimary: true,
+        sortOrder: 0,
+        contentType: 'image/jpeg',
+        size: 1024,
+      } as ProductImage;
+
+      productRepository.findSyncedByIdWithShop.mockResolvedValue(
+        productWithShop,
+      );
+      productImageRepository.countByProductId.mockResolvedValue(0);
       storageService.putObject.mockResolvedValue('etag-1');
-      productRepository.save.mockResolvedValue(uploadedProduct);
+      productImageRepository.create.mockReturnValue(mockImage);
+      productImageRepository.save.mockResolvedValue(mockImage);
 
       const file = {
         originalname: 'photo.jpg',
@@ -676,33 +422,27 @@ describe('ProductService', () => {
           'Cache-Control': 'public, max-age=31536000, immutable',
         }),
       );
-      expect(productRepository.save).toHaveBeenCalledWith(
+      expect(productImageRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          images: [
-            '/public/media/my-shop/products/prod_1/old.jpg',
-            '/public/media/my-shop/products/prod_1/photo.jpg',
-          ],
+          isPrimary: true,
+          sortOrder: 0,
         }),
       );
-      expect(result.publicUrl).toBe(
-        '/public/media/my-shop/products/prod_1/photo.jpg',
-      );
-      expect(result.etag).toBe('etag-1');
-      expect(result.size).toBe(1024);
+      expect(result).toEqual(mockImage);
     });
 
-    it('should dedupe existing image url', async () => {
+    it('should throw BadRequestException when max images reached', async () => {
       const productWithShop = {
         ...mockProduct,
         id: 'prod_1',
         shopId: mockTenantContext.shopId,
-        images: ['/public/media/my-shop/products/prod_1/photo.jpg'],
         shop: { slug: 'my-shop' } as any,
       } as Product;
 
-      productRepository.findByIdWithShop.mockResolvedValue(productWithShop);
-      storageService.putObject.mockResolvedValue('etag-1');
-      productRepository.save.mockResolvedValue(productWithShop);
+      productRepository.findSyncedByIdWithShop.mockResolvedValue(
+        productWithShop,
+      );
+      productImageRepository.countByProductId.mockResolvedValue(10);
 
       const file = {
         originalname: 'photo.jpg',
@@ -711,26 +451,214 @@ describe('ProductService', () => {
         buffer: Buffer.from('image-data'),
       } as Express.Multer.File;
 
-      await service.uploadProductImage(
+      await expect(
+        service.uploadProductImage('prod_1', file, mockTenantContext.shopId),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should set isPrimary false for subsequent images', async () => {
+      const productWithShop = {
+        ...mockProduct,
+        id: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        shop: { slug: 'my-shop' } as any,
+      } as Product;
+
+      const mockImage = {
+        id: 'img_2',
+        productId: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        s3Key: 'products/prod_1/images/photo2.jpg',
+        publicUrl: '/public/media/my-shop/products/prod_1/photo2.jpg',
+        isPrimary: false,
+        sortOrder: 1,
+        contentType: 'image/jpeg',
+        size: 2048,
+      } as ProductImage;
+
+      productRepository.findSyncedByIdWithShop.mockResolvedValue(
+        productWithShop,
+      );
+      productImageRepository.countByProductId.mockResolvedValue(1);
+      storageService.putObject.mockResolvedValue('etag-2');
+      productImageRepository.create.mockReturnValue(mockImage);
+      productImageRepository.save.mockResolvedValue(mockImage);
+
+      const file = {
+        originalname: 'photo2.jpg',
+        mimetype: 'image/jpeg',
+        size: 2048,
+        buffer: Buffer.from('image-data'),
+      } as Express.Multer.File;
+
+      const result = await service.uploadProductImage(
         'prod_1',
         file,
         mockTenantContext.shopId,
       );
 
-      expect(productRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          images: ['/public/media/my-shop/products/prod_1/photo.jpg'],
-        }),
-      );
+      expect(result.isPrimary).toBe(false);
+      expect(result.sortOrder).toBe(1);
     });
   });
 
   describe('deleteImage', () => {
-    it('should delete image by deterministic key', async () => {
-      productRepository.findById.mockResolvedValue(mockProduct);
-      storageService.deleteObject.mockResolvedValue();
+    it('should delete image from S3 and database', async () => {
+      const mockImage = {
+        id: 'img_1',
+        productId: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        s3Key: 'products/prod_1/images/photo.jpg',
+        product: { externalSource: 'evotor' },
+      } as ProductImage;
 
-      await service.deleteImage('prod_1', 'photo.jpg', mockTenantContext);
+      productImageRepository.findWithProductById.mockResolvedValue(mockImage);
+      storageService.deleteObject.mockResolvedValue();
+      productImageRepository.hardDeleteById.mockResolvedValue();
+
+      await service.deleteImage('img_1', mockTenantContext.shopId);
+
+      expect(storageService.deleteObject).toHaveBeenCalledWith(
+        'products/prod_1/images/photo.jpg',
+      );
+      expect(productImageRepository.hardDeleteById).toHaveBeenCalledWith(
+        'img_1',
+        mockTenantContext.shopId,
+      );
+    });
+
+    it('should throw NotFoundException when image not found', async () => {
+      productImageRepository.findWithProductById.mockResolvedValue(null);
+
+      await expect(
+        service.deleteImage('non-existent', mockTenantContext.shopId),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('reorderImage', () => {
+    it('should update sortOrder', async () => {
+      const mockImage = {
+        id: 'img_1',
+        productId: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        sortOrder: 0,
+        product: { externalSource: 'evotor' },
+      } as ProductImage;
+
+      productImageRepository.findWithProductById.mockResolvedValue(mockImage);
+      productImageRepository.save.mockResolvedValue({
+        ...mockImage,
+        sortOrder: 5,
+      });
+
+      const result = await service.reorderImage(
+        'img_1',
+        5,
+        mockTenantContext.shopId,
+      );
+
+      expect(result.sortOrder).toBe(5);
+    });
+
+    it('should throw NotFoundException when image not found', async () => {
+      productImageRepository.findWithProductById.mockResolvedValue(null);
+
+      await expect(
+        service.reorderImage('non-existent', 5, mockTenantContext.shopId),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('setPrimaryImage', () => {
+    it('should set image as primary and unset others', async () => {
+      const mockImage = {
+        id: 'img_1',
+        productId: 'prod_1',
+        shopId: mockTenantContext.shopId,
+        isPrimary: false,
+        product: { externalSource: 'evotor' },
+      } as ProductImage;
+
+      productImageRepository.findWithProductById.mockResolvedValue(mockImage);
+      productImageRepository.update.mockResolvedValue({
+        affected: 1,
+      } as UpdateResult);
+      productImageRepository.save.mockResolvedValue({
+        ...mockImage,
+        isPrimary: true,
+      });
+
+      const result = await service.setPrimaryImage(
+        'img_1',
+        mockTenantContext.shopId,
+      );
+
+      expect(productImageRepository.update).toHaveBeenCalledWith(
+        {
+          productId: 'prod_1',
+          shopId: mockTenantContext.shopId,
+          isPrimary: true,
+        },
+        { isPrimary: false },
+      );
+      expect(result.isPrimary).toBe(true);
+    });
+
+    it('should throw NotFoundException when image not found', async () => {
+      productImageRepository.findWithProductById.mockResolvedValue(null);
+
+      await expect(
+        service.setPrimaryImage('non-existent', mockTenantContext.shopId),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findImagesByProductId', () => {
+    it('should return all images for product', async () => {
+      const mockImages = [
+        { id: 'img_1', sortOrder: 0 } as ProductImage,
+        { id: 'img_2', sortOrder: 1 } as ProductImage,
+      ];
+
+      productImageRepository.findAllByProductId.mockResolvedValue(mockImages);
+      productRepository.findSyncedById.mockResolvedValue(mockProduct);
+
+      const result = await service.findImagesByProductId(
+        'prod_1',
+        mockTenantContext.shopId,
+      );
+
+      expect(result).toEqual(mockImages);
+    });
+  });
+
+  describe('deleteAllProductImages', () => {
+    it('should delete all images from S3 and database', async () => {
+      const mockImages = [
+        { id: 'img_1', s3Key: 'key1' } as ProductImage,
+        { id: 'img_2', s3Key: 'key2' } as ProductImage,
+      ];
+
+      productImageRepository.findAllByProductId.mockResolvedValue(mockImages);
+      storageService.deleteObject.mockResolvedValue();
+      productImageRepository.hardDeleteByProductId.mockResolvedValue();
+
+      await service.deleteAllProductImages('prod_1', mockTenantContext.shopId);
+
+      expect(storageService.deleteObject).toHaveBeenCalledTimes(2);
+      expect(productImageRepository.hardDeleteByProductId).toHaveBeenCalledWith(
+        'prod_1',
+        mockTenantContext.shopId,
+      );
+    });
+
+    it('should do nothing when no images exist', async () => {
+      productImageRepository.findAllByProductId.mockResolvedValue([]);
+
+      await service.deleteAllProductImages('prod_1', mockTenantContext.shopId);
+
+      expect(storageService.deleteObject).not.toHaveBeenCalled();
     });
   });
 
@@ -740,7 +668,9 @@ describe('ProductService', () => {
         index: 1,
         barcode: '5901234123457',
       });
-      productRepository.findByBarcode.mockResolvedValue(productWithBarcode);
+      productRepository.findSyncedByBarcode.mockResolvedValue(
+        productWithBarcode,
+      );
 
       const result = await service.findByBarcode(
         '5901234123457',
@@ -750,7 +680,7 @@ describe('ProductService', () => {
     });
 
     it('should throw NotFoundException for invalid barcode', async () => {
-      productRepository.findByBarcode.mockResolvedValue(null);
+      productRepository.findSyncedByBarcode.mockResolvedValue(null);
       await expect(
         service.findByBarcode('invalid', mockTenantContext),
       ).rejects.toThrow(NotFoundException);
@@ -765,15 +695,6 @@ describe('ProductService', () => {
       );
 
       expect(result).toEqual(mockProduct);
-    });
-  });
-
-  describe('restore', () => {
-    it('should throw NotFoundException when product not in deleted set', async () => {
-      productRepository.findOneWithDeleted.mockResolvedValue(null);
-      await expect(
-        service.restore('non-existent', mockTenantContext),
-      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -857,7 +778,7 @@ describe('ProductService', () => {
   describe('deleteCategory', () => {
     it('should delete a category successfully', async () => {
       categoryRepository.findOne.mockResolvedValue(mockCategory);
-      productRepository.countByCategory.mockResolvedValue(0);
+      productRepository.countSyncedByCategory.mockResolvedValue(0);
 
       await service.deleteCategory('cat-1', 'shop-1');
     });
@@ -872,32 +793,11 @@ describe('ProductService', () => {
 
     it('should throw ConflictException when category has products', async () => {
       categoryRepository.findOne.mockResolvedValue(mockCategory);
-      productRepository.countByCategory.mockResolvedValue(5);
+      productRepository.countSyncedByCategory.mockResolvedValue(5);
 
       await expect(service.deleteCategory('cat-1', 'shop-1')).rejects.toThrow(
         ConflictException,
       );
-    });
-  });
-
-  describe('update SKU conflict', () => {
-    it('should skip SKU check when sku not changed', async () => {
-      productRepository.findById.mockResolvedValue(mockProduct);
-      const mockUpdateResult: UpdateResult = {
-        affected: 1,
-        generatedMaps: [],
-        raw: [],
-      };
-      productRepository.update.mockResolvedValue(mockUpdateResult);
-      productRepository.findById.mockResolvedValue(mockProduct);
-
-      const result = await service.update(
-        'prod_1',
-        { name: 'Same SKU' },
-        mockTenantContext,
-      );
-
-      expect(result.name).toBe(mockProduct.name);
     });
   });
 });

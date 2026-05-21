@@ -1,6 +1,10 @@
 import { CacheService } from '@/core/cache/cache.service';
+import { EvotorApplicationRepository } from '@/modules/evotor/repositories';
+import { ChatSessionRepository } from '@/modules/rag/chat/repositories';
+import { ShopRepository } from '@/modules/shop/repositories';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { User } from './entities';
+import { FindAllUsersQuery } from './repositories/types';
 import { UserRepository } from './repositories';
 
 import {
@@ -14,6 +18,9 @@ import { compare, hash } from 'bcryptjs';
 export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
+    private readonly shopRepository: ShopRepository,
+    private readonly chatSessionRepository: ChatSessionRepository,
+    private readonly evotorApplicationRepository: EvotorApplicationRepository,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -81,6 +88,10 @@ export class UserService {
     return this.userRepository.findByShopId(shopId);
   }
 
+  async findByEvotorUserId(evotorUserId: string): Promise<User | null> {
+    return this.userRepository.findByEvotorUserId(evotorUserId);
+  }
+
   async updateRole(id: string, role: string): Promise<User> {
     const user = await this.findById(id);
     user.role = role;
@@ -129,6 +140,30 @@ export class UserService {
     const updated = await this.userRepository.save(user);
     await this.invalidateUserCache(updated.id, updated.email);
     return updated;
+  }
+
+  async findAllPaginated(query: FindAllUsersQuery) {
+    return this.userRepository.findAllPaginated(query);
+  }
+
+  async hardDelete(id: string): Promise<void> {
+    const user = await this.findById(id);
+
+    await this.chatSessionRepository.delete({ userId: id });
+    await this.evotorApplicationRepository.delete({ userId: id });
+
+    const shop = await this.shopRepository.findByOwnerId(id);
+    if (shop) {
+      shop.ownerId = null;
+      await this.shopRepository.save(shop);
+    }
+
+    await this.userRepository.remove(user);
+    await this.invalidateUserCache(id, user.email);
+  }
+
+  async invalidateCache(user: Pick<User, 'id' | 'email'>): Promise<void> {
+    await this.invalidateUserCache(user.id, user.email);
   }
 
   private async invalidateUserCache(

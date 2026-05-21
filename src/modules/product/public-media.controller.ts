@@ -1,4 +1,4 @@
-import { StorageService } from '@/modules/storage/storage.service';
+import { ObjectStorageService } from '@/core/object-storage/object-storage.service';
 import { ProductService } from './product.service';
 
 import {
@@ -32,7 +32,7 @@ export class PublicMediaController {
 
   constructor(
     private readonly productService: ProductService,
-    private readonly storageService: StorageService,
+    private readonly storageService: ObjectStorageService,
   ) {}
 
   @Get(':shopSlug/products/:productId/:imageName')
@@ -61,10 +61,7 @@ export class PublicMediaController {
       throw new NotFoundException('Product not found');
     }
 
-    const key = this.productService.buildProductImageObjectKey(
-      productId,
-      safeName,
-    );
+    const key = this.productService.buildProductImageKey(productId, safeName);
 
     let stream: NodeJS.ReadableStream;
     let stat: {

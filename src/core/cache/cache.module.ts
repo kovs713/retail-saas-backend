@@ -44,8 +44,8 @@ export class CacheModule {
         {
           provide: CacheTTL,
           inject: [ConfigService],
-          useFactory: (config: ConfigService) => ({
-            cacheTtl: config.get<number>('CACHE_TTL') || 3600,
+          useFactory: (configService: ConfigService) => ({
+            cacheTtl: configService.getOrThrow<number>('CACHE_TTL'),
           }),
         },
 

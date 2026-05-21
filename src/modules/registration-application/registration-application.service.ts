@@ -1,7 +1,7 @@
 import { RegistrationStatus } from '@/common/enums';
-import { RegisterDto } from '@/core/auth/dto';
 import { Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
+import { CreateRegistrationApplicationDto } from './dto';
 import { RegistrationApplication } from './entities';
 
 import {
@@ -21,7 +21,9 @@ export class RegistrationApplicationService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(registerDto: RegisterDto): Promise<RegistrationApplication> {
+  async create(
+    registerDto: CreateRegistrationApplicationDto,
+  ): Promise<RegistrationApplication> {
     const existingApplication = await this.repository.findOne({
       where: [{ email: registerDto.email }, { shopSlug: registerDto.shopSlug }],
     });

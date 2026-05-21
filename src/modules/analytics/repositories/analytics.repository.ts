@@ -2,7 +2,7 @@ import { ChatEvent, StorefrontView } from '../entities';
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 
 @Injectable()
 export class AnalyticsRepository {
@@ -82,5 +82,38 @@ export class AnalyticsRepository {
       .where('storefront_view.shopId = :shopId', { shopId })
       .andWhere('storefront_view.createdAt BETWEEN :from AND :to', { from, to })
       .getCount();
+  }
+
+  async countChatEventsByPeriod(from: Date, to: Date): Promise<number> {
+    return this.chatEventRepository
+      .createQueryBuilder('chat_event')
+      .where('chat_event.createdAt BETWEEN :from AND :to', { from, to })
+      .getCount();
+  }
+
+  async countStorefrontViewsByPeriod(from: Date, to: Date): Promise<number> {
+    return this.storefrontViewRepository
+      .createQueryBuilder('storefront_view')
+      .where('storefront_view.createdAt BETWEEN :from AND :to', { from, to })
+      .getCount();
+  }
+
+  async findRecentChatEvents(limit: number = 10): Promise<ChatEvent[]> {
+    const now = new Date();
+    const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return this.chatEventRepository.find({
+      where: { createdAt: Between(from, now) },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
+  async findRecentStorefrontViews(
+    limit: number = 10,
+  ): Promise<StorefrontView[]> {
+    return this.storefrontViewRepository.find({
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
   }
 }

@@ -15,9 +15,12 @@ import {
   AddDocumentsResponseDto,
   AddTextsDto,
   AddTextsResponseDto,
+  CreateRagDocumentDto,
   DocumentDto,
   DocumentGroupDto,
   DocumentResponseDto,
+  RagDocumentGroupResponseDto,
+  UpdateRagDocumentDto,
   UploadRagDocumentDto,
 } from './dto';
 import { RagService } from './rag.service';
@@ -31,8 +34,10 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UnprocessableEntityException,
@@ -141,6 +146,161 @@ export class RagController {
     );
 
     return result;
+  }
+
+  @Get('documents/group/:documentGroupId')
+  @ApiOperation({
+    summary: 'Get a specific document group by ID',
+  })
+  @ApiParam({
+    name: 'documentGroupId',
+    description: 'UUID of the document group',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successful response',
+    type: RagDocumentGroupResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Document group not found',
+  })
+  async getDocumentGroup(
+    @Param('documentGroupId', ParseUUIDPipe)
+    documentGroupId: string,
+    @Tenant()
+    tenantContext: TenantContext,
+  ): Promise<AppApiResponse<RagDocumentGroupResponseDto>> {
+    this.logger.log(
+      `Getting document group ${documentGroupId} from shop with id ${tenantContext.shopId}`,
+    );
+    const group = await this.ragService.getDocumentGroupById(
+      documentGroupId,
+      tenantContext.shopId,
+    );
+
+    if (!group) {
+      throw new NotFoundException('Document group not found');
+    }
+
+    return {
+      success: true,
+      data: {
+        documentGroupId: group.documentGroupId,
+        totalChunks: group.totalChunks,
+        timestamp: new Date().toISOString(),
+        group,
+      },
+    };
+  }
+
+  @Post('documents/group')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create a new document group with chunks',
+  })
+  @ApiBody({
+    type: CreateRagDocumentDto,
+    examples: {
+      example: {
+        summary: 'Create document group',
+        value: {
+          source: 'manual-entry',
+          chunks: [
+            { pageContent: 'First chunk content' },
+            { pageContent: 'Second chunk content' },
+          ],
+          metadata: { category: 'test' },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Document group created',
+    type: RagDocumentGroupResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request',
+  })
+  async createDocumentGroup(
+    @Body()
+    createDto: CreateRagDocumentDto,
+    @Tenant()
+    tenantContext: TenantContext,
+  ): Promise<AppApiResponse<RagDocumentGroupResponseDto>> {
+    this.logger.log(
+      `Creating document group with ${createDto.chunks.length} chunks`,
+    );
+    const result = await this.ragService.createDocumentGroup(
+      createDto,
+      tenantContext.shopId,
+    );
+    this.logger.log(
+      `Created document group ${result.documentGroupId} with ${result.totalChunks} chunks`,
+    );
+
+    return { success: true, data: result };
+  }
+
+  @Patch('documents/group/:documentGroupId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Update a document group',
+  })
+  @ApiParam({
+    name: 'documentGroupId',
+    description: 'UUID of the document group to update',
+    type: String,
+  })
+  @ApiBody({
+    type: UpdateRagDocumentDto,
+    examples: {
+      example: {
+        summary: 'Update document group',
+        value: {
+          source: 'updated-source',
+          chunks: [{ pageContent: 'Updated chunk content' }],
+          metadata: { category: 'updated' },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Document group updated',
+    type: RagDocumentGroupResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Document group not found',
+  })
+  async updateDocumentGroup(
+    @Param('documentGroupId', ParseUUIDPipe)
+    documentGroupId: string,
+    @Body()
+    updateDto: UpdateRagDocumentDto,
+    @Tenant()
+    tenantContext: TenantContext,
+  ): Promise<AppApiResponse<RagDocumentGroupResponseDto>> {
+    this.logger.log(`Updating document group: ${documentGroupId}`);
+    const result = await this.ragService.updateDocumentGroup(
+      documentGroupId,
+      tenantContext.shopId,
+      updateDto,
+    );
+
+    if (!result) {
+      throw new NotFoundException('Document group not found');
+    }
+
+    this.logger.log(
+      `Updated document group ${documentGroupId} with ${result.totalChunks} chunks`,
+    );
+
+    return { success: true, data: result };
   }
 
   @Get('available-products')
@@ -279,7 +439,7 @@ export class RagController {
   @ApiResponse({
     status: 201,
     description: 'Document ingested',
-    type: AddDocumentsResponseDto,
+    type: RagDocumentGroupResponseDto,
   })
   @ApiResponse({
     status: 400,
@@ -296,13 +456,13 @@ export class RagController {
     dto: UploadRagDocumentDto,
     @Tenant()
     tenantContext: TenantContext,
-  ): Promise<AppApiResponse<AddDocumentsResponseDto>> {
+  ): Promise<AppApiResponse<RagDocumentGroupResponseDto>> {
     if (!file) {
       throw new BadRequestException('file is required');
     }
 
     const maxUploadSizeMb = Number(
-      this.configService.get<string>('UPLOAD_MAX_MB') ?? 5,
+      this.configService.getOrThrow<string>('UPLOAD_MAX_MB'),
     );
     if (file.size > maxUploadSizeMb * 1024 * 1024) {
       throw new BadRequestException(
@@ -332,37 +492,32 @@ export class RagController {
       throw new UnprocessableEntityException('Processed document is empty');
     }
 
-    const documents: Document[] = [
-      {
-        pageContent: text,
-        metadata: {
-          filename: file.originalname,
-          contentType: file.mimetype,
-          source: 'upload',
-          origin: 'doc-preprocessor',
-          uploadedAt: new Date().toISOString(),
-          preprocess: {
-            removeNoise: dto.removeNoise ?? true,
-            normalizeWhitespace: dto.normalizeWhitespace ?? true,
-            lowercase: dto.lowercase ?? false,
-          },
+    const document: Document = {
+      pageContent: text,
+      metadata: {
+        filename: file.originalname,
+        contentType: file.mimetype,
+        source: 'upload',
+        origin: 'doc-preprocessor',
+        uploadedAt: new Date().toISOString(),
+        preprocess: {
+          removeNoise: dto.removeNoise ?? true,
+          normalizeWhitespace: dto.normalizeWhitespace ?? true,
+          lowercase: dto.lowercase ?? false,
         },
       },
-    ];
+    };
 
-    const documentIds = await this.ragService.addDocuments(
-      documents,
+    const result = await this.ragService.uploadDocumentAsGroup(
+      document,
       tenantContext.shopId,
     );
 
-    return {
-      success: true,
-      data: {
-        documentIds,
-        count: documentIds.length,
-        timestamp: new Date().toISOString(),
-      },
-    };
+    this.logger.log(
+      `Uploaded document group ${result.documentGroupId} with ${result.totalChunks} chunks`,
+    );
+
+    return { success: true, data: result };
   }
 
   @Post('texts')

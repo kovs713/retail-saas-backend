@@ -3,16 +3,17 @@ import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { Order } from '@/modules/order/entities';
-import { Category, Product } from '@/modules/product/entities';
+import { Category, Product, ProductImage } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
 import { PublicMediaController } from '@/modules/product/public-media.controller';
 import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import {
   CategoryRepository,
+  ProductImageRepository,
   ProductRepository,
 } from '@/modules/product/repositories';
 import { Location, Shop } from '@/modules/shop/entities';
-import { StorageService } from '@/modules/storage/storage.service';
+import { ObjectStorageService } from '@/core/object-storage/object-storage.service';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
 
@@ -29,7 +30,7 @@ import { DataSource } from 'typeorm';
 describe('PublicMedia Integration', () => {
   let app: INestApplication;
   let dataSource: DataSource;
-  let storageService: DeepMocked<StorageService>;
+  let storageService: DeepMocked<ObjectStorageService>;
   let shopSlug: string;
   let productId: string;
 
@@ -55,6 +56,7 @@ describe('PublicMedia Integration', () => {
           Location,
           User,
           Product,
+          ProductImage,
           Category,
           ChatEvent,
           StorefrontView,
@@ -65,9 +67,13 @@ describe('PublicMedia Integration', () => {
       providers: [
         ProductService,
         ProductRepository,
+        ProductImageRepository,
         CategoryRepository,
         { provide: CacheService, useValue: mockCacheService() },
-        { provide: StorageService, useValue: createMock<StorageService>() },
+        {
+          provide: ObjectStorageService,
+          useValue: createMock<ObjectStorageService>(),
+        },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
         { provide: EvotorApiService, useValue: createMock<EvotorApiService>() },
         {
@@ -83,7 +89,7 @@ describe('PublicMedia Integration', () => {
     app = moduleFixture.createNestApplication();
     await app.init();
     storageService =
-      moduleFixture.get<DeepMocked<StorageService>>(StorageService);
+      moduleFixture.get<DeepMocked<ObjectStorageService>>(ObjectStorageService);
     dataSource = moduleFixture.get<DataSource>(DataSource);
   }, 120000);
 
@@ -100,6 +106,7 @@ describe('PublicMedia Integration', () => {
       name: 'Media Product',
       price: 100,
       quantity: 10,
+      externalSource: 'evotor',
       shopId: shop.id,
     });
     productId = product.id;

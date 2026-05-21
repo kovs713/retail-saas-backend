@@ -1,5 +1,8 @@
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
+import { EvotorApplicationRepository } from '@/modules/evotor/repositories';
+import { ChatSessionRepository } from '@/modules/rag/chat/repositories';
+import { ShopRepository } from '@/modules/shop/repositories';
 import { createUser } from '@/core/database/factories';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { UserRepository } from './repositories';
@@ -34,6 +37,18 @@ describe('UserService', () => {
         {
           provide: UserRepository,
           useValue: createMock<UserRepository>(),
+        },
+        {
+          provide: ShopRepository,
+          useValue: createMock<ShopRepository>(),
+        },
+        {
+          provide: ChatSessionRepository,
+          useValue: createMock<ChatSessionRepository>(),
+        },
+        {
+          provide: EvotorApplicationRepository,
+          useValue: createMock<EvotorApplicationRepository>(),
         },
         {
           provide: CacheService,

@@ -1,8 +1,6 @@
-import { RegistrationStatus } from '@/common/enums';
 import { AuthConfig } from '@/common/types';
 import { mockCacheService } from '@/common/utils';
 import { CacheService } from '@/core/cache/cache.service';
-import { RegistrationApplicationService } from '@/modules/registration-application/registration-application.service';
 import { Shop } from '@/modules/shop/entities';
 import { ShopService } from '@/modules/shop/shop.service';
 import { User } from '@/modules/user/entities';
@@ -10,11 +8,7 @@ import { UserService } from '@/modules/user/user.service';
 import { AuthService, AuthTokensResult } from './auth.service';
 
 import { createMock } from '@golevelup/ts-jest';
-import {
-  ConflictException,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 
@@ -24,7 +18,6 @@ describe('AuthService', () => {
   let userService: UserService;
   let shopService: ShopService;
   let cacheService: CacheService;
-  let registrationApplicationService: RegistrationApplicationService;
 
   const mockAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockToken';
 
@@ -48,6 +41,7 @@ describe('AuthService', () => {
     passwordHash: 'hashed-password',
     role: 'owner',
     shopId: 'shop-456',
+    evotorUserId: null,
     isActive: true,
     shop: mockShop,
     createdAt: new Date(),
@@ -59,6 +53,7 @@ describe('AuthService', () => {
     email: mockUser.email,
     role: mockUser.role,
     shopId: mockShop.id,
+    evotorUserId: null,
     isActive: mockUser.isActive,
   };
 
@@ -69,10 +64,6 @@ describe('AuthService', () => {
         {
           provide: AuthConfig,
           useValue: mockAuthConfig,
-        },
-        {
-          provide: RegistrationApplicationService,
-          useValue: createMock<RegistrationApplicationService>(),
         },
         {
           provide: JwtService,
@@ -98,9 +89,6 @@ describe('AuthService', () => {
     userService = module.get<UserService>(UserService);
     shopService = module.get<ShopService>(ShopService);
     cacheService = module.get<CacheService>(CacheService);
-    registrationApplicationService = module.get<RegistrationApplicationService>(
-      RegistrationApplicationService,
-    );
   });
 
   afterEach(() => {
@@ -169,45 +157,6 @@ describe('AuthService', () => {
       expect(result.refreshToken).toBe(mockRefreshToken);
       expect(result.user.id).toBe(mockUser.id);
       expect(result.user.shopId).toBe('');
-    });
-  });
-
-  describe('register', () => {
-    const mockRegisterDto = {
-      email: 'new@example.com',
-      password: 'password123',
-      shopName: 'New Shop',
-      shopSlug: 'new-shop',
-    };
-
-    it('should create registration application successfully', async () => {
-      jest.spyOn(registrationApplicationService, 'create').mockResolvedValue({
-        id: 'application-123',
-        email: mockRegisterDto.email,
-        shopName: mockRegisterDto.shopName,
-        shopSlug: mockRegisterDto.shopSlug,
-        status: RegistrationStatus.PENDING,
-      } as any);
-
-      const result = await service.register(mockRegisterDto);
-
-      expect(result.id).toBe('application-123');
-      expect(result.email).toBe(mockRegisterDto.email);
-      expect(result.shopName).toBe(mockRegisterDto.shopName);
-      expect(result.shopSlug).toBe(mockRegisterDto.shopSlug);
-      expect(result.status).toBe(RegistrationStatus.PENDING);
-    });
-
-    it('should throw ConflictException when registration application exists', async () => {
-      jest
-        .spyOn(registrationApplicationService, 'create')
-        .mockRejectedValue(
-          new ConflictException('Email or shop slug already exists'),
-        );
-
-      await expect(service.register(mockRegisterDto as any)).rejects.toThrow(
-        ConflictException,
-      );
     });
   });
 

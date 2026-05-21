@@ -3,9 +3,11 @@ import { AuthConfig } from '@/common/types';
 import { mockCacheService } from '@/common/utils';
 import { AuthService } from '@/core/auth/auth.service';
 import { CacheService } from '@/core/cache/cache.service';
+import { EvotorApplication } from '@/modules/evotor/entities';
+import { EvotorApplicationRepository } from '@/modules/evotor/repositories';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
-import { Category, Product } from '@/modules/product/entities';
+import { Category, Product, ProductImage } from '@/modules/product/entities';
 import { RegistrationApplication } from '@/modules/registration-application/entities';
 import { RegistrationApplicationService } from '@/modules/registration-application/registration-application.service';
 import { Location, Shop } from '@/modules/shop/entities';
@@ -14,6 +16,8 @@ import {
   ShopRepository,
 } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
+import { ChatMessage, ChatSession } from '@/modules/rag/chat/entities';
+import { ChatSessionRepository } from '@/modules/rag/chat/repositories';
 import { User } from '@/modules/user/entities';
 import { UserRepository } from '@/modules/user/repositories';
 import { UserService } from '@/modules/user/user.service';
@@ -29,6 +33,7 @@ import { DataSource } from 'typeorm';
 describe('AuthService Integration', () => {
   let app: INestApplication;
   let authService: AuthService;
+  let registrationApplicationService: RegistrationApplicationService;
   let userService: UserService;
   let shopService: ShopService;
   let dataSource: DataSource;
@@ -59,11 +64,15 @@ describe('AuthService Integration', () => {
           Location,
           User,
           Product,
+          ProductImage,
           Category,
           ChatEvent,
           StorefrontView,
           Order,
           RegistrationApplication,
+          ChatSession,
+          ChatMessage,
+          EvotorApplication,
         ]),
       ],
       providers: [
@@ -71,6 +80,8 @@ describe('AuthService Integration', () => {
         RegistrationApplicationService,
         UserService,
         UserRepository,
+        ChatSessionRepository,
+        EvotorApplicationRepository,
         ShopService,
         ShopRepository,
         LocationRepository,
@@ -90,6 +101,9 @@ describe('AuthService Integration', () => {
     await app.init();
 
     authService = moduleFixture.get(AuthService);
+    registrationApplicationService = moduleFixture.get(
+      RegistrationApplicationService,
+    );
     userService = moduleFixture.get(UserService);
     shopService = moduleFixture.get(ShopService);
     dataSource = moduleFixture.get(DataSource);
@@ -103,6 +117,7 @@ describe('AuthService Integration', () => {
       return;
     }
     await dataSource.query('DELETE FROM orders');
+    await dataSource.query('DELETE FROM product_images');
     await dataSource.query('DELETE FROM products');
     await dataSource.query('DELETE FROM categories');
     await dataSource.query('DELETE FROM registration_applications');
@@ -128,7 +143,7 @@ describe('AuthService Integration', () => {
     );
 
     await expect(
-      authService.register({
+      registrationApplicationService.create({
         email: 'taken@example.com',
         password: 'password123',
         shopName: 'Rollback Shop',
@@ -147,7 +162,7 @@ describe('AuthService Integration', () => {
   });
 
   it('should create pending registration application without creating user and shop', async () => {
-    const result = await authService.register({
+    const result = await registrationApplicationService.create({
       email: 'new@example.com',
       password: 'password123',
       shopName: 'New Shop',

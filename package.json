@@ -7,28 +7,25 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "build:evotor-mock": "pnpm --dir apps/evotor-mock build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
-    "start:evotor-mock": "pnpm --dir apps/evotor-mock start",
-    "start:evotor-mock:dev": "pnpm --dir apps/evotor-mock start:dev",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest --config jest.config.ts --testPathIgnorePatterns=integration --watchAll=false",
-    "test:evotor-mock": "pnpm --dir apps/evotor-mock test",
     "test:watch": "jest --config jest.config.ts --watch",
     "test:cov": "jest --config jest.config.ts --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:integration": "jest --config jest.integration.config.ts",
     "test:e2e": "jest --config ./test/e2e/jest-e2e.json",
-    "seed:clear": "ts-node -r tsconfig-paths/register src/core/database/seeds/clear-db.seed.ts",
-    "seed:fake": "ts-node -r tsconfig-paths/register src/core/database/seeds/fake-data.seed.ts",
+    "seed:admin": "ts-node -r tsconfig-paths/register src/core/database/seeds/admin-user.seed.ts",
     "docker:build": "docker build -t retail-analytics-platform-backend .",
     "docker:run": "docker run -p 3000:3000 retail-analytics-platform-backend"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1047.0",
+    "@aws-sdk/s3-request-presigner": "^3.1047.0",
     "@langchain/community": "^1.1.27",
     "@langchain/core": "^1.1.40",
     "@langchain/groq": "^1.2.0",
@@ -51,7 +48,7 @@
     "class-validator": "^0.14.4",
     "globals": "^17.5.0",
     "mime-types": "^3.0.2",
-    "minio": "^8.0.7",
+    "multer": "^2.1.1",
     "pg": "^8.20.0",
     "redis": "^5.12.1",
     "reflect-metadata": "^0.2.2",
@@ -60,6 +57,7 @@
     "typeorm": "^0.3.28"
   },
   "devDependencies": {
+    "@compodoc/compodoc": "^1.2.1",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^9.39.4",
     "@faker-js/faker": "^10.4.0",
@@ -93,6 +91,18 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.58.2"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "@nestjs/core",
+      "@scarf/scarf",
+      "onnxruntime-node",
+      "protobufjs",
+      "unrs-resolver"
+    ],
+    "onlyBuiltDependencies": [
+      "sharp"
+    ]
   },
   "_moduleAliases": {
     "@/common": "./dist/common",

@@ -52,7 +52,7 @@ async function bootstrap() {
     .setVersion('1.0')
     .addTag('Auth', 'User authentication and authorization')
     .addTag('Shops', 'Shop profile management')
-    .addTag('Products', 'Product catalog CRUD operations')
+    .addTag('Products', 'Synced Evotor product catalog operations')
     .addTag('Public media', 'Public access to product media')
     .addTag('Public shop', 'Public shop information')
     .addTag('Public orders', 'Public order creation')

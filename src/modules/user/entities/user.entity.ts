@@ -13,6 +13,10 @@ import {
 
 @Entity('users')
 @Index(['email'], { unique: true })
+@Index(['evotorUserId'], {
+  unique: true,
+  where: '"evotor_user_id" IS NOT NULL',
+})
 @Index(['shopId'])
 @Index(['role'])
 @Index(['isActive'])
@@ -34,6 +38,14 @@ export class User {
 
   @Column({ type: 'uuid', nullable: true })
   shopId: string | null;
+
+  @Column({
+    name: 'evotor_user_id',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  evotorUserId: string | null;
 
   @ManyToOne(() => Shop, { eager: false })
   @JoinColumn({ name: 'shopId' })

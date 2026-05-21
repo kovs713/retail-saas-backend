@@ -1,6 +1,7 @@
-import { Product } from '../entities';
+import { Product, ProductImage } from '../entities';
+import { ProductImageDto } from './product-image.dto';
 
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Transform, plainToInstance } from 'class-transformer';
 
 export class ProductDto {
@@ -38,21 +39,46 @@ export class ProductDto {
   @Expose()
   quantity: number;
 
+  @ApiPropertyOptional({
+    description: 'Product category ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @Expose()
+  categoryId: string | null;
+
   @ApiProperty({ description: 'Product category', example: 'Electronics' })
   @Expose()
+  @Transform(({ value }) => {
+    if (!value) {
+      return null;
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'object' && 'name' in value) {
+      const name = (value as { name?: unknown }).name;
+      return typeof name === 'string' ? name : null;
+    }
+    return null;
+  })
   category: string | null;
 
   @ApiProperty({ description: 'Product barcode', example: '5901234123457' })
   @Expose()
   barcode: string | null;
 
-  @ApiProperty({
-    description: 'Product images URLs',
-    example: ['https://example.com/image1.jpg'],
-    type: [String],
+  @ApiPropertyOptional({
+    description: 'Product images',
+    type: [ProductImageDto],
   })
   @Expose()
-  images: string[] | null;
+  @Transform(({ value }) => {
+    if (!value || !Array.isArray(value) || value.length === 0) {
+      return null;
+    }
+    return ProductImageDto.fromEntities(value as ProductImage[]);
+  })
+  images: ProductImageDto[] | null;
 
   @ApiProperty({
     description: 'Additional metadata',

@@ -1,15 +1,8 @@
 import { AuthConfig, AuthOptions, TokenPayload } from '@/common/types';
 import { CacheService } from '@/core/cache/cache.service';
-import { RegistrationApplicationService } from '@/modules/registration-application/registration-application.service';
 import { ShopService } from '@/modules/shop/shop.service';
 import { UserService } from '@/modules/user/user.service';
-import {
-  AuthResponseDto,
-  RegisterApplicationResponseDto,
-  RegisterDto,
-  SignInDto,
-  UserInfoDto,
-} from './dto';
+import { AuthResponseDto, SignInDto, UserInfoDto } from './dto';
 
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -26,23 +19,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly shopService: ShopService,
     private readonly cacheService: CacheService,
-    private readonly registrationApplicationService: RegistrationApplicationService,
   ) {}
-
-  async register(
-    registerDto: RegisterDto,
-  ): Promise<RegisterApplicationResponseDto> {
-    const application =
-      await this.registrationApplicationService.create(registerDto);
-
-    return {
-      id: application.id,
-      email: application.email,
-      shopName: application.shopName,
-      shopSlug: application.shopSlug,
-      status: application.status,
-    };
-  }
 
   async signIn(signInDto: SignInDto): Promise<AuthTokensResult> {
     const user = await this.userService.findByEmail(signInDto.email);

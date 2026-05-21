@@ -25,6 +25,21 @@ export class ProductRepository extends Repository<Product> {
     shopId: string,
     query: Pagination,
   ): Promise<[Product[], number]> {
+    return this.findAllBySource(shopId, query);
+  }
+
+  async findSyncedAll(
+    shopId: string,
+    query: Pagination,
+  ): Promise<[Product[], number]> {
+    return this.findAllBySource(shopId, query, 'evotor');
+  }
+
+  private async findAllBySource(
+    shopId: string,
+    query: Pagination,
+    externalSource?: string,
+  ): Promise<[Product[], number]> {
     const page = query.page ?? 1;
     const limit = Math.min(query.limit ?? 10, 100);
     const skip = (page - 1) * limit;
@@ -32,8 +47,15 @@ export class ProductRepository extends Repository<Product> {
     const queryBuilder = this.repository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.images', 'images')
       .where('product.shopId = :shopId', { shopId })
       .andWhere('product.deletedAt IS NULL');
+
+    if (externalSource) {
+      queryBuilder.andWhere('product.externalSource = :externalSource', {
+        externalSource,
+      });
+    }
 
     if (query.category) {
       queryBuilder.andWhere('product.categoryId = :categoryId', {
@@ -50,6 +72,10 @@ export class ProductRepository extends Repository<Product> {
       queryBuilder.andWhere('product.price <= :maxPrice', {
         maxPrice: query.maxPrice,
       });
+    }
+
+    if (query.inStock) {
+      queryBuilder.andWhere('product.quantity > 0');
     }
 
     if (query.search) {
@@ -101,7 +127,19 @@ export class ProductRepository extends Repository<Product> {
         shopId,
         deletedAt: IsNull(),
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
+    });
+  }
+
+  async findSyncedById(id: string, shopId: string): Promise<Product | null> {
+    return this.repository.findOne({
+      where: {
+        id,
+        shopId,
+        externalSource: 'evotor',
+        deletedAt: IsNull(),
+      },
+      relations: ['category', 'images'],
     });
   }
 
@@ -109,8 +147,26 @@ export class ProductRepository extends Repository<Product> {
     return this.repository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.shop', 'shop')
+      .leftJoinAndSelect('product.images', 'images')
       .where('product.id = :id', { id })
       .andWhere('product.shopId = :shopId', { shopId })
+      .andWhere('product.deletedAt IS NULL')
+      .getOne();
+  }
+
+  async findSyncedByIdWithShop(
+    id: string,
+    shopId: string,
+  ): Promise<Product | null> {
+    return this.repository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.shop', 'shop')
+      .leftJoinAndSelect('product.images', 'images')
+      .where('product.id = :id', { id })
+      .andWhere('product.shopId = :shopId', { shopId })
+      .andWhere('product.externalSource = :externalSource', {
+        externalSource: 'evotor',
+      })
       .andWhere('product.deletedAt IS NULL')
       .getOne();
   }
@@ -122,9 +178,13 @@ export class ProductRepository extends Repository<Product> {
     return this.repository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.shop', 'shop')
+      .leftJoinAndSelect('product.images', 'images')
       .where('product.id = :id', { id })
       .andWhere('shop.slug = :shopSlug', { shopSlug })
       .andWhere('shop.isActive = true')
+      .andWhere('product.externalSource = :externalSource', {
+        externalSource: 'evotor',
+      })
       .andWhere('product.deletedAt IS NULL')
       .getOne();
   }
@@ -136,7 +196,19 @@ export class ProductRepository extends Repository<Product> {
         shopId,
         deletedAt: IsNull(),
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
+    });
+  }
+
+  async findSyncedBySku(sku: string, shopId: string): Promise<Product | null> {
+    return this.repository.findOne({
+      where: {
+        sku,
+        shopId,
+        externalSource: 'evotor',
+        deletedAt: IsNull(),
+      },
+      relations: ['category', 'images'],
     });
   }
 
@@ -150,7 +222,22 @@ export class ProductRepository extends Repository<Product> {
         shopId,
         deletedAt: IsNull(),
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
+    });
+  }
+
+  async findSyncedByBarcode(
+    barcode: string,
+    shopId: string,
+  ): Promise<Product | null> {
+    return this.repository.findOne({
+      where: {
+        barcode,
+        shopId,
+        externalSource: 'evotor',
+        deletedAt: IsNull(),
+      },
+      relations: ['category', 'images'],
     });
   }
 
@@ -164,7 +251,27 @@ export class ProductRepository extends Repository<Product> {
         quantity: MoreThan(0),
         deletedAt: IsNull(),
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
+      take: limit,
+      order: {
+        quantity: 'DESC',
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  async findSyncedAvailableByShop(
+    shopId: string,
+    limit: number = 100,
+  ): Promise<Product[]> {
+    return this.repository.find({
+      where: {
+        shopId,
+        externalSource: 'evotor',
+        quantity: MoreThan(0),
+        deletedAt: IsNull(),
+      },
+      relations: ['category', 'images'],
       take: limit,
       order: {
         quantity: 'DESC',
@@ -186,13 +293,41 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
+  async findSyncedLowStock(
+    shopId: string,
+    threshold: number = 10,
+  ): Promise<Product[]> {
+    return this.repository.find({
+      where: {
+        shopId,
+        externalSource: 'evotor',
+        quantity: LessThan(threshold),
+        deletedAt: IsNull(),
+      },
+    });
+  }
+
   async findActiveByShop(shopId: string): Promise<Product[]> {
     return this.repository.find({
       where: {
         shopId,
         deletedAt: IsNull(),
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  async findSyncedActiveByShop(shopId: string): Promise<Product[]> {
+    return this.repository.find({
+      where: {
+        shopId,
+        externalSource: 'evotor',
+        deletedAt: IsNull(),
+      },
+      relations: ['category', 'images'],
       order: {
         createdAt: 'DESC',
       },
@@ -211,6 +346,27 @@ export class ProductRepository extends Repository<Product> {
         }
       : {
           shopId,
+          deletedAt: IsNull(),
+        };
+    return this.repository.count({
+      where: countWhere,
+    });
+  }
+
+  async countSyncedByShop(
+    shopId: string,
+    where?: FindOptionsWhere<Product>,
+  ): Promise<number> {
+    const countWhere: FindOptionsWhere<Product> = where
+      ? {
+          ...where,
+          shopId,
+          externalSource: 'evotor',
+          deletedAt: IsNull(),
+        }
+      : {
+          shopId,
+          externalSource: 'evotor',
           deletedAt: IsNull(),
         };
     return this.repository.count({
@@ -238,6 +394,20 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
+  async countSyncedByCategory(
+    shopId: string,
+    categoryId: string,
+  ): Promise<number> {
+    return this.repository.count({
+      where: {
+        categoryId,
+        shopId,
+        externalSource: 'evotor',
+        deletedAt: IsNull(),
+      },
+    });
+  }
+
   async findOneWithDeleted(
     id: string,
     shopId: string,
@@ -248,7 +418,7 @@ export class ProductRepository extends Repository<Product> {
         shopId,
       },
       withDeleted: true,
-      relations: ['category'],
+      relations: ['category', 'images'],
     });
   }
 
@@ -287,6 +457,32 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
+  async countAll(): Promise<number> {
+    return this.repository.count({
+      where: { deletedAt: IsNull() },
+    });
+  }
+
+  async countByShopWithoutProducts(): Promise<number> {
+    const shopsWithProducts = await this.repository
+      .createQueryBuilder('product')
+      .select('DISTINCT product.shopId', 'shopId')
+      .where('product.deletedAt IS NULL')
+      .getRawMany();
+
+    const shopIds = new Set(
+      shopsWithProducts.map((r: Record<string, unknown>) => r.shopId),
+    );
+
+    const totalShops = await this.manager
+      .createQueryBuilder()
+      .select('COUNT(*)', 'count')
+      .from('shops', 's')
+      .getRawOne<{ count: string }>();
+
+    return Number(totalShops?.count ?? 0) - shopIds.size;
+  }
+
   async softDeleteById(id: string): Promise<void> {
     await this.repository.softDelete(id);
   }
@@ -315,11 +511,13 @@ export class ProductRepository extends Repository<Product> {
     sortBy?: string,
     sortOrder?: 'ASC' | 'DESC',
   ): Record<string, 'ASC' | 'DESC'> {
-    const order: Record<string, 'ASC' | 'DESC'> = { createdAt: 'DESC' };
+    const order: Record<string, 'ASC' | 'DESC'> = {};
 
     if (sortBy) {
       order[sortBy] = sortOrder ?? 'ASC';
     }
+
+    order.createdAt = 'DESC';
 
     return order;
   }

@@ -11,7 +11,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 @Module({
   imports: [TypeOrmModule.forFeature([Shop, Location]), ProductModule],
   providers: [ShopService, ShopRepository, LocationRepository],
-  exports: [ShopService],
+  exports: [ShopService, ShopRepository],
   controllers: [ShopController, PublicShopController],
 })
 export class ShopModule {}

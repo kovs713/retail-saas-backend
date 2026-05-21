@@ -13,16 +13,21 @@ export class EvotorApiModule {
         {
           provide: EvotorConfig,
           inject: [ConfigService],
-          useFactory: (configService: ConfigService): EvotorOptions => ({
-            baseUrl: configService.getOrThrow<string>(
-              'EVOTOR_BASE_URL',
-              'http://localhost:3001',
-            ),
-            token: configService.getOrThrow<string>(
-              'EVOTOR_TOKEN',
-              'mock-evotor-token',
-            ),
-          }),
+          useFactory: (configService: ConfigService): EvotorOptions => {
+            const timeoutMs = Number(
+              configService.getOrThrow<number>('EVOTOR_BRIDGE_TIMEOUT_MS'),
+            );
+
+            return {
+              baseUrl: configService.getOrThrow<string>(
+                'EVOTOR_BRIDGE_BASE_URL',
+              ),
+              adminToken: configService.getOrThrow<string>(
+                'EVOTOR_BRIDGE_ADMIN_TOKEN',
+              ),
+              timeoutMs: timeoutMs,
+            };
+          },
         },
 
         EvotorApiService,

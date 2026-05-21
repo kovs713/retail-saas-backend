@@ -2,7 +2,14 @@ import { PaginationResponse } from '@/common/dto';
 import { LoggerService } from '@/core/logger/logger.service';
 import { Product } from '@/modules/product/entities/product.entity';
 import { ProductService } from '@/modules/product/product.service';
-import { DocumentGroupDto, DocumentResponseDto } from './dto';
+import {
+  CreateRagDocumentDto,
+  DocumentChunkDto,
+  DocumentGroupDto,
+  DocumentResponseDto,
+  RagDocumentGroupResponseDto,
+  UpdateRagDocumentDto,
+} from './dto';
 import { LLMService } from './llm/llm.service';
 import { VectorStoreService } from './vector-store/vector-store.service';
 
@@ -181,8 +188,45 @@ export class RagService {
   }
 
   async addDocuments(documents: Document[], shopId: string): Promise<string[]> {
-    const ids = await this.vectorStoreService.addDocuments(documents, shopId);
-    return ids;
+    const result = await this.vectorStoreService.addDocuments(
+      documents,
+      shopId,
+    );
+    return result;
+  }
+
+  async uploadDocumentAsGroup(
+    document: Document,
+    shopId: string,
+  ): Promise<RagDocumentGroupResponseDto> {
+    const result = await this.vectorStoreService.addDocumentsWithGroupId(
+      [document],
+      shopId,
+      crypto.randomUUID(),
+    );
+
+    const group: DocumentGroupDto = {
+      documentGroupId: result.documentGroupId,
+      source:
+        (document.metadata?.source as string) ||
+        (document.metadata?.filename as string) ||
+        'upload',
+      metadata: document.metadata,
+      totalChunks: result.totalChunks,
+      chunks:
+        document.pageContent.match(/[\s\S]{1,1000}/g)?.map((chunk, index) => ({
+          pageContent: chunk,
+          chunkIndex: index,
+          totalChunks: result.totalChunks,
+        })) ?? [],
+    };
+
+    return {
+      documentGroupId: result.documentGroupId,
+      totalChunks: result.totalChunks,
+      timestamp: new Date().toISOString(),
+      group,
+    };
   }
 
   async rebuildCatalogIndex(shopId: string): Promise<number> {
@@ -208,6 +252,151 @@ export class RagService {
       `Deleted ${deletedCount} chunks for documentGroupId: ${documentGroupId}`,
     );
     return deletedCount;
+  }
+
+  async getDocumentGroupById(
+    documentGroupId: string,
+    shopId: string,
+  ): Promise<DocumentGroupDto | null> {
+    const documents = await this.vectorStoreService.getDocumentsByGroup(
+      documentGroupId,
+      shopId,
+    );
+
+    if (documents.length === 0) {
+      return null;
+    }
+
+    const filteredDocs = documents.filter(
+      (doc) => !this.isCatalogDocument(doc),
+    );
+
+    if (filteredDocs.length === 0) {
+      return null;
+    }
+
+    const source =
+      (filteredDocs[0].metadata?.source as string) ||
+      (filteredDocs[0].metadata?.filename as string) ||
+      'unknown';
+
+    const group: DocumentGroupDto = {
+      documentGroupId,
+      source,
+      metadata: filteredDocs[0].metadata,
+      totalChunks: filteredDocs.length,
+      chunks: filteredDocs.map((doc) => ({
+        pageContent: doc.pageContent,
+        chunkIndex: doc.metadata?.chunkIndex as number,
+        totalChunks: doc.metadata?.totalChunks as number,
+      })),
+    };
+
+    return group;
+  }
+
+  async createDocumentGroup(
+    dto: CreateRagDocumentDto,
+    shopId: string,
+  ): Promise<RagDocumentGroupResponseDto> {
+    const documents = dto.chunks.map((chunk) => ({
+      pageContent: chunk.pageContent,
+      metadata: {
+        ...dto.metadata,
+        source: dto.source,
+        timestamp: new Date().toISOString(),
+      },
+    }));
+
+    const result = await this.vectorStoreService.addDocumentsWithGroupId(
+      documents,
+      shopId,
+      crypto.randomUUID(),
+    );
+
+    const group: DocumentGroupDto = {
+      documentGroupId: result.documentGroupId,
+      source: dto.source,
+      metadata: {
+        ...dto.metadata,
+        source: dto.source,
+        timestamp: new Date().toISOString(),
+      },
+      totalChunks: result.totalChunks,
+      chunks: dto.chunks.map((chunk, index) => ({
+        pageContent: chunk.pageContent,
+        chunkIndex: index,
+        totalChunks: result.totalChunks,
+      })),
+    };
+
+    return {
+      documentGroupId: result.documentGroupId,
+      totalChunks: result.totalChunks,
+      timestamp: new Date().toISOString(),
+      group,
+    };
+  }
+
+  async updateDocumentGroup(
+    documentGroupId: string,
+    shopId: string,
+    dto: UpdateRagDocumentDto,
+  ): Promise<RagDocumentGroupResponseDto | null> {
+    const existingGroup = await this.getDocumentGroupById(
+      documentGroupId,
+      shopId,
+    );
+
+    if (!existingGroup) {
+      return null;
+    }
+
+    const chunksToUpdate: DocumentChunkDto[] = dto.chunks
+      ? dto.chunks.map((c) => ({
+          pageContent: c.pageContent ?? '',
+          chunkIndex: c.pageOrder,
+          totalChunks: dto.chunks?.length ?? existingGroup.totalChunks,
+        }))
+      : existingGroup.chunks;
+    const source = dto.source ?? existingGroup.source;
+    const metadata = { ...existingGroup.metadata, ...dto.metadata };
+    const fallbackContent = existingGroup.chunks[0]?.pageContent ?? '';
+
+    const documents: Document[] = chunksToUpdate.map((chunk) => ({
+      pageContent: chunk.pageContent ?? fallbackContent,
+      metadata: {
+        ...metadata,
+        source,
+        timestamp: new Date().toISOString(),
+      },
+    }));
+
+    const totalChunks = await this.vectorStoreService.updateDocumentGroup(
+      documentGroupId,
+      shopId,
+      documents,
+    );
+
+    const updatedGroup: DocumentGroupDto = {
+      documentGroupId,
+      source,
+      metadata,
+      totalChunks,
+      chunks: chunksToUpdate.map((chunk, index) => ({
+        pageContent:
+          chunk.pageContent ?? existingGroup.chunks[index]?.pageContent ?? '',
+        chunkIndex: index,
+        totalChunks,
+      })),
+    };
+
+    return {
+      documentGroupId,
+      totalChunks,
+      timestamp: new Date().toISOString(),
+      group: updatedGroup,
+    };
   }
 
   private mergeProducts(

@@ -102,7 +102,7 @@ describe('PublicShopController', () => {
     ];
 
     shopService.findBySlug.mockResolvedValue(mockShop as any);
-    productRepository.findAll.mockResolvedValue([mockProducts as any, 1]);
+    productRepository.findSyncedAll.mockResolvedValue([mockProducts as any, 1]);
     categoryRepository.findAllByShop.mockResolvedValue(mockCategories as any);
 
     const result = await controller.getStorefront('test-shop');
@@ -138,7 +138,7 @@ describe('PublicShopController', () => {
     ];
 
     shopService.findBySlug.mockResolvedValue(mockShop as any);
-    productRepository.findAll.mockResolvedValue([mockProducts as any, 1]);
+    productRepository.findSyncedAll.mockResolvedValue([mockProducts as any, 1]);
     categoryRepository.findAllByShop.mockResolvedValue([]);
 
     const result = await controller.getStorefront('test-shop');
@@ -166,7 +166,7 @@ describe('PublicShopController', () => {
     ];
 
     shopService.findBySlug.mockResolvedValue(mockShop as any);
-    productRepository.findAll.mockResolvedValue([mockProducts as any, 1]);
+    productRepository.findSyncedAll.mockResolvedValue([mockProducts as any, 1]);
     categoryRepository.findAllByShop.mockResolvedValue([]);
 
     const result = await controller.getStorefront('test-shop');
@@ -194,7 +194,7 @@ describe('PublicShopController', () => {
     ];
 
     shopService.findBySlug.mockResolvedValue(mockShop as any);
-    productRepository.findAll.mockResolvedValue([mockProducts as any, 1]);
+    productRepository.findSyncedAll.mockResolvedValue([mockProducts as any, 1]);
     categoryRepository.findAllByShop.mockResolvedValue([]);
 
     const result = await controller.getStorefront('test-shop');
@@ -210,7 +210,7 @@ describe('PublicShopController', () => {
     };
 
     shopService.findBySlug.mockResolvedValue(mockShop as any);
-    productRepository.findAll.mockResolvedValue([[], 0]);
+    productRepository.findSyncedAll.mockResolvedValue([[], 0]);
     categoryRepository.findAllByShop.mockResolvedValue([]);
     analyticsService.logStorefrontView.mockRejectedValue(
       new Error('analytics down'),
@@ -220,5 +220,210 @@ describe('PublicShopController', () => {
 
     expect(result.success).toBe(true);
     expect(result.data.shop.id).toBe('shop-1');
+  });
+
+  it('should reject inactive shops for paginated endpoint', async () => {
+    shopService.findBySlug.mockResolvedValue({
+      id: 'shop-1',
+      slug: 'shop-1',
+      isActive: false,
+    } as any);
+
+    await expect(
+      controller.getStorefrontPaginated('shop-1', {}),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('should return paginated storefront data with filters', async () => {
+    const mockShop = {
+      id: 'shop-1',
+      slug: 'test-shop',
+      isActive: true,
+      name: 'Test Shop',
+      description: 'Test Description',
+      address: '123 Test St',
+      phone: '+1234567890',
+      workingHours: '9-5',
+      logoUrl: 'https://example.com/logo.png',
+      bannerUrl: 'https://example.com/banner.png',
+    };
+
+    const mockProducts = [
+      {
+        id: 'product-1',
+        sku: 'SKU001',
+        name: 'Test Product',
+        description: 'Test Description',
+        price: 99.99,
+        quantity: 50,
+        category: { id: 'cat-1', name: 'Test Category' },
+        images: ['https://example.com/image1.jpg'],
+      },
+      {
+        id: 'product-2',
+        sku: 'SKU002',
+        name: 'Another Product',
+        description: null,
+        price: 49.99,
+        quantity: 5,
+        category: null,
+        images: [],
+      },
+    ];
+
+    const mockCategories = [
+      {
+        id: 'cat-1',
+        name: 'Test Category',
+        slug: 'test-category',
+      },
+    ];
+
+    shopService.findBySlug.mockResolvedValue(mockShop as any);
+    productRepository.findSyncedAll.mockResolvedValue([mockProducts as any, 2]);
+    categoryRepository.findAllByShop.mockResolvedValue(mockCategories as any);
+
+    const query = {
+      page: 1,
+      limit: 10,
+      category: 'cat-1',
+      minPrice: 10,
+      maxPrice: 100,
+      inStock: true,
+      sortBy: 'price',
+      sortOrder: 'ASC' as const,
+      search: 'Test',
+    };
+
+    const result = await controller.getStorefrontPaginated('test-shop', query);
+
+    expect(result.success).toBe(true);
+    expect(result.data.shop.id).toBe('shop-1');
+    expect(result.data.products).toHaveLength(2);
+    expect(result.data.products[0].availability).toBe('IN_STOCK');
+    expect(result.data.products[1].availability).toBe('LOW_STOCK');
+    expect(result.data.categories).toHaveLength(1);
+    expect(result.data.pagination.page).toBe(1);
+    expect(result.data.pagination.limit).toBe(10);
+    expect(result.data.pagination.total).toBe(2);
+    expect(result.data.pagination.totalPages).toBe(1);
+    expect(result.data.timestamp).toBeDefined();
+  });
+
+  it('should calculate correct totalPages for pagination', async () => {
+    const mockShop = {
+      id: 'shop-1',
+      slug: 'test-shop',
+      isActive: true,
+    };
+
+    const mockProducts = Array(5)
+      .fill(null)
+      .map((_, i) => ({
+        id: `product-${i}`,
+        sku: `SKU${i}`,
+        name: `Product ${i}`,
+        price: 10 * i,
+        quantity: 10,
+        category: null,
+        images: [],
+      }));
+
+    shopService.findBySlug.mockResolvedValue(mockShop as any);
+    productRepository.findSyncedAll.mockResolvedValue([
+      mockProducts as any,
+      25,
+    ]);
+    categoryRepository.findAllByShop.mockResolvedValue([]);
+
+    const result = await controller.getStorefrontPaginated('test-shop', {
+      page: 2,
+      limit: 5,
+    });
+
+    expect(result.data.pagination.page).toBe(2);
+    expect(result.data.pagination.limit).toBe(5);
+    expect(result.data.pagination.total).toBe(25);
+    expect(result.data.pagination.totalPages).toBe(5);
+  });
+
+  it('should handle empty product list', async () => {
+    const mockShop = {
+      id: 'shop-1',
+      slug: 'empty-shop',
+      isActive: true,
+      name: 'Empty Shop',
+    };
+
+    shopService.findBySlug.mockResolvedValue(mockShop as any);
+    productRepository.findSyncedAll.mockResolvedValue([[], 0]);
+    categoryRepository.findAllByShop.mockResolvedValue([]);
+
+    const result = await controller.getStorefrontPaginated('empty-shop', {});
+
+    expect(result.success).toBe(true);
+    expect(result.data.products).toHaveLength(0);
+    expect(result.data.pagination.total).toBe(0);
+    expect(result.data.pagination.totalPages).toBe(0);
+  });
+
+  it('should return single product by ID and shop slug', async () => {
+    const mockProduct = {
+      id: 'prod-1',
+      sku: 'SKU001',
+      name: 'Test Product',
+      description: 'Test Description',
+      price: 99.99,
+      quantity: 50,
+      category: { id: 'cat-1', name: 'Test Category' },
+      images: [
+        {
+          id: 'img-1',
+          s3Key: 'products/prod-1/images/photo.jpg',
+          publicUrl: '/public/media/test-shop/products/prod-1/photo.jpg',
+          isPrimary: true,
+          sortOrder: 0,
+          contentType: 'image/jpeg',
+          size: 12345,
+        },
+      ],
+    };
+
+    productRepository.findByIdAndShopSlug.mockResolvedValue(mockProduct as any);
+
+    const result = await controller.getProduct('test-shop', 'prod-1');
+
+    expect(result.success).toBe(true);
+    expect(result.data.id).toBe('prod-1');
+    expect(result.data.name).toBe('Test Product');
+    expect(result.data.availability).toBe('IN_STOCK');
+    expect(result.data.images).toHaveLength(1);
+    expect(result.data.images[0].publicUrl).toContain('/public/media/');
+  });
+
+  it('should mark product as OUT_OF_STOCK when quantity is 0', async () => {
+    const mockProduct = {
+      id: 'prod-1',
+      sku: 'SKU001',
+      name: 'Out of Stock Product',
+      price: 50,
+      quantity: 0,
+      category: null,
+      images: [],
+    };
+
+    productRepository.findByIdAndShopSlug.mockResolvedValue(mockProduct as any);
+
+    const result = await controller.getProduct('test-shop', 'prod-1');
+
+    expect(result.data.availability).toBe('OUT_OF_STOCK');
+  });
+
+  it('should throw BadRequestException when product not found', async () => {
+    productRepository.findByIdAndShopSlug.mockResolvedValue(null);
+
+    await expect(
+      controller.getProduct('test-shop', 'non-existent-id'),
+    ).rejects.toThrow(BadRequestException);
   });
 });

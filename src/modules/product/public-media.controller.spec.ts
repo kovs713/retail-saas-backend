@@ -1,4 +1,4 @@
-import { StorageService } from '@/modules/storage/storage.service';
+import { ObjectStorageService } from '@/core/object-storage/object-storage.service';
 import { Product } from './entities';
 import { ProductService } from './product.service';
 import { PublicMediaController } from './public-media.controller';
@@ -13,17 +13,17 @@ import { Readable } from 'stream';
 describe('PublicMediaController', () => {
   let controller: PublicMediaController;
   let productService: DeepMocked<ProductService>;
-  let storageService: DeepMocked<StorageService>;
+  let storageService: DeepMocked<ObjectStorageService>;
 
   beforeEach(async () => {
     productService = createMock<DeepMocked<ProductService>>();
-    storageService = createMock<DeepMocked<StorageService>>();
+    storageService = createMock<DeepMocked<ObjectStorageService>>();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PublicMediaController],
       providers: [
         { provide: ProductService, useValue: productService },
-        { provide: StorageService, useValue: storageService },
+        { provide: ObjectStorageService, useValue: storageService },
       ],
     })
       .overrideGuard(ThrottlerGuard)
@@ -40,7 +40,7 @@ describe('PublicMediaController', () => {
     jest.spyOn(stream, 'pipe').mockReturnValue(res as any);
     storageService.getObjectStream.mockResolvedValue(stream);
     productService.findPublicByShopSlugAndId.mockResolvedValue(product);
-    productService.buildProductImageObjectKey.mockReturnValue(
+    productService.buildProductImageKey.mockReturnValue(
       'products/p1/images/a.jpg',
     );
     storageService.statObject.mockResolvedValue({

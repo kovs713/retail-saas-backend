@@ -29,7 +29,10 @@ describe('RagController', () => {
         },
         {
           provide: ConfigService,
-          useValue: { get: jest.fn().mockReturnValue('5') },
+          useValue: {
+            get: jest.fn().mockReturnValue('5'),
+            getOrThrow: jest.fn().mockReturnValue('5'),
+          },
         },
       ],
       controllers: [RagController],
@@ -214,7 +217,16 @@ describe('RagController', () => {
         contentType: 'application/json',
         contentDisposition: 'attachment; filename="sample.json"',
       });
-      service.addDocuments.mockResolvedValue(['doc-1']);
+      service.uploadDocumentAsGroup.mockResolvedValue({
+        documentGroupId: 'group-1',
+        totalChunks: 1,
+        documents: [
+          {
+            id: 'doc-1',
+            status: 'indexed',
+          },
+        ],
+      });
 
       const file = {
         originalname: 'sample.pdf',
@@ -233,21 +245,20 @@ describe('RagController', () => {
         file,
         expect.objectContaining({ removeNoise: true }),
       );
-      expect(service.addDocuments).toHaveBeenCalledWith(
-        [
-          expect.objectContaining({
-            pageContent: 'Normalized text',
-            metadata: expect.objectContaining({
-              filename: 'sample.pdf',
-              source: 'upload',
-              origin: 'doc-preprocessor',
-            }),
+      expect(service.uploadDocumentAsGroup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pageContent: 'Normalized text',
+          metadata: expect.objectContaining({
+            filename: 'sample.pdf',
+            source: 'upload',
+            origin: 'doc-preprocessor',
           }),
-        ],
+        }),
         tenantContext.shopId,
       );
       expect(result.success).toBe(true);
-      expect(result.data?.documentIds).toEqual(['doc-1']);
+      expect(result.data?.documentGroupId).toBe('group-1');
+      expect(result.data?.totalChunks).toBe(1);
     });
 
     it('should reject unsupported file type', async () => {
