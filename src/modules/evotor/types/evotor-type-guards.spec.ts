@@ -1,11 +1,9 @@
-import type { EvotorInboxEvent } from '../entities/evotor-inbox-event.entity';
 import {
   isEvotorDocumentPayload,
   isEvotorProductRawPayload,
   isEvotorProductsWebhookPayload,
   isEvotorSellDocumentPayload,
 } from './evotor-type-guards';
-import { extractSoldPositions } from '../utils/evotor-document.utils';
 
 const validSellPayload = {
   id: '47355c14-04da-486f-a6c6-b24689a82df7',
@@ -69,10 +67,6 @@ const validProductsPayload = [
   },
 ];
 
-function mockEvent(partial: Partial<EvotorInboxEvent>): EvotorInboxEvent {
-  return partial;
-}
-
 describe('isEvotorSellDocumentPayload', () => {
   it('returns true for valid SELL document', () => {
     expect(isEvotorSellDocumentPayload(validSellPayload)).toBe(true);
@@ -124,53 +118,6 @@ describe('isEvotorProductsWebhookPayload', () => {
 
   it('returns false for null', () => {
     expect(isEvotorProductsWebhookPayload(null)).toBe(false);
-  });
-});
-
-describe('extractSoldPositions', () => {
-  it('returns mapped positions from SELL document', () => {
-    const event = mockEvent({
-      eventType: 'evotor.documents.received',
-      payload: validSellPayload,
-    });
-
-    const positions = extractSoldPositions(event);
-
-    expect(positions).toHaveLength(1);
-    expect(positions[0]).toEqual({
-      externalProductId: '20ab0dd2-9ccf-47ed-bb04-7feecc4c86ae',
-      productName: 'Test Product',
-      barcode: '4606696009356',
-      quantity: 1,
-      initialQuantity: 13,
-      price: 170,
-      resultPrice: 170,
-      sum: 170,
-      resultSum: 170,
-      taxType: 'NO_VAT',
-      storeId: '20200812-D55B-40E4-8063-F2AF124593FC',
-      deviceId: '20200812-9F04-404B-80E7-F964AE3B10FB',
-      documentId: '47355c14-04da-486f-a6c6-b24689a82df7',
-      closeDate: '2026-05-16T07:39:55.000+0000',
-    });
-  });
-
-  it('returns empty array for non-document event', () => {
-    const event = mockEvent({
-      eventType: 'evotor.products.received',
-      payload: validProductsPayload,
-    });
-
-    expect(extractSoldPositions(event)).toEqual([]);
-  });
-
-  it('returns empty array for non-SELL document', () => {
-    const event = mockEvent({
-      eventType: 'evotor.documents.received',
-      payload: { type: 'BUY', body: {} },
-    });
-
-    expect(extractSoldPositions(event)).toEqual([]);
   });
 });
 

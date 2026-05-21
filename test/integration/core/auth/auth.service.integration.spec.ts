@@ -3,6 +3,8 @@ import { AuthConfig } from '@/common/types';
 import { mockCacheService } from '@/common/utils';
 import { AuthService } from '@/core/auth/auth.service';
 import { CacheService } from '@/core/cache/cache.service';
+import { EvotorApplication } from '@/modules/evotor/entities';
+import { EvotorApplicationRepository } from '@/modules/evotor/repositories';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
 import { Category, Product, ProductImage } from '@/modules/product/entities';
@@ -14,6 +16,8 @@ import {
   ShopRepository,
 } from '@/modules/shop/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
+import { ChatMessage, ChatSession } from '@/modules/rag/chat/entities';
+import { ChatSessionRepository } from '@/modules/rag/chat/repositories';
 import { User } from '@/modules/user/entities';
 import { UserRepository } from '@/modules/user/repositories';
 import { UserService } from '@/modules/user/user.service';
@@ -66,6 +70,9 @@ describe('AuthService Integration', () => {
           StorefrontView,
           Order,
           RegistrationApplication,
+          ChatSession,
+          ChatMessage,
+          EvotorApplication,
         ]),
       ],
       providers: [
@@ -73,6 +80,8 @@ describe('AuthService Integration', () => {
         RegistrationApplicationService,
         UserService,
         UserRepository,
+        ChatSessionRepository,
+        EvotorApplicationRepository,
         ShopService,
         ShopRepository,
         LocationRepository,

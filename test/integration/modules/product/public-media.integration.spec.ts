@@ -3,12 +3,13 @@ import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { EvotorApiService } from '@/modules/evotor/evotor-api.service';
 import { Order } from '@/modules/order/entities';
-import { Category, Product } from '@/modules/product/entities';
+import { Category, Product, ProductImage } from '@/modules/product/entities';
 import { ProductService } from '@/modules/product/product.service';
 import { PublicMediaController } from '@/modules/product/public-media.controller';
 import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import {
   CategoryRepository,
+  ProductImageRepository,
   ProductRepository,
 } from '@/modules/product/repositories';
 import { Location, Shop } from '@/modules/shop/entities';
@@ -55,6 +56,7 @@ describe('PublicMedia Integration', () => {
           Location,
           User,
           Product,
+          ProductImage,
           Category,
           ChatEvent,
           StorefrontView,
@@ -65,6 +67,7 @@ describe('PublicMedia Integration', () => {
       providers: [
         ProductService,
         ProductRepository,
+        ProductImageRepository,
         CategoryRepository,
         { provide: CacheService, useValue: mockCacheService() },
         {
@@ -103,6 +106,7 @@ describe('PublicMedia Integration', () => {
       name: 'Media Product',
       price: 100,
       quantity: 10,
+      externalSource: 'evotor',
       shopId: shop.id,
     });
     productId = product.id;

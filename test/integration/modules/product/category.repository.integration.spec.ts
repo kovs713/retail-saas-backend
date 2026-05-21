@@ -1,6 +1,6 @@
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
-import { Category, Product } from '@/modules/product/entities';
+import { Category, Product, ProductImage } from '@/modules/product/entities';
 import { CategoryRepository } from '@/modules/product/repositories';
 import { Location, Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
@@ -37,6 +37,7 @@ describe('CategoryRepository Integration', () => {
           Location,
           User,
           Product,
+          ProductImage,
           Category,
           ChatEvent,
           StorefrontView,

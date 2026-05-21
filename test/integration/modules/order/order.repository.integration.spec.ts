@@ -1,7 +1,7 @@
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
 import { Order } from '@/modules/order/entities';
 import { OrderRepository } from '@/modules/order/repositories';
-import { Category, Product } from '@/modules/product/entities';
+import { Category, Product, ProductImage } from '@/modules/product/entities';
 import { Location, Shop } from '@/modules/shop/entities';
 import { User } from '@/modules/user/entities';
 import { getPostgresConnection } from '../../setup';
@@ -37,6 +37,7 @@ describe('OrderRepository Integration', () => {
           Location,
           User,
           Product,
+          ProductImage,
           Category,
           ChatEvent,
           StorefrontView,
