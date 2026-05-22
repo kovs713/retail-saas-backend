@@ -5,6 +5,9 @@ import { AuthGuard, RolesGuard } from '@/common/guards';
 import { Request } from '@/common/types';
 import {
   ConnectEvotorDto,
+  EvotorAdminListQueryDto,
+  EvotorAdminListResponse,
+  EvotorInboxEventDto,
   CreateEvotorApplicationDto,
   EvotorApplicationDto,
   EvotorSellEventsCountDto,
@@ -162,6 +165,32 @@ export class EvotorController {
       shopId,
       dateFrom,
       dateTo,
+    );
+    return { success: true, data: result };
+  }
+
+  @Get(':shopId/inbox-events')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Get latest Evotor sell inbox events for a shop',
+  })
+  @ApiParam({
+    name: 'shopId',
+    type: String,
+  })
+  async getSellInboxEvents(
+    @Param('shopId')
+    shopId: string,
+    @Req()
+    req: Request,
+    @Query()
+    query: EvotorAdminListQueryDto,
+  ): Promise<AppApiResponse<EvotorAdminListResponse<EvotorInboxEventDto>>> {
+    this.assertShopAccess(shopId, req);
+    const result = await this.evotorService.getLatestSellInboxEvents(
+      shopId,
+      query.skip,
+      query.take,
     );
     return { success: true, data: result };
   }

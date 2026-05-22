@@ -9,6 +9,8 @@ import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import {
   ConnectEvotorDto,
+  EvotorAdminListResponse,
+  EvotorInboxEventDto,
   EvotorAdminLinkStoreDto,
   SyncEvotorDto,
 } from './dto';
@@ -53,6 +55,8 @@ interface SyncApprovedIntegrationResult {
     syncedAt: string;
   };
 }
+
+const SELL_INBOX_EVENTS_CACHE_TTL_SECONDS = 30;
 
 @Injectable()
 export class EvotorService {
@@ -357,6 +361,108 @@ export class EvotorService {
     ]);
 
     return { totalCount, periodCount };
+  }
+
+  async getLatestSellInboxEvents(
+    shopId: string,
+    skip = 0,
+    take = 20,
+  ): Promise<EvotorAdminListResponse<EvotorInboxEventDto>> {
+    const safeSkip = Math.max(0, Number.isFinite(skip) ? skip : 0);
+    const safeTake = Math.min(100, Math.max(1, Number.isFinite(take) ? take : 20));
+    const cacheKey = this.cacheService.generateKey(
+      'evotor',
+      'sell-inbox-events',
+      shopId,
+      safeSkip,
+      safeTake,
+    );
+    const cached = await this.cacheService.get<
+      EvotorAdminListResponse<EvotorInboxEventDto>
+    >(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    const integration = await this.getConnectedIntegration(shopId);
+
+    if (!integration.externalUserId) {
+      const emptyResult = { items: [], total: 0, skip: safeSkip, take: safeTake };
+      await this.cacheService.set(
+        cacheKey,
+        emptyResult,
+        SELL_INBOX_EVENTS_CACHE_TTL_SECONDS,
+      );
+      return emptyResult;
+    }
+
+    const total = await this.evotorApiService.countSellEvents(
+      integration.externalUserId,
+      integration.externalStoreId,
+    );
+
+    if (safeSkip >= total) {
+      return { items: [], total, skip: safeSkip, take: safeTake };
+    }
+
+    const items: EvotorInboxEventDto[] = [];
+    let bridgeSkip = 0;
+    let sellOffset = 0;
+    const bridgeTake = 100;
+
+    while (items.length < safeTake) {
+      const response = await this.evotorApiService.listAdminInboxEvents({
+        evotorUserId: integration.externalUserId,
+        storeId: integration.externalStoreId,
+        eventType: 'evotor.documents.received',
+        skip: bridgeSkip,
+        take: bridgeTake,
+      });
+
+      if (!response.items.length) {
+        break;
+      }
+
+      for (const event of response.items) {
+        const payload = event.payload as Record<string, unknown> | undefined;
+
+        if (payload?.type !== 'SELL') {
+          continue;
+        }
+
+        if (sellOffset >= safeSkip && items.length < safeTake) {
+          items.push(event);
+        }
+
+        sellOffset += 1;
+
+        if (items.length === safeTake) {
+          break;
+        }
+      }
+
+      if (response.items.length < bridgeTake || sellOffset >= total) {
+        break;
+      }
+
+      bridgeSkip += bridgeTake;
+    }
+
+    const result = {
+      items,
+      total,
+      skip: safeSkip,
+      take: safeTake,
+    };
+
+    await this.cacheService.set(
+      cacheKey,
+      result,
+      SELL_INBOX_EVENTS_CACHE_TTL_SECONDS,
+    );
+
+    return result;
   }
 
   async disconnect(shopId: string): Promise<EvotorIntegration> {

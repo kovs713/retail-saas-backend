@@ -24,6 +24,7 @@ describe('EvotorService', () => {
   let evotorApiService: DeepMocked<EvotorApiService>;
   let shopService: DeepMocked<ShopService>;
   let catalogIndexService: DeepMocked<CatalogIndexService>;
+  let cacheService: DeepMocked<CacheService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -58,6 +59,7 @@ describe('EvotorService', () => {
     evotorApiService = module.get(EvotorApiService);
     shopService = module.get(ShopService);
     catalogIndexService = module.get(CatalogIndexService);
+    cacheService = module.get(CacheService);
     productRepository.save.mockImplementation(async (value) =>
       Promise.resolve(value as Product),
     );
@@ -475,5 +477,114 @@ describe('EvotorService', () => {
       importedProductsCount: 1,
       lastSyncAt: '2026-04-21T10:00:00.000Z',
     });
+  });
+
+  it('returns paginated latest SELL inbox events for owner dashboard', async () => {
+    shopService.findById.mockResolvedValue({ id: 'shop-1' } as never);
+    integrationRepository.findOne.mockResolvedValue({
+      id: 'integration-1',
+      shopId: 'shop-1',
+      status: 'connected',
+      externalStoreId: 'store-shop-1',
+      externalUserId: 'evotor-user-1',
+    } as EvotorIntegration);
+    evotorApiService.countSellEvents.mockResolvedValue(2);
+    evotorApiService.listAdminInboxEvents.mockResolvedValue({
+      items: [
+        {
+          id: 'evt-1',
+          eventType: 'evotor.documents.received',
+          payload: { type: 'BUY' },
+        },
+        {
+          id: 'evt-2',
+          eventType: 'evotor.documents.received',
+          payload: { type: 'SELL' },
+        },
+        {
+          id: 'evt-3',
+          eventType: 'evotor.documents.received',
+          payload: { type: 'SELL' },
+        },
+      ],
+      total: 3,
+      skip: 0,
+      take: 100,
+    } as never);
+
+    const result = await service.getLatestSellInboxEvents('shop-1', 0, 1);
+
+    expect(evotorApiService.countSellEvents).toHaveBeenCalledWith(
+      'evotor-user-1',
+      'store-shop-1',
+    );
+    expect(evotorApiService.listAdminInboxEvents).toHaveBeenCalledWith({
+      evotorUserId: 'evotor-user-1',
+      storeId: 'store-shop-1',
+      eventType: 'evotor.documents.received',
+      skip: 0,
+      take: 100,
+    });
+    expect(result).toEqual({
+      items: [
+        {
+          id: 'evt-2',
+          eventType: 'evotor.documents.received',
+          payload: { type: 'SELL' },
+        },
+      ],
+      total: 2,
+      skip: 0,
+      take: 1,
+    });
+    expect(cacheService.set).toHaveBeenCalledWith(
+      'evotor:sell-inbox-events:shop-1:0:1',
+      {
+        items: [
+          {
+            id: 'evt-2',
+            eventType: 'evotor.documents.received',
+            payload: { type: 'SELL' },
+          },
+        ],
+        total: 2,
+        skip: 0,
+        take: 1,
+      },
+      30,
+    );
+  });
+
+  it('returns cached sell inbox events when cache hit', async () => {
+    cacheService.get.mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cached-evt-1',
+          eventType: 'evotor.documents.received',
+          payload: { type: 'SELL' },
+        },
+      ],
+      total: 1,
+      skip: 0,
+      take: 5,
+    } as never);
+
+    const result = await service.getLatestSellInboxEvents('shop-1', 0, 5);
+
+    expect(result).toEqual({
+      items: [
+        {
+          id: 'cached-evt-1',
+          eventType: 'evotor.documents.received',
+          payload: { type: 'SELL' },
+        },
+      ],
+      total: 1,
+      skip: 0,
+      take: 5,
+    });
+    expect(integrationRepository.findOne).not.toHaveBeenCalled();
+    expect(evotorApiService.listAdminInboxEvents).not.toHaveBeenCalled();
+    expect(evotorApiService.countSellEvents).not.toHaveBeenCalled();
   });
 });

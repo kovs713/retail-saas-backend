@@ -89,4 +89,53 @@ describe('EvotorController', () => {
       message: 'Evotor application created successfully',
     });
   });
+
+  it('returns latest sell inbox events for shop owner dashboard', async () => {
+    evotorService.getLatestSellInboxEvents.mockResolvedValue({
+      items: [
+        {
+          id: 'event-1',
+          eventType: 'evotor.documents.received',
+          payload: { type: 'SELL' },
+        },
+      ],
+      total: 1,
+      skip: 0,
+      take: 5,
+    } as never);
+
+    const result = await controller.getSellInboxEvents(
+      'shop-1',
+      {
+        user: {
+          sub: 'owner-1',
+          email: 'owner@test.com',
+          shopId: 'shop-1',
+          role: Role.OWNER,
+        },
+      } as Request,
+      { skip: 0, take: 5 },
+    );
+
+    expect(evotorService.getLatestSellInboxEvents).toHaveBeenCalledWith(
+      'shop-1',
+      0,
+      5,
+    );
+    expect(result).toEqual({
+      success: true,
+      data: {
+        items: [
+          {
+            id: 'event-1',
+            eventType: 'evotor.documents.received',
+            payload: { type: 'SELL' },
+          },
+        ],
+        total: 1,
+        skip: 0,
+        take: 5,
+      },
+    });
+  });
 });
