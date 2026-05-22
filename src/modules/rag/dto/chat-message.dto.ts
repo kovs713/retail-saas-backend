@@ -7,6 +7,11 @@ export class ChatMessageDto {
   @IsString()
   sessionId?: string;
 
+  @ApiPropertyOptional({ description: 'Client-generated idempotency key' })
+  @IsOptional()
+  @IsString()
+  clientMessageId?: string;
+
   @ApiProperty({
     description: 'Message to send',
     example: 'What products do you have?',

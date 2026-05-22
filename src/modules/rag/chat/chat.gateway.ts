@@ -36,6 +36,8 @@ interface SocketWithData extends Socket {
   };
 }
 
+const CHAT_MESSAGE_DEDUP_TTL_SECONDS = 300;
+
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
@@ -146,6 +148,35 @@ export class ChatGateway {
       `Chat from ${client.id} [shop:${tenant.shopId}]: ${payload.message}`,
     );
 
+    const userId = client.data.user?.sub;
+    if (!userId) {
+      client.emit('chat:error', {
+        message: 'Missing user context',
+        code: 'MISSING_USER',
+      } as ChatErrorEventDto);
+      return;
+    }
+
+    if (payload.clientMessageId) {
+      const dedupKey = this.cacheService.generateKey(
+        'chat:message:dedup',
+        tenant.shopId,
+        userId,
+        payload.clientMessageId,
+      );
+      const duplicateCount = await this.cacheService.incrementWithTtl(
+        dedupKey,
+        CHAT_MESSAGE_DEDUP_TTL_SECONDS,
+      );
+
+      if (duplicateCount > 1) {
+        this.logger.warn(
+          `Duplicate chat message ignored: ${payload.clientMessageId}`,
+        );
+        return;
+      }
+    }
+
     const rateLimitKey = `ratelimit:ws:${client.id}`;
     const count = await this.cacheService.incrementWithTtl(
       rateLimitKey,
@@ -162,15 +193,6 @@ export class ChatGateway {
     }
 
     try {
-      const userId = client.data.user?.sub;
-      if (!userId) {
-        client.emit('chat:error', {
-          message: 'Missing user context',
-          code: 'MISSING_USER',
-        } as ChatErrorEventDto);
-        return;
-      }
-
       const session = await this.sessionService.getOrCreateSession(
         payload.sessionId,
         tenant.shopId,

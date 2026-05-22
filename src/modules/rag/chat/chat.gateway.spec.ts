@@ -177,6 +177,26 @@ describe('ChatGateway', () => {
       });
     });
 
+    it('should ignore duplicate client messages', async () => {
+      cacheService.generateKey.mockReturnValue(
+        'chat:message:dedup:shop-1:user-1:client-message-1',
+      );
+      cacheService.incrementWithTtl.mockResolvedValue(2);
+
+      await gateway.handleMessage(
+        { message: 'Hello', clientMessageId: 'client-message-1' },
+        mockSocket,
+      );
+
+      expect(cacheService.incrementWithTtl).toHaveBeenCalledWith(
+        'chat:message:dedup:shop-1:user-1:client-message-1',
+        300,
+      );
+      expect(sessionService.getOrCreateSession).not.toHaveBeenCalled();
+      expect(sessionService.appendMessage).not.toHaveBeenCalled();
+      expect(ragService.queryStream).not.toHaveBeenCalled();
+    });
+
     it('should process message and emit chunks and complete', async () => {
       cacheService.incrementWithTtl.mockResolvedValue(1);
       sessionService.getOrCreateSession.mockResolvedValue(mockSession);
