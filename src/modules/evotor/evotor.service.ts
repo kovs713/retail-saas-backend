@@ -369,7 +369,10 @@ export class EvotorService {
     take = 20,
   ): Promise<EvotorAdminListResponse<EvotorInboxEventDto>> {
     const safeSkip = Math.max(0, Number.isFinite(skip) ? skip : 0);
-    const safeTake = Math.min(100, Math.max(1, Number.isFinite(take) ? take : 20));
+    const safeTake = Math.min(
+      100,
+      Math.max(1, Number.isFinite(take) ? take : 20),
+    );
     const cacheKey = this.cacheService.generateKey(
       'evotor',
       'sell-inbox-events',
@@ -377,9 +380,10 @@ export class EvotorService {
       safeSkip,
       safeTake,
     );
-    const cached = await this.cacheService.get<
-      EvotorAdminListResponse<EvotorInboxEventDto>
-    >(cacheKey);
+    const cached =
+      await this.cacheService.get<EvotorAdminListResponse<EvotorInboxEventDto>>(
+        cacheKey,
+      );
 
     if (cached) {
       return cached;
@@ -388,7 +392,12 @@ export class EvotorService {
     const integration = await this.getConnectedIntegration(shopId);
 
     if (!integration.externalUserId) {
-      const emptyResult = { items: [], total: 0, skip: safeSkip, take: safeTake };
+      const emptyResult = {
+        items: [],
+        total: 0,
+        skip: safeSkip,
+        take: safeTake,
+      };
       await this.cacheService.set(
         cacheKey,
         emptyResult,

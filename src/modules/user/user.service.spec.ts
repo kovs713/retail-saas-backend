@@ -12,6 +12,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcryptjs from 'bcryptjs';
+import { DataSource } from 'typeorm';
 
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed-password'),
@@ -53,6 +54,10 @@ describe('UserService', () => {
         {
           provide: CacheService,
           useValue: mockCacheService(),
+        },
+        {
+          provide: DataSource,
+          useValue: createMock<DataSource>(),
         },
       ],
     }).compile();

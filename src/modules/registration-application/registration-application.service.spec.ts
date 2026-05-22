@@ -78,4 +78,80 @@ describe('RegistrationApplicationService', () => {
       }),
     ).rejects.toThrow(ConflictException);
   });
+
+  it('does not reject reviewed applications by email or slug', async () => {
+    const userRepository = createMock<Repository<User>>();
+    const shopRepository = createMock<Repository<Shop>>();
+
+    repository.findOne.mockResolvedValue(null);
+    userRepository.findOne.mockResolvedValue(null);
+    shopRepository.findOne.mockResolvedValue(null);
+    dataSource.getRepository
+      .mockReturnValueOnce(userRepository as never)
+      .mockReturnValueOnce(shopRepository as never);
+    repository.create.mockImplementation((value) => value as never);
+    repository.save.mockImplementation((value) => value as never);
+
+    await expect(
+      service.create({
+        email: 'new@example.com',
+        password: 'password123',
+        shopName: 'New Shop',
+        shopSlug: 'new-shop',
+      }),
+    ).resolves.toMatchObject({
+      email: 'new@example.com',
+      shopSlug: 'new-shop',
+      status: RegistrationStatus.PENDING,
+    });
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: [
+        { email: 'new@example.com', status: RegistrationStatus.PENDING },
+        { shopSlug: 'new-shop', status: RegistrationStatus.PENDING },
+      ],
+    });
+  });
+
+  it('rejects existing users by email', async () => {
+    const userRepository = createMock<Repository<User>>();
+    const shopRepository = createMock<Repository<Shop>>();
+
+    repository.findOne.mockResolvedValue(null);
+    userRepository.findOne.mockResolvedValue({ id: 'user-1' } as User);
+    shopRepository.findOne.mockResolvedValue(null);
+    dataSource.getRepository
+      .mockReturnValueOnce(userRepository as never)
+      .mockReturnValueOnce(shopRepository as never);
+
+    await expect(
+      service.create({
+        email: 'new@example.com',
+        password: 'password123',
+        shopName: 'New Shop',
+        shopSlug: 'new-shop',
+      }),
+    ).rejects.toThrow('Email already exists');
+  });
+
+  it('rejects existing shops by slug', async () => {
+    const userRepository = createMock<Repository<User>>();
+    const shopRepository = createMock<Repository<Shop>>();
+
+    repository.findOne.mockResolvedValue(null);
+    userRepository.findOne.mockResolvedValue(null);
+    shopRepository.findOne.mockResolvedValue({ id: 'shop-1' } as Shop);
+    dataSource.getRepository
+      .mockReturnValueOnce(userRepository as never)
+      .mockReturnValueOnce(shopRepository as never);
+
+    await expect(
+      service.create({
+        email: 'new@example.com',
+        password: 'password123',
+        shopName: 'New Shop',
+        shopSlug: 'new-shop',
+      }),
+    ).rejects.toThrow('Shop slug already exists');
+  });
 });

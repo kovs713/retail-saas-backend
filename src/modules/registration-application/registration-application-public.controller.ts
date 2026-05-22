@@ -31,7 +31,8 @@ export class RegistrationApplicationPublicController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Conflict - Email or shop slug already exists',
+    description:
+      'Conflict - Pending application, email, or shop slug already exists',
   })
   async register(
     @Body()

@@ -454,9 +454,8 @@ export class RagService {
         continue;
       }
 
-      groupMetadata[key] = key === 'preprocess'
-        ? this.parsePreprocessMetadata(value)
-        : value;
+      groupMetadata[key] =
+        key === 'preprocess' ? this.parsePreprocessMetadata(value) : value;
     }
 
     return Object.keys(groupMetadata).length > 0 ? groupMetadata : undefined;
