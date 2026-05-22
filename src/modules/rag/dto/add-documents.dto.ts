@@ -11,6 +11,11 @@ export class AddDocumentsDto {
   @Type(() => DocumentDto)
   documents: DocumentDto[];
 
+  @ApiPropertyOptional({ description: 'Display title for the document group' })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
   @ApiPropertyOptional({ description: 'Source identifier' })
   @IsOptional()
   @IsString()

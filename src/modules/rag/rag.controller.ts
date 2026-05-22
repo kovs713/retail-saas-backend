@@ -188,6 +188,7 @@ export class RagController {
       success: true,
       data: {
         documentGroupId: group.documentGroupId,
+        title: group.title,
         totalChunks: group.totalChunks,
         timestamp: new Date().toISOString(),
         group,
@@ -206,6 +207,7 @@ export class RagController {
       example: {
         summary: 'Create document group',
         value: {
+          title: 'FAQ delivery',
           source: 'manual-entry',
           chunks: [
             { pageContent: 'First chunk content' },
@@ -261,6 +263,7 @@ export class RagController {
       example: {
         summary: 'Update document group',
         value: {
+          title: 'Updated FAQ delivery',
           source: 'updated-source',
           chunks: [{ pageContent: 'Updated chunk content' }],
           metadata: { category: 'updated' },
@@ -365,6 +368,7 @@ export class RagController {
           documents: [
             { content: 'Document content', metadata: { source: 'test' } },
           ],
+          title: 'FAQ delivery',
           source: 'api',
         },
       },
@@ -391,6 +395,9 @@ export class RagController {
       metadata: {
         ...doc.metadata,
         source: addDocumentsRequest.source || 'api',
+        ...(addDocumentsRequest.title !== undefined
+          ? { title: addDocumentsRequest.title }
+          : {}),
         timestamp: new Date().toISOString(),
       },
     }));
@@ -433,6 +440,10 @@ export class RagController {
         removeNoise: { type: 'boolean', default: true },
         normalizeWhitespace: { type: 'boolean', default: true },
         lowercase: { type: 'boolean', default: false },
+        title: {
+          type: 'string',
+          description: 'Display title for the document group',
+        },
       },
     },
   })
@@ -495,6 +506,7 @@ export class RagController {
     const document: Document = {
       pageContent: text,
       metadata: {
+        ...(dto.title !== undefined ? { title: dto.title } : {}),
         filename: file.originalname,
         contentType: file.mimetype,
         source: 'upload',

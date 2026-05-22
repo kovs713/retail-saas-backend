@@ -164,6 +164,161 @@ describe('RagService', () => {
     });
   });
 
+  describe('document groups', () => {
+    it('should return group title from metadata in grouped listing', async () => {
+      vectorStoreService.getDocuments.mockResolvedValue([
+        {
+          pageContent: 'FAQ content',
+          metadata: {
+            _id: 'chunk-1',
+            shopId: mockTenantContext.shopId,
+            documentGroupId: 'group-1',
+            title: 'Delivery FAQ',
+            source: 'upload',
+            preprocess:
+              '{"removeNoise":true,"normalizeWhitespace":true,"lowercase":false}',
+            uploadedAt: '2024-01-01T00:00:00.000Z',
+            locFrom: 1,
+            locTo: 10,
+            chunkIndex: 0,
+            totalChunks: 1,
+          },
+        },
+      ]);
+
+      const result = await service.getDocumentGroups(
+        mockTenantContext.shopId,
+        1,
+        10,
+      );
+
+      expect(result.data?.[0]).toMatchObject({
+        documentGroupId: 'group-1',
+        title: 'Delivery FAQ',
+        source: 'upload',
+        metadata: {
+          source: 'upload',
+          preprocess: {
+            removeNoise: true,
+            normalizeWhitespace: true,
+            lowercase: false,
+          },
+          uploadedAt: '2024-01-01T00:00:00.000Z',
+        },
+      });
+    });
+
+    it('should use filename as title fallback for groups without title', async () => {
+      vectorStoreService.getDocuments.mockResolvedValue([
+        {
+          pageContent: 'FAQ content',
+          metadata: {
+            documentGroupId: 'group-1',
+            filename: 'rag_test_garden_store.txt',
+            source: 'upload',
+            chunkIndex: 0,
+            totalChunks: 1,
+          },
+        },
+      ]);
+
+      const result = await service.getDocumentGroups(
+        mockTenantContext.shopId,
+        1,
+        10,
+      );
+
+      expect(result.data?.[0].title).toBe('rag_test_garden_store.txt');
+    });
+
+    it('should return group title from metadata by group id', async () => {
+      vectorStoreService.getDocumentsByGroup.mockResolvedValue([
+        {
+          pageContent: 'FAQ content',
+          metadata: {
+            documentGroupId: 'group-1',
+            title: 'Delivery FAQ',
+            source: 'upload',
+            chunkIndex: 0,
+            totalChunks: 1,
+          },
+        },
+      ]);
+
+      const result = await service.getDocumentGroupById(
+        'group-1',
+        mockTenantContext.shopId,
+      );
+
+      expect(result).toMatchObject({
+        documentGroupId: 'group-1',
+        title: 'Delivery FAQ',
+        source: 'upload',
+      });
+    });
+
+    it('should persist and return title when creating a group', async () => {
+      vectorStoreService.addDocumentsWithGroupId.mockResolvedValue({
+        documentGroupId: 'group-1',
+        chunkIds: ['chunk-1'],
+        totalChunks: 1,
+      });
+
+      const result = await service.createDocumentGroup(
+        {
+          title: 'Delivery FAQ',
+          source: 'manual-entry',
+          chunks: [{ pageContent: 'FAQ content' }],
+          metadata: { category: 'support' },
+        },
+        mockTenantContext.shopId,
+      );
+
+      expect(vectorStoreService.addDocumentsWithGroupId).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            metadata: expect.objectContaining({
+              title: 'Delivery FAQ',
+              category: 'support',
+            }),
+          }),
+        ],
+        mockTenantContext.shopId,
+        expect.any(String),
+      );
+      expect(result.title).toBe('Delivery FAQ');
+      expect(result.group.title).toBe('Delivery FAQ');
+    });
+
+    it('should persist and return title when uploading a group', async () => {
+      vectorStoreService.addDocumentsWithGroupId.mockResolvedValue({
+        documentGroupId: 'group-1',
+        chunkIds: ['chunk-1'],
+        totalChunks: 1,
+      });
+
+      const result = await service.uploadDocumentAsGroup(
+        {
+          pageContent: 'FAQ content',
+          metadata: { title: 'Uploaded FAQ', source: 'upload' },
+        },
+        mockTenantContext.shopId,
+      );
+
+      expect(vectorStoreService.addDocumentsWithGroupId).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            metadata: expect.objectContaining({ title: 'Uploaded FAQ' }),
+          }),
+        ],
+        mockTenantContext.shopId,
+        expect.any(String),
+      );
+      expect(result.title).toBe('Uploaded FAQ');
+      expect(result.group.title).toBe('Uploaded FAQ');
+    });
+  });
+
   describe('addTexts', () => {
     it('should add texts successfully', async () => {
       const mockTexts = ['Test text content'];

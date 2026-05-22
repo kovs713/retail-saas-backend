@@ -1,9 +1,12 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DocumentGroupDto } from './document-group.dto';
 
 export class RagDocumentGroupResponseDto {
   @ApiProperty({ description: 'Document group UUID' })
   documentGroupId: string;
+
+  @ApiPropertyOptional({ description: 'Display title for the document group' })
+  title?: string;
 
   @ApiProperty({ description: 'Number of chunks' })
   totalChunks: number;
