@@ -9,9 +9,9 @@ import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import {
   ConnectEvotorDto,
+  EvotorAdminLinkStoreDto,
   EvotorAdminListResponse,
   EvotorInboxEventDto,
-  EvotorAdminLinkStoreDto,
   SyncEvotorDto,
 } from './dto';
 import { EvotorIntegration } from './entities';
@@ -757,10 +757,19 @@ export class EvotorService {
     evotorUserId: string | null,
   ) {
     try {
-      return await this.evotorApiService.getProducts(storeId, evotorUserId);
+      const products = await this.evotorApiService.getProducts(
+        storeId,
+        evotorUserId,
+      );
+
+      if (products.length > 0 || !evotorUserId) {
+        return products;
+      }
+
+      return this.evotorApiService.getAdminProducts(evotorUserId, storeId);
     } catch (error) {
-      if (this.isBridgeNotFound(error)) {
-        return [];
+      if (evotorUserId && this.isBridgeNotFound(error)) {
+        return this.evotorApiService.getAdminProducts(evotorUserId, storeId);
       }
 
       throw error;
@@ -774,9 +783,20 @@ export class EvotorService {
     dateTo?: string,
   ) {
     try {
-      return await this.evotorApiService.getDocuments(
+      const documents = await this.evotorApiService.getDocuments(
         storeId,
         evotorUserId,
+        dateFrom,
+        dateTo,
+      );
+
+      if (documents.length > 0 || !evotorUserId) {
+        return documents;
+      }
+
+      return this.evotorApiService.getAdminDocuments(
+        evotorUserId,
+        storeId,
         dateFrom,
         dateTo,
       );

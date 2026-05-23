@@ -128,6 +128,35 @@ export class EvotorApiService {
     return products;
   }
 
+  async getAdminProducts(
+    evotorUserId: string,
+    storeId?: string,
+  ): Promise<RemoteProduct[]> {
+    const products: RemoteProduct[] = [];
+    const take = 100;
+    let skip = 0;
+    let total = 0;
+
+    do {
+      const response = await this.listAdminProducts({
+        evotorUserId,
+        storeId,
+        skip,
+        take,
+      });
+
+      total = response.total;
+      products.push(
+        ...response.items
+          .map((item) => this.normalizeRemoteProduct(item))
+          .filter((item): item is RemoteProduct => item !== null),
+      );
+      skip += response.items.length;
+    } while (skip < total && skip > 0);
+
+    return products;
+  }
+
   async getDocuments(
     storeId: string,
     evotorUserId?: string | null,
@@ -658,8 +687,14 @@ export class EvotorApiService {
     }
 
     const rawPayload = this.asRecord(product.rawPayload);
-    const records = [product, rawPayload];
-    const id = this.pickString(records, ['id', 'uuid', 'productId']);
+    const data = this.asRecord(product.data);
+    const records = [product, rawPayload, data];
+    const id = this.pickString(records, [
+      'id',
+      'uuid',
+      'productId',
+      'product_id',
+    ]);
     if (!id) {
       return null;
     }

@@ -363,6 +363,43 @@ describe('EvotorApiService', () => {
     });
   });
 
+  it('normalizes persisted admin products', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 'product-1',
+            articleNumber: 'SKU-001',
+            name: 'Product 1',
+            price: 1200,
+            quantity: 7,
+          },
+        ],
+        total: 1,
+        skip: 0,
+        take: 100,
+      }),
+    );
+
+    const result = await service.getAdminProducts(
+      'evotor-user-1',
+      'store-uuid-1',
+    );
+
+    expect(result).toEqual([
+      {
+        id: 'product-1',
+        article_number: 'SKU-001',
+        name: 'Product 1',
+        price: 1200,
+        quantity: 7,
+      },
+    ]);
+    const url = (fetchMock.mock.calls[0][0] as URL | string).toString();
+    expect(url).toContain('evotorUserId=evotor-user-1');
+    expect(url).toContain('storeId=store-uuid-1');
+  });
+
   it('returns empty products when no filters', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ items: [], total: 0, skip: 0, take: 20 }),

@@ -401,6 +401,51 @@ describe('EvotorService', () => {
     );
   });
 
+  it('imports products from persisted bridge products when store products are empty', async () => {
+    const integration = {
+      id: 'integration-1',
+      shopId: 'shop-1',
+      status: 'connected',
+      externalStoreId: 'store-shop-1',
+      externalUserId: 'evotor-user-1',
+    } as EvotorIntegration;
+
+    integrationRepository.findOne.mockResolvedValue(integration);
+    integrationRepository.save.mockImplementation(async (value) =>
+      Promise.resolve(value as EvotorIntegration),
+    );
+    productRepository.findSyncedByShop.mockResolvedValue([]);
+    productRepository.create.mockImplementation((value) => value as never);
+    evotorApiService.getProducts.mockResolvedValue([]);
+    evotorApiService.getAdminProducts.mockResolvedValue([
+      {
+        id: 'remote-1',
+        article_number: 'SKU-001',
+        name: 'Persisted Bridge Product',
+        price: 1200,
+        quantity: 7,
+      },
+    ]);
+
+    const result = await service.syncProducts('shop-1');
+
+    expect(evotorApiService.getAdminProducts).toHaveBeenCalledWith(
+      'evotor-user-1',
+      'store-shop-1',
+    );
+    expect(productRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shopId: 'shop-1',
+        sku: 'SKU-001',
+        name: 'Persisted Bridge Product',
+        externalSource: 'evotor',
+        externalId: 'remote-1',
+        externalStoreId: 'store-shop-1',
+      }),
+    );
+    expect(result.importedCount).toBe(1);
+  });
+
   it('updates an existing synced product when sku matches but external id changed', async () => {
     const integration = {
       id: 'integration-1',
