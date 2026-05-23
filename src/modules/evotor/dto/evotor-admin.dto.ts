@@ -276,6 +276,27 @@ export class EvotorAdminListResponse<T> {
   take: number;
 }
 
+export class EvotorSelectOptionDto {
+  @ApiProperty({ description: 'Option value' })
+  value: string;
+
+  @ApiProperty({ description: 'Human-readable option label' })
+  label: string;
+}
+
+export class EvotorStoreSelectOptionDto extends EvotorSelectOptionDto {
+  @ApiPropertyOptional({ description: 'Evotor user ID that owns this store' })
+  evotorUserId?: string;
+}
+
+export class EvotorAdminSelectorsDto {
+  @ApiProperty({ description: 'Evotor user options', type: [EvotorSelectOptionDto] })
+  users: EvotorSelectOptionDto[];
+
+  @ApiProperty({ description: 'Evotor store options', type: [EvotorStoreSelectOptionDto] })
+  stores: EvotorStoreSelectOptionDto[];
+}
+
 export class EvotorAccountDto {
   @ApiProperty({ description: 'Evotor user ID', example: '01-000000000000001' })
   id: string;

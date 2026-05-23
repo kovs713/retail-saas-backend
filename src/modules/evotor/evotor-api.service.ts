@@ -8,6 +8,7 @@ import {
   EvotorAdminDeleteSyncDocumentsResponseDto,
   EvotorAdminListQueryDto,
   EvotorAdminListResponse,
+  EvotorAdminSelectorsDto,
   EvotorAdminProcessInboxEventsQueryDto,
   EvotorAdminStoreSyncDto,
   EvotorAdminSyncDto,
@@ -327,6 +328,49 @@ export class EvotorApiService {
     };
   }
 
+  async getAdminSelectors(): Promise<EvotorAdminSelectorsDto> {
+    const [accounts, stores] = await Promise.all([
+      this.listAllAdminResource<EvotorAccountDto>('accounts'),
+      this.listAllAdminResource<EvotorStoreDto>('stores'),
+    ]);
+
+    return {
+      users: accounts
+        .map((account) => {
+          const value = this.getEvotorUserId(account);
+          return value
+            ? {
+                value,
+                label: account.name ?? account.email ?? value,
+              }
+            : null;
+        })
+        .filter((account): account is { value: string; label: string } =>
+          Boolean(account),
+        ),
+      stores: stores
+        .map((store) => {
+          const value = this.getEvotorStoreId(store);
+          return value
+            ? {
+                value,
+                label: store.name ?? store.address ?? value,
+                evotorUserId: this.getEvotorUserId(store) ?? undefined,
+              }
+            : null;
+        })
+        .filter(
+          (
+            store,
+          ): store is {
+            value: string;
+            label: string;
+            evotorUserId: string | undefined;
+          } => Boolean(store),
+        ),
+    };
+  }
+
   async listAdminAccounts(
     query: Partial<EvotorAdminListQuery> = {},
   ): Promise<EvotorAdminListResponse<EvotorAccountDto>> {
@@ -541,6 +585,61 @@ export class EvotorApiService {
       skip: response.skip ?? query.skip ?? 0,
       take: response.take ?? query.take ?? 20,
     };
+  }
+
+  private async listAllAdminResource<T>(
+    resource: string,
+    query: Partial<EvotorAdminListQuery> = {},
+  ): Promise<T[]> {
+    const items: T[] = [];
+    const take = 100;
+    let skip = 0;
+
+    while (true) {
+      const response = await this.listAdminResource<T>(resource, {
+        ...query,
+        skip,
+        take,
+      });
+
+      items.push(...response.items);
+
+      if (items.length >= response.total || response.items.length < take) {
+        break;
+      }
+
+      skip += response.items.length;
+    }
+
+    return items;
+  }
+
+  private getEvotorUserId(record: Record<string, unknown>): string | null {
+    const evotorUserId = this.pickString([record], [
+      'evotorUserId',
+      'externalUserId',
+      'userId',
+      'user_id',
+      'evotor_user_id',
+    ]);
+
+    if (evotorUserId) {
+      return evotorUserId;
+    }
+
+    const id = this.pickString([record], ['id']);
+    return id && /^[0-9a-f]{2}-[0-9a-f]{15}$/i.test(id) ? id : null;
+  }
+
+  private getEvotorStoreId(record: Record<string, unknown>): string | null {
+    return this.pickString([record], [
+      'externalStoreId',
+      'storeUuid',
+      'store_uuid',
+      'uuid',
+      'storeId',
+      'store_id',
+    ]);
   }
 
   private async request<T>(

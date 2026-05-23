@@ -11,6 +11,7 @@ import {
   EvotorAdminLinkStoreDto,
   EvotorAdminListQueryDto,
   EvotorAdminListResponse,
+  EvotorAdminSelectorsDto,
   EvotorAdminProcessInboxEventsQueryDto,
   EvotorAdminStoreSyncDto,
   EvotorAdminSyncDto,
@@ -138,6 +139,16 @@ export class EvotorAdminController {
     @Query() query: EvotorAdminListQueryDto,
   ): Promise<AppApiResponse<EvotorAdminListResponse<EvotorInboxEventDto>>> {
     const result = await this.evotorApiService.listAdminInboxEvents(query);
+    return {
+      success: true,
+      data: this.redactSensitive(result),
+    };
+  }
+
+  @Get('selectors')
+  @ApiOperation({ summary: 'List Evotor selector options' })
+  async getSelectors(): Promise<AppApiResponse<EvotorAdminSelectorsDto>> {
+    const result = await this.evotorApiService.getAdminSelectors();
     return {
       success: true,
       data: this.redactSensitive(result),
