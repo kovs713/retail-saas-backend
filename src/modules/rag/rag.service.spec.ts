@@ -385,21 +385,19 @@ describe('RagService', () => {
 
     it('should handle empty results', async () => {
       const mockQuery = 'Non-existent topic';
-      const mockEmptyAnswer =
-        "I don't have enough information to answer this question based on the available context.";
 
       vectorStoreService.similaritySearch.mockResolvedValue([]);
-      llmService.generateText.mockResolvedValue(mockEmptyAnswer);
       productService.findAll.mockResolvedValue({
         success: true,
         data: [],
         pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
       });
+      productService.findAvailableProducts.mockResolvedValue([]);
 
       const result = await service.query(mockQuery, mockTenantContext);
 
       expect(result).toEqual({
-        answer: mockEmptyAnswer,
+        answer: "I don't know.",
         sources: [],
       });
     });
@@ -749,7 +747,12 @@ describe('RagService', () => {
     it('should use the same hidden-context instructions for streaming answers', async () => {
       const mockQuery = 'Подойдет ли корм мопсу?';
 
-      vectorStoreService.similaritySearch.mockResolvedValue([]);
+      vectorStoreService.similaritySearch.mockResolvedValue([
+        {
+          pageContent: 'Dogs of any breed can eat dry food with turkey.',
+          metadata: { source: 'docs' },
+        },
+      ]);
       productService.findAll.mockResolvedValue({
         success: true,
         data: [],

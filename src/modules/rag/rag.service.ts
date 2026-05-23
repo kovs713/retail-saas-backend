@@ -248,9 +248,7 @@ export class RagService {
 
   async clearDocuments(shopId: string): Promise<void> {
     await this.vectorStoreService.deleteDocuments(shopId);
-    this.logger.warn(
-      'clearDocuments not fully implemented for LangChain Chroma wrapper',
-    );
+    this.logger.log(`Cleared all documents for organization: ${shopId}`);
   }
 
   async deleteDocumentGroup(
@@ -806,6 +804,10 @@ Question: ${query}`;
     return attributes.length > 0 ? attributes.join('; ') : null;
   }
 
+  private buildEmptyContextAnswer(query: string): string | null {
+    return /[\u0400-\u04FF]/u.test(query) ? 'Не знаю.' : 'I don\'t know.';
+  }
+
   private isCatalogDocument(doc: {
     metadata?: Record<string, unknown>;
   }): boolean {
@@ -835,6 +837,17 @@ Question: ${query}`;
       shopId,
       maxResults,
     );
+
+    const hasVectorSources = sources.some(
+      (s) => s.metadata?.source === 'vector_store',
+    );
+
+    if (!hasVectorSources) {
+      const answer = !context.trim() ? this.buildEmptyContextAnswer(query) : '';
+      if (answer) {
+        return { answer, sources: [] };
+      }
+    }
 
     const prompt = this.buildPrompt(query, context);
     const systemMessage = this.buildSystemMessage(query, systemPrompt);
@@ -879,6 +892,15 @@ Question: ${query}`;
     this.logger.log(
       `Found ${vectorDocsWithScores.length} vector documents with scores`,
     );
+
+    const hasVectorSources = sources.some(
+      (s) => s.metadata?.source === 'vector_store',
+    );
+
+    if (!hasVectorSources && !context.trim()) {
+      const fallbackAnswer = this.buildEmptyContextAnswer(query);
+      return { answer: fallbackAnswer ?? '', sources: [] };
+    }
 
     const prompt = this.buildPrompt(query, context);
     const systemMessage = this.buildSystemMessage(query, systemPrompt);
@@ -934,6 +956,17 @@ Question: ${query}`;
       shopId,
       maxResults,
     );
+
+    const hasVectorSources = sources.some(
+      (s) => s.metadata?.source === 'vector_store',
+    );
+
+    if (!hasVectorSources && !context.trim()) {
+      const answer = this.buildEmptyContextAnswer(query);
+      yield { type: 'chunk', content: answer ?? '' };
+      yield { type: 'complete', sources: [] };
+      return;
+    }
 
     const prompt = this.buildPrompt(query, context);
     const systemMessage = this.buildSystemMessage(query, systemPrompt);
