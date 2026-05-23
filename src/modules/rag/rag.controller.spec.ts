@@ -193,12 +193,20 @@ describe('RagController', () => {
           { content: 'Document 1', metadata: { source: 'test' } },
           { content: 'Document 2', metadata: { source: 'test' } },
         ],
+        title: 'FAQ delivery',
         source: 'api',
       };
 
       const result = await controller.addDocuments(addRequest, tenantContext);
 
-      expect(service.addDocuments).toHaveBeenCalled();
+      expect(service.addDocuments).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            metadata: expect.objectContaining({ title: 'FAQ delivery' }),
+          }),
+        ]),
+        tenantContext.shopId,
+      );
       expect(result.success).toBe(true);
       expect(result.data?.documentIds).toEqual(mockDocIds);
       expect(result.data?.count).toBe(2);
@@ -219,13 +227,17 @@ describe('RagController', () => {
       });
       service.uploadDocumentAsGroup.mockResolvedValue({
         documentGroupId: 'group-1',
+        title: 'Uploaded FAQ',
         totalChunks: 1,
-        documents: [
-          {
-            id: 'doc-1',
-            status: 'indexed',
-          },
-        ],
+        timestamp: '2024-01-01T00:00:00.000Z',
+        group: {
+          documentGroupId: 'group-1',
+          title: 'Uploaded FAQ',
+          source: 'upload',
+          metadata: { title: 'Uploaded FAQ' },
+          totalChunks: 1,
+          chunks: [{ pageContent: 'Normalized text' }],
+        },
       });
 
       const file = {
@@ -237,7 +249,7 @@ describe('RagController', () => {
 
       const result = await controller.uploadDocument(
         file,
-        { removeNoise: true },
+        { removeNoise: true, title: 'Uploaded FAQ' },
         tenantContext,
       );
 
@@ -250,6 +262,7 @@ describe('RagController', () => {
           pageContent: 'Normalized text',
           metadata: expect.objectContaining({
             filename: 'sample.pdf',
+            title: 'Uploaded FAQ',
             source: 'upload',
             origin: 'doc-preprocessor',
           }),
@@ -258,6 +271,7 @@ describe('RagController', () => {
       );
       expect(result.success).toBe(true);
       expect(result.data?.documentGroupId).toBe('group-1');
+      expect(result.data?.title).toBe('Uploaded FAQ');
       expect(result.data?.totalChunks).toBe(1);
     });
 

@@ -31,6 +31,11 @@ export class DocumentGroupDto {
   @IsUUID()
   documentGroupId: string;
 
+  @ApiPropertyOptional({ description: 'Display title for the document group' })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
   @ApiProperty({ description: 'Source filename or identifier' })
   @IsString()
   source: string;

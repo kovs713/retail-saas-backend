@@ -226,7 +226,15 @@ describe('EvotorApiService', () => {
   });
 
   it('passes filters to bridge admin list endpoints', async () => {
-    const query = { evotorUserId: 'evotor-user-1', storeId: 'store-1' };
+    const query = {
+      evotorUserId: 'evotor-user-1',
+      storeId: 'store-1',
+      storeUuid: '20190405-F247-4028-8080-1031D2F79B44',
+      productId: 'e2e7770b-4840-45b2-8b19-43ccf54c0059',
+      search: 'TetraPro',
+      name: 'Energy Crisps',
+      code: '3706',
+    };
     // Return fresh Response each call to avoid body-consumed issues with retry
     fetchMock.mockImplementation(() =>
       Promise.resolve(jsonResponse({ items: [], total: 0, skip: 0, take: 20 })),
@@ -262,6 +270,15 @@ describe('EvotorApiService', () => {
     expect(getUrl(4)).toContain('/admin/evotor/products');
     expect(getUrl(4)).toContain('evotorUserId=evotor-user-1');
     expect(getUrl(4)).toContain('storeId=store-1');
+    expect(getUrl(4)).toContain(
+      'storeUuid=20190405-F247-4028-8080-1031D2F79B44',
+    );
+    expect(getUrl(4)).toContain(
+      'productId=e2e7770b-4840-45b2-8b19-43ccf54c0059',
+    );
+    expect(getUrl(4)).toContain('search=TetraPro');
+    expect(getUrl(4)).toContain('name=Energy+Crisps');
+    expect(getUrl(4)).toContain('code=3706');
     // documents — now reads from inbox-events with eventType filter
     expect(getUrl(5)).toContain('/admin/evotor/inbox-events');
     expect(getUrl(5)).toContain('evotorUserId=evotor-user-1');
@@ -363,6 +380,81 @@ describe('EvotorApiService', () => {
     });
   });
 
+  it('normalizes persisted admin products', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 'product-1',
+            articleNumber: 'SKU-001',
+            name: 'Product 1',
+            price: 1200,
+            quantity: 7,
+          },
+        ],
+        total: 1,
+        skip: 0,
+        take: 100,
+      }),
+    );
+
+    const result = await service.getAdminProducts(
+      'evotor-user-1',
+      'store-uuid-1',
+    );
+
+    expect(result).toEqual([
+      {
+        id: 'product-1',
+        article_number: 'SKU-001',
+        name: 'Product 1',
+        price: 1200,
+        quantity: 7,
+      },
+    ]);
+    const url = (fetchMock.mock.calls[0][0] as URL | string).toString();
+    expect(url).toContain('evotorUserId=evotor-user-1');
+    expect(url).toContain('storeId=store-uuid-1');
+  });
+
+  it('prefers raw payload quantity for admin products', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            productId: '6cfccd83-e3b7-45e4-bela-1356811c94b4',
+            storeId: 'store-uuid-1',
+            name: 'Target Product',
+            code: 'SKU-001',
+            price: 5,
+            quantity: 0,
+            rawPayload: {
+              quantity: 277,
+            },
+          },
+        ],
+        total: 1,
+        skip: 0,
+        take: 100,
+      }),
+    );
+
+    const result = await service.getAdminProducts(
+      'evotor-user-1',
+      'store-uuid-1',
+    );
+
+    expect(result).toEqual([
+      {
+        id: '6cfccd83-e3b7-45e4-bela-1356811c94b4',
+        article_number: 'SKU-001',
+        name: 'Target Product',
+        price: 5,
+        quantity: 277,
+      },
+    ]);
+  });
+
   it('returns empty products when no filters', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ items: [], total: 0, skip: 0, take: 20 }),
@@ -461,6 +553,25 @@ describe('EvotorApiService', () => {
       'https://bridge.example.com/admin/evotor/inbox-events/process?evotorUserId=01-000000000000001&take=100',
       expect.objectContaining({
         method: 'POST',
+        headers: expect.any(Headers),
+      }),
+    );
+  });
+
+  it('deletes admin sync documents through the bridge', async () => {
+    const response = { deleted: 3 };
+    fetchMock.mockResolvedValueOnce(jsonResponse(response));
+
+    const result = await service.deleteAdminSyncDocuments({
+      evotorUserId: '01-000000000000001',
+      storeId: '20190607-4F3B-40E0-80F0-00155D012500',
+    });
+
+    expect(result).toEqual(response);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://bridge.example.com/admin/evotor/sync/documents?evotorUserId=01-000000000000001&storeId=20190607-4F3B-40E0-80F0-00155D012500',
+      expect.objectContaining({
+        method: 'DELETE',
         headers: expect.any(Headers),
       }),
     );

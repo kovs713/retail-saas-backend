@@ -15,6 +15,11 @@ export class CreateRagDocumentChunkDto {
 }
 
 export class CreateRagDocumentDto {
+  @ApiPropertyOptional({ description: 'Display title for the document group' })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
   @ApiProperty({ description: 'Document source identifier' })
   @IsString()
   source: string;

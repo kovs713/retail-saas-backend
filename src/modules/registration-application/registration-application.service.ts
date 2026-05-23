@@ -24,12 +24,17 @@ export class RegistrationApplicationService {
   async create(
     registerDto: CreateRegistrationApplicationDto,
   ): Promise<RegistrationApplication> {
-    const existingApplication = await this.repository.findOne({
-      where: [{ email: registerDto.email }, { shopSlug: registerDto.shopSlug }],
+    const existingPendingApplication = await this.repository.findOne({
+      where: [
+        { email: registerDto.email, status: RegistrationStatus.PENDING },
+        { shopSlug: registerDto.shopSlug, status: RegistrationStatus.PENDING },
+      ],
     });
 
-    if (existingApplication) {
-      throw new ConflictException('Email or shop slug already exists');
+    if (existingPendingApplication) {
+      throw new ConflictException(
+        'Pending registration application with this email or shop slug already exists',
+      );
     }
 
     const [existingUser, existingShop] = await Promise.all([
@@ -41,8 +46,12 @@ export class RegistrationApplicationService {
         .findOne({ where: { slug: registerDto.shopSlug } }),
     ]);
 
-    if (existingUser || existingShop) {
-      throw new ConflictException('Email or shop slug already exists');
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+
+    if (existingShop) {
+      throw new ConflictException('Shop slug already exists');
     }
 
     const passwordHash = await hash(registerDto.password, 10);

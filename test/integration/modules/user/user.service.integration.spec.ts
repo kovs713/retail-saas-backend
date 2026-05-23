@@ -1,11 +1,17 @@
 import { mockCacheService } from '@/common/utils';
+import { RegistrationStatus } from '@/common/enums';
 import { CacheService } from '@/core/cache/cache.service';
 import { ChatEvent, StorefrontView } from '@/modules/analytics/entities';
-import { EvotorApplication } from '@/modules/evotor/entities';
+import {
+  EvotorApplication,
+  EvotorIntegration,
+} from '@/modules/evotor/entities';
 import { EvotorApplicationRepository } from '@/modules/evotor/repositories';
 import { Order } from '@/modules/order/entities';
+import { Category, Product, ProductImage } from '@/modules/product/entities';
 import { ChatMessage, ChatSession } from '@/modules/rag/chat/entities';
 import { ChatSessionRepository } from '@/modules/rag/chat/repositories';
+import { RegistrationApplication } from '@/modules/registration-application/entities';
 import { Location, Shop } from '@/modules/shop/entities';
 import {
   LocationRepository,
@@ -54,6 +60,11 @@ describe('UserService Integration', () => {
           ChatSession,
           ChatMessage,
           EvotorApplication,
+          EvotorIntegration,
+          Category,
+          Product,
+          ProductImage,
+          RegistrationApplication,
         ]),
       ],
       providers: [
@@ -91,10 +102,20 @@ describe('UserService Integration', () => {
     if (!dataSource?.isInitialized) {
       return;
     }
-    await dataSource.query('UPDATE users SET "shopId" = NULL');
     await dataSource.query('DELETE FROM chat_messages');
     await dataSource.query('DELETE FROM chat_sessions');
     await dataSource.query('DELETE FROM evotor_applications');
+    await dataSource.query('DELETE FROM evotor_integrations');
+    await dataSource.query('DELETE FROM product_images');
+    await dataSource.query('DELETE FROM products');
+    await dataSource.query('DELETE FROM categories');
+    await dataSource.query('DELETE FROM locations');
+    await dataSource.query('DELETE FROM orders');
+    await dataSource.query('DELETE FROM chat_events');
+    await dataSource.query('DELETE FROM storefront_views');
+    await dataSource.query('DELETE FROM registration_applications');
+    await dataSource.query('UPDATE shops SET "ownerId" = NULL');
+    await dataSource.query('UPDATE users SET "shopId" = NULL');
     await dataSource.query('DELETE FROM shops');
     await dataSource.query('DELETE FROM users');
   });
@@ -343,6 +364,134 @@ describe('UserService Integration', () => {
       ).rejects.toThrow(
         'User with ID "00000000-0000-0000-0000-000000000000" not found',
       );
+    });
+  });
+
+  describe('hardDelete', () => {
+    it('should delete owned shop and tenant data', async () => {
+      const owner = await userService.create({
+        email: 'owner-delete@example.com',
+        password: 'password123',
+        role: 'owner',
+        shopId,
+      });
+      const member = await userService.create({
+        email: 'member-delete@example.com',
+        password: 'password123',
+        role: 'member',
+        shopId,
+      });
+
+      await dataSource
+        .getRepository(Shop)
+        .update(shopId, { ownerId: owner.id });
+
+      const category = await dataSource.getRepository(Category).save({
+        shopId,
+        name: 'Delete Category',
+        slug: 'delete-category',
+      });
+      const product = await dataSource.getRepository(Product).save({
+        shopId,
+        sku: 'DELETE-SKU',
+        name: 'Delete Product',
+        categoryId: category.id,
+      });
+      await dataSource.getRepository(ProductImage).save({
+        shopId,
+        productId: product.id,
+        s3Key: 'shops/delete/product.jpg',
+        publicUrl: '/media/product.jpg',
+        contentType: 'image/jpeg',
+        size: 100,
+      });
+      await dataSource.getRepository(Location).save({
+        shopId,
+        name: 'Delete Location',
+      });
+      const session = await dataSource.getRepository(ChatSession).save({
+        shopId,
+        userId: owner.id,
+        lastMessageAt: new Date(),
+      });
+      await dataSource.getRepository(ChatMessage).save({
+        sessionId: session.id,
+        role: 'user',
+        content: 'hello',
+      });
+      await dataSource.getRepository(EvotorApplication).save({
+        userId: owner.id,
+        shopId,
+        evotorUserId: 'evotor-delete-user',
+        status: RegistrationStatus.PENDING,
+      });
+      await dataSource.getRepository(EvotorIntegration).save({
+        shopId,
+        externalStoreId: 'evotor-delete-store',
+      });
+      await dataSource.getRepository(Order).save({
+        shopId,
+        customerName: 'Customer',
+        customerPhone: '+70000000000',
+        items: [{ productId: product.id, quantity: 1, price: 100 }],
+        totalAmount: 100,
+      });
+      await dataSource.getRepository(ChatEvent).save({
+        shopId,
+        userQuery: 'hello',
+        answerLength: 5,
+        sourcesCount: 1,
+      });
+      await dataSource.getRepository(StorefrontView).save({ shopId });
+      await dataSource.getRepository(RegistrationApplication).save({
+        email: owner.email,
+        passwordHash: 'hash',
+        shopName: 'Integration Test Shop',
+        shopSlug: `deleted-${shopId}`,
+        status: RegistrationStatus.APPROVED,
+        approvedShopId: shopId,
+        approvedUserId: owner.id,
+      });
+
+      await userService.hardDelete(owner.id);
+
+      await expect(userService.findById(owner.id)).rejects.toThrow(
+        `User with ID "${owner.id}" not found`,
+      );
+      await expect(userService.findById(member.id)).rejects.toThrow(
+        `User with ID "${member.id}" not found`,
+      );
+      await expect(
+        dataSource.getRepository(Shop).findOneBy({ id: shopId }),
+      ).resolves.toBeNull();
+      await expect(dataSource.getRepository(Product).count()).resolves.toBe(0);
+      await expect(
+        dataSource.getRepository(ProductImage).count(),
+      ).resolves.toBe(0);
+      await expect(dataSource.getRepository(Category).count()).resolves.toBe(0);
+      await expect(dataSource.getRepository(Location).count()).resolves.toBe(0);
+      await expect(dataSource.getRepository(ChatSession).count()).resolves.toBe(
+        0,
+      );
+      await expect(dataSource.getRepository(ChatMessage).count()).resolves.toBe(
+        0,
+      );
+      await expect(
+        dataSource.getRepository(EvotorApplication).count(),
+      ).resolves.toBe(0);
+      await expect(
+        dataSource.getRepository(EvotorIntegration).count(),
+      ).resolves.toBe(0);
+      await expect(dataSource.getRepository(Order).count()).resolves.toBe(0);
+      await expect(dataSource.getRepository(ChatEvent).count()).resolves.toBe(
+        0,
+      );
+      await expect(
+        dataSource.getRepository(StorefrontView).count(),
+      ).resolves.toBe(0);
+      await expect(
+        dataSource.getRepository(RegistrationApplication).count(),
+      ).resolves.toBe(0);
     });
   });
 

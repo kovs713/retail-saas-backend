@@ -414,7 +414,7 @@ describe('VectorStoreService', () => {
           { shopId: mockTenantContext.shopId, type: 'product' },
         ],
       });
-      bindCollection(collection);
+      chromaDBClient.ensureCollection.mockResolvedValue(collection);
 
       const result = await service.deleteDocumentsByFilter(
         mockTenantContext.shopId,
@@ -423,9 +423,11 @@ describe('VectorStoreService', () => {
 
       expect(collection.get).toHaveBeenCalledWith({
         where: {
-          shopId: mockTenantContext.shopId,
-          type: 'product',
-          productId: 'product-1',
+          $and: [
+            { shopId: mockTenantContext.shopId },
+            { type: 'product' },
+            { productId: 'product-1' },
+          ],
         },
       });
       expect(chromaDBClient.delete).toHaveBeenCalledWith({
@@ -434,8 +436,13 @@ describe('VectorStoreService', () => {
       expect(result).toBe(2);
     });
 
-    it('should return zero when the collection is unavailable', async () => {
-      bindCollection(null);
+    it('should return zero when no documents match the filter', async () => {
+      const collection = makeCollectionWithDocs({
+        ids: [],
+        documents: [],
+        metadatas: [],
+      });
+      chromaDBClient.ensureCollection.mockResolvedValue(collection);
 
       const result = await service.deleteDocumentsByFilter(
         mockTenantContext.shopId,

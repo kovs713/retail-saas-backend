@@ -1,6 +1,4 @@
 import { CacheService } from '@/core/cache/cache.service';
-import { EvotorApplicationRepository } from '@/modules/evotor/repositories';
-import { ChatSessionRepository } from '@/modules/rag/chat/repositories';
 import { ShopRepository } from '@/modules/shop/repositories';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { User } from './entities';
@@ -13,15 +11,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { compare, hash } from 'bcryptjs';
+import { DataSource, EntityManager } from 'typeorm';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly shopRepository: ShopRepository,
-    private readonly chatSessionRepository: ChatSessionRepository,
-    private readonly evotorApplicationRepository: EvotorApplicationRepository,
     private readonly cacheService: CacheService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createDto: CreateUserDto): Promise<User> {
@@ -148,18 +146,191 @@ export class UserService {
 
   async hardDelete(id: string): Promise<void> {
     const user = await this.findById(id);
+    const ownedShop = await this.shopRepository.findByOwnerId(id);
+    const usersToInvalidate = ownedShop
+      ? await this.userRepository.findByShopId(ownedShop.id)
+      : [user];
 
-    await this.chatSessionRepository.delete({ userId: id });
-    await this.evotorApplicationRepository.delete({ userId: id });
-
-    const shop = await this.shopRepository.findByOwnerId(id);
-    if (shop) {
-      shop.ownerId = null;
-      await this.shopRepository.save(shop);
+    if (!usersToInvalidate.some((u) => u.id === user.id)) {
+      usersToInvalidate.push(user);
     }
 
-    await this.userRepository.remove(user);
-    await this.invalidateUserCache(id, user.email);
+    await this.dataSource.transaction(async (manager) => {
+      if (ownedShop) {
+        await this.deleteOwnedShopData(manager, id, ownedShop.id, {
+          slug: ownedShop.slug,
+          userIds: usersToInvalidate.map((u) => u.id),
+          emails: usersToInvalidate.map((u) => u.email),
+        });
+        return;
+      }
+
+      await this.deleteUserData(manager, id, user.email);
+      await this.deleteWhere(manager, 'users', 'id = :userId', { userId: id });
+    });
+
+    await Promise.all(
+      usersToInvalidate.map((u) => this.invalidateUserCache(u.id, u.email)),
+    );
+  }
+
+  private async deleteOwnedShopData(
+    manager: EntityManager,
+    ownerId: string,
+    shopId: string,
+    related: { slug: string; userIds: string[]; emails: string[] },
+  ): Promise<void> {
+    await manager.update('shops', { id: shopId }, { ownerId: null });
+
+    await this.deleteWhere(
+      manager,
+      'chat_messages',
+      '"sessionId" IN (SELECT id FROM chat_sessions WHERE "shopId" = :shopId OR "userId" = :ownerId)',
+      { shopId, ownerId },
+    );
+    await this.deleteWhere(
+      manager,
+      'chat_sessions',
+      '"shopId" = :shopId OR "userId" = :ownerId',
+      { shopId, ownerId },
+    );
+
+    await this.deleteWhere(
+      manager,
+      'evotor_applications',
+      '"shopId" = :shopId OR "userId" = :ownerId',
+      { shopId, ownerId },
+    );
+    await this.deleteWhere(
+      manager,
+      'evotor_integrations',
+      '"shopId" = :shopId',
+      {
+        shopId,
+      },
+    );
+
+    await this.deleteWhere(manager, 'product_images', '"shopId" = :shopId', {
+      shopId,
+    });
+    await this.deleteWhere(manager, 'products', '"shopId" = :shopId', {
+      shopId,
+    });
+    await this.deleteWhere(manager, 'categories', '"shopId" = :shopId', {
+      shopId,
+    });
+
+    await this.deleteWhere(manager, 'locations', '"shopId" = :shopId', {
+      shopId,
+    });
+    await this.deleteWhere(manager, 'orders', '"shopId" = :shopId', { shopId });
+    await this.deleteWhere(manager, 'chat_events', '"shopId" = :shopId', {
+      shopId,
+    });
+    await this.deleteWhere(manager, 'storefront_views', '"shopId" = :shopId', {
+      shopId,
+    });
+
+    await this.deleteRegistrationApplications(manager, {
+      shopId,
+      slug: related.slug,
+      userIds: related.userIds,
+      emails: related.emails,
+    });
+
+    await this.deleteWhere(
+      manager,
+      'users',
+      'id = :ownerId OR "shopId" = :shopId',
+      { ownerId, shopId },
+    );
+    await this.deleteWhere(manager, 'shops', 'id = :shopId', { shopId });
+  }
+
+  private async deleteUserData(
+    manager: EntityManager,
+    userId: string,
+    email: string,
+  ): Promise<void> {
+    await this.deleteWhere(
+      manager,
+      'chat_messages',
+      '"sessionId" IN (SELECT id FROM chat_sessions WHERE "userId" = :userId)',
+      { userId },
+    );
+    await this.deleteWhere(manager, 'chat_sessions', '"userId" = :userId', {
+      userId,
+    });
+    await this.deleteWhere(
+      manager,
+      'evotor_applications',
+      '"userId" = :userId',
+      {
+        userId,
+      },
+    );
+    await this.deleteRegistrationApplications(manager, {
+      userIds: [userId],
+      emails: [email],
+    });
+  }
+
+  private async deleteRegistrationApplications(
+    manager: EntityManager,
+    params: {
+      shopId?: string;
+      slug?: string;
+      userIds?: string[];
+      emails?: string[];
+    },
+  ): Promise<void> {
+    const where: string[] = [];
+    const queryParams: Record<string, string | string[]> = {};
+
+    if (params.shopId) {
+      where.push('"approvedShopId" = :shopId');
+      queryParams.shopId = params.shopId;
+    }
+
+    if (params.slug) {
+      where.push('"shopSlug" = :slug');
+      queryParams.slug = params.slug;
+    }
+
+    if (params.userIds?.length) {
+      where.push('"approvedUserId" IN (:...userIds)');
+      queryParams.userIds = params.userIds;
+    }
+
+    if (params.emails?.length) {
+      where.push('email IN (:...emails)');
+      queryParams.emails = params.emails;
+    }
+
+    if (!where.length) {
+      return;
+    }
+
+    await this.deleteWhere(
+      manager,
+      'registration_applications',
+      where.join(' OR '),
+      queryParams,
+    );
+  }
+
+  private async deleteWhere(
+    manager: EntityManager,
+    table: string,
+    where: string,
+    params: Record<string, unknown>,
+  ): Promise<void> {
+    await manager
+      .createQueryBuilder()
+      .delete()
+      .from(table)
+      .where(where, params)
+      .execute();
   }
 
   async invalidateCache(user: Pick<User, 'id' | 'email'>): Promise<void> {

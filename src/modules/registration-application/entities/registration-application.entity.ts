@@ -10,14 +10,14 @@ import {
 } from 'typeorm';
 
 @Entity('registration_applications')
-@Index(['email'], { unique: true })
-@Index(['shopSlug'], { unique: true })
+@Index(['email'], { unique: true, where: `"status" = 'PENDING'` })
+@Index(['shopSlug'], { unique: true, where: `"status" = 'PENDING'` })
 @Index(['status'])
 export class RegistrationApplication {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column()
   email: string;
 
   @Column()
@@ -26,7 +26,7 @@ export class RegistrationApplication {
   @Column()
   shopName: string;
 
-  @Column({ unique: true })
+  @Column()
   shopSlug: string;
 
   @Column({ type: 'text', nullable: true })

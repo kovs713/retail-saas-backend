@@ -19,6 +19,16 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class RagService {
   private readonly logger: LoggerService = new LoggerService(RagService.name);
+  private static readonly hiddenGroupMetadataKeys = new Set([
+    '_id',
+    'shopId',
+    'documentGroupId',
+    'chunkIndex',
+    'totalChunks',
+    'locFrom',
+    'locTo',
+    'title',
+  ]);
   private static readonly catalogContextLimit = 50;
   private static readonly retrievalStopWords = new Set([
     'a',
@@ -147,8 +157,9 @@ export class RagService {
           'unknown';
         groupsMap.set(groupId, {
           documentGroupId: groupId,
+          title: this.getDocumentTitle(doc.metadata),
           source,
-          metadata: doc.metadata,
+          metadata: this.getGroupMetadata(doc.metadata),
           totalChunks: 0,
           chunks: [],
         });
@@ -207,11 +218,12 @@ export class RagService {
 
     const group: DocumentGroupDto = {
       documentGroupId: result.documentGroupId,
+      title: this.getDocumentTitle(document.metadata),
       source:
         (document.metadata?.source as string) ||
         (document.metadata?.filename as string) ||
         'upload',
-      metadata: document.metadata,
+      metadata: this.getGroupMetadata(document.metadata),
       totalChunks: result.totalChunks,
       chunks:
         document.pageContent.match(/[\s\S]{1,1000}/g)?.map((chunk, index) => ({
@@ -223,6 +235,7 @@ export class RagService {
 
     return {
       documentGroupId: result.documentGroupId,
+      title: this.getDocumentTitle(document.metadata),
       totalChunks: result.totalChunks,
       timestamp: new Date().toISOString(),
       group,
@@ -235,9 +248,7 @@ export class RagService {
 
   async clearDocuments(shopId: string): Promise<void> {
     await this.vectorStoreService.deleteDocuments(shopId);
-    this.logger.warn(
-      'clearDocuments not fully implemented for LangChain Chroma wrapper',
-    );
+    this.logger.log(`Cleared all documents for organization: ${shopId}`);
   }
 
   async deleteDocumentGroup(
@@ -282,8 +293,9 @@ export class RagService {
 
     const group: DocumentGroupDto = {
       documentGroupId,
+      title: this.getDocumentTitle(filteredDocs[0].metadata),
       source,
-      metadata: filteredDocs[0].metadata,
+      metadata: this.getGroupMetadata(filteredDocs[0].metadata),
       totalChunks: filteredDocs.length,
       chunks: filteredDocs.map((doc) => ({
         pageContent: doc.pageContent,
@@ -299,12 +311,19 @@ export class RagService {
     dto: CreateRagDocumentDto,
     shopId: string,
   ): Promise<RagDocumentGroupResponseDto> {
+    const title = this.getDocumentTitle(
+      dto.title !== undefined
+        ? { ...dto.metadata, title: dto.title }
+        : dto.metadata,
+    );
+    const timestamp = new Date().toISOString();
     const documents = dto.chunks.map((chunk) => ({
       pageContent: chunk.pageContent,
       metadata: {
         ...dto.metadata,
+        ...(title !== undefined ? { title } : {}),
         source: dto.source,
-        timestamp: new Date().toISOString(),
+        timestamp,
       },
     }));
 
@@ -316,12 +335,14 @@ export class RagService {
 
     const group: DocumentGroupDto = {
       documentGroupId: result.documentGroupId,
+      title,
       source: dto.source,
-      metadata: {
+      metadata: this.getGroupMetadata({
         ...dto.metadata,
+        ...(title !== undefined ? { title } : {}),
         source: dto.source,
-        timestamp: new Date().toISOString(),
-      },
+        timestamp,
+      }),
       totalChunks: result.totalChunks,
       chunks: dto.chunks.map((chunk, index) => ({
         pageContent: chunk.pageContent,
@@ -332,6 +353,7 @@ export class RagService {
 
     return {
       documentGroupId: result.documentGroupId,
+      title,
       totalChunks: result.totalChunks,
       timestamp: new Date().toISOString(),
       group,
@@ -360,8 +382,16 @@ export class RagService {
         }))
       : existingGroup.chunks;
     const source = dto.source ?? existingGroup.source;
-    const metadata = { ...existingGroup.metadata, ...dto.metadata };
+    const metadata = {
+      ...existingGroup.metadata,
+      ...(existingGroup.title !== undefined
+        ? { title: existingGroup.title }
+        : {}),
+      ...dto.metadata,
+      ...(dto.title !== undefined ? { title: dto.title } : {}),
+    };
     const fallbackContent = existingGroup.chunks[0]?.pageContent ?? '';
+    const title = this.getDocumentTitle(metadata);
 
     const documents: Document[] = chunksToUpdate.map((chunk) => ({
       pageContent: chunk.pageContent ?? fallbackContent,
@@ -380,8 +410,9 @@ export class RagService {
 
     const updatedGroup: DocumentGroupDto = {
       documentGroupId,
+      title,
       source,
-      metadata,
+      metadata: this.getGroupMetadata(metadata),
       totalChunks,
       chunks: chunksToUpdate.map((chunk, index) => ({
         pageContent:
@@ -393,10 +424,55 @@ export class RagService {
 
     return {
       documentGroupId,
+      title,
       totalChunks,
       timestamp: new Date().toISOString(),
       group: updatedGroup,
     };
+  }
+
+  private getDocumentTitle(
+    metadata?: Record<string, unknown>,
+  ): string | undefined {
+    const title = this.getNonEmptyString(metadata?.title);
+    if (title) {
+      return title;
+    }
+
+    return this.getNonEmptyString(metadata?.filename);
+  }
+
+  private getGroupMetadata(
+    metadata?: Record<string, unknown>,
+  ): Record<string, unknown> | undefined {
+    const groupMetadata: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(metadata ?? {})) {
+      if (RagService.hiddenGroupMetadataKeys.has(key)) {
+        continue;
+      }
+
+      groupMetadata[key] =
+        key === 'preprocess' ? this.parsePreprocessMetadata(value) : value;
+    }
+
+    return Object.keys(groupMetadata).length > 0 ? groupMetadata : undefined;
+  }
+
+  private parsePreprocessMetadata(value: unknown): unknown {
+    if (typeof value !== 'string') {
+      return value;
+    }
+
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return value;
+    }
+  }
+
+  private getNonEmptyString(value: unknown): string | undefined {
+    return typeof value === 'string' && value.trim() ? value : undefined;
   }
 
   private mergeProducts(
@@ -728,6 +804,10 @@ Question: ${query}`;
     return attributes.length > 0 ? attributes.join('; ') : null;
   }
 
+  private buildEmptyContextAnswer(query: string): string | null {
+    return /[\u0400-\u04FF]/u.test(query) ? 'Не знаю.' : "I don't know.";
+  }
+
   private isCatalogDocument(doc: {
     metadata?: Record<string, unknown>;
   }): boolean {
@@ -757,6 +837,17 @@ Question: ${query}`;
       shopId,
       maxResults,
     );
+
+    const hasVectorSources = sources.some(
+      (s) => s.metadata?.source === 'vector_store',
+    );
+
+    if (!hasVectorSources) {
+      const answer = !context.trim() ? this.buildEmptyContextAnswer(query) : '';
+      if (answer) {
+        return { answer, sources: [] };
+      }
+    }
 
     const prompt = this.buildPrompt(query, context);
     const systemMessage = this.buildSystemMessage(query, systemPrompt);
@@ -801,6 +892,15 @@ Question: ${query}`;
     this.logger.log(
       `Found ${vectorDocsWithScores.length} vector documents with scores`,
     );
+
+    const hasVectorSources = sources.some(
+      (s) => s.metadata?.source === 'vector_store',
+    );
+
+    if (!hasVectorSources && !context.trim()) {
+      const fallbackAnswer = this.buildEmptyContextAnswer(query);
+      return { answer: fallbackAnswer ?? '', sources: [] };
+    }
 
     const prompt = this.buildPrompt(query, context);
     const systemMessage = this.buildSystemMessage(query, systemPrompt);
@@ -856,6 +956,17 @@ Question: ${query}`;
       shopId,
       maxResults,
     );
+
+    const hasVectorSources = sources.some(
+      (s) => s.metadata?.source === 'vector_store',
+    );
+
+    if (!hasVectorSources && !context.trim()) {
+      const answer = this.buildEmptyContextAnswer(query);
+      yield { type: 'chunk', content: answer ?? '' };
+      yield { type: 'complete', sources: [] };
+      return;
+    }
 
     const prompt = this.buildPrompt(query, context);
     const systemMessage = this.buildSystemMessage(query, systemPrompt);
