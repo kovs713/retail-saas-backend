@@ -6,17 +6,19 @@ import {
   EvotorAccountDto,
   EvotorAdminCloudTokenDto,
   EvotorAdminDashboard,
+  EvotorAdminDeleteSyncDocumentsQueryDto,
+  EvotorAdminDeleteSyncDocumentsResponseDto,
   EvotorAdminLinkStoreDto,
   EvotorAdminListQueryDto,
   EvotorAdminListResponse,
   EvotorAdminProcessInboxEventsQueryDto,
   EvotorAdminStoreSyncDto,
   EvotorAdminSyncDto,
+  EvotorApplicationDto,
   EvotorDeviceDto,
   EvotorInboxEventDto,
   EvotorProductDto,
   EvotorStoreDto,
-  EvotorApplicationDto,
   RejectEvotorApplicationDto,
 } from './dto';
 import { EvotorApiService } from './evotor-api.service';
@@ -247,6 +249,20 @@ export class EvotorAdminController {
       success: true,
       data: this.redactSensitive(result),
       message: 'Evotor bridge sync started successfully',
+    };
+  }
+
+  @Delete('sync/documents')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete persisted Evotor sync documents' })
+  async deleteSyncDocuments(
+    @Query() query: EvotorAdminDeleteSyncDocumentsQueryDto,
+  ): Promise<AppApiResponse<EvotorAdminDeleteSyncDocumentsResponseDto>> {
+    const result = await this.evotorApiService.deleteAdminSyncDocuments(query);
+    return {
+      success: true,
+      data: result,
+      message: 'Evotor sync documents deleted successfully',
     };
   }
 

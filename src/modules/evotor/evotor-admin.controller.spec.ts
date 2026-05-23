@@ -254,6 +254,26 @@ describe('EvotorAdminController', () => {
     });
   });
 
+  it('deletes received sync documents', async () => {
+    const query = {
+      evotorUserId: '01-000000000000001',
+      storeId: '20190607-4F3B-40E0-80F0-00155D012500',
+    };
+    const response = { deleted: 3 };
+    evotorApiService.deleteAdminSyncDocuments.mockResolvedValue(response);
+
+    const result = await controller.deleteSyncDocuments(query);
+
+    expect(evotorApiService.deleteAdminSyncDocuments).toHaveBeenCalledWith(
+      query,
+    );
+    expect(result).toEqual({
+      success: true,
+      data: response,
+      message: 'Evotor sync documents deleted successfully',
+    });
+  });
+
   it('processes received bridge inbox events', async () => {
     const query = {
       evotorUserId: '01-000000000000001',

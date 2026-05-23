@@ -4,6 +4,8 @@ import {
   EvotorAccountDto,
   EvotorAdminCloudTokenDto,
   EvotorAdminDashboard,
+  EvotorAdminDeleteSyncDocumentsQueryDto,
+  EvotorAdminDeleteSyncDocumentsResponseDto,
   EvotorAdminListQueryDto,
   EvotorAdminListResponse,
   EvotorAdminProcessInboxEventsQueryDto,
@@ -472,6 +474,19 @@ export class EvotorApiService {
         evotorUserId: payload.evotorUserId,
         timeoutMs: Math.max(this.evotorConfig.timeoutMs, 30000),
       },
+    );
+  }
+
+  async deleteAdminSyncDocuments(
+    query: EvotorAdminDeleteSyncDocumentsQueryDto,
+  ): Promise<EvotorAdminDeleteSyncDocumentsResponseDto> {
+    return this.request<EvotorAdminDeleteSyncDocumentsResponseDto>(
+      this.buildPath('/admin/evotor/sync/documents', {
+        evotorUserId: query.evotorUserId,
+        storeId: query.storeId,
+      }),
+      { method: 'DELETE' },
+      { evotorUserId: query.evotorUserId },
     );
   }
 

@@ -172,6 +172,31 @@ export class EvotorAdminStoreSyncDto {
   dateTo?: string;
 }
 
+export class EvotorAdminDeleteSyncDocumentsQueryDto {
+  @ApiPropertyOptional({
+    description: 'Evotor user id filter. If omitted, all sync documents are deleted.',
+    example: '01-000000000000001',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(EVOTOR_USER_ID_PATTERN, { message: 'Invalid evotorUserId format' })
+  evotorUserId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Evotor store id filter. Used with evotorUserId to limit deletion.',
+    example: '20190607-4F3B-40E0-80F0-00155D012500',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(EVOTOR_UUID_PATTERN, { message: 'Invalid storeId format' })
+  storeId?: string;
+}
+
+export class EvotorAdminDeleteSyncDocumentsResponseDto {
+  @ApiProperty({ description: 'Deleted sync documents count', example: 42 })
+  deleted: number;
+}
+
 export class EvotorAdminCloudTokenDto {
   @ApiProperty({
     description: 'Evotor user id that owns the cloud token',

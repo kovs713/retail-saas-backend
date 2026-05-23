@@ -503,6 +503,25 @@ describe('EvotorApiService', () => {
     );
   });
 
+  it('deletes admin sync documents through the bridge', async () => {
+    const response = { deleted: 3 };
+    fetchMock.mockResolvedValueOnce(jsonResponse(response));
+
+    const result = await service.deleteAdminSyncDocuments({
+      evotorUserId: '01-000000000000001',
+      storeId: '20190607-4F3B-40E0-80F0-00155D012500',
+    });
+
+    expect(result).toEqual(response);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://bridge.example.com/admin/evotor/sync/documents?evotorUserId=01-000000000000001&storeId=20190607-4F3B-40E0-80F0-00155D012500',
+      expect.objectContaining({
+        method: 'DELETE',
+        headers: expect.any(Headers),
+      }),
+    );
+  });
+
   it('forwards cloud token to bridge admin recovery endpoint', async () => {
     const payload = {
       evotorUserId: 'evotor-user-1',
