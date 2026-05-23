@@ -5,8 +5,8 @@ import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { Document } from '@langchain/core/documents';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-import { type Where } from 'chromadb';
 import { Inject, Injectable } from '@nestjs/common';
+import { type Where } from 'chromadb';
 
 @Injectable()
 export class VectorStoreService {
@@ -234,14 +234,16 @@ export class VectorStoreService {
   }
 
   async deleteDocuments(shopId: string): Promise<void> {
-    const collection = this.chromaDBClient.collection;
+    const collection = await this.chromaDBClient.ensureCollection();
 
-    if (!collection) {
-      return;
-    }
     const documents = await collection.get({
       where: { shopId },
     });
+
+    if (!documents.ids?.length) {
+      this.logger.log(`No documents found for organization: ${shopId}`);
+      return;
+    }
 
     await this.chromaDBClient.delete({ ids: documents.ids });
 
@@ -254,11 +256,7 @@ export class VectorStoreService {
     documentGroupId: string,
     shopId: string,
   ): Promise<number> {
-    const collection = this.chromaDBClient.collection;
-
-    if (!collection) {
-      return 0;
-    }
+    const collection = await this.chromaDBClient.ensureCollection();
 
     const documents = await collection.get({
       where: {
@@ -338,13 +336,16 @@ export class VectorStoreService {
     shopId: string,
     filter: Record<string, string | number | boolean | null>,
   ): Promise<number> {
-    const collection = this.chromaDBClient.collection;
+    const collection = await this.chromaDBClient.ensureCollection();
 
-    if (!collection) {
-      return 0;
+    const conditions: Where[] = [{ shopId } as Where];
+    for (const [key, value] of Object.entries(filter)) {
+      conditions.push({ [key]: value } as Where);
     }
 
-    const where: Where = this.sanitizeMetadata({ shopId, ...filter }) as Where;
+    const where: Where =
+      conditions.length === 1 ? conditions[0] : ({ $and: conditions } as Where);
+
     const documents = await collection.get({ where });
 
     if (!documents.ids?.length) {
