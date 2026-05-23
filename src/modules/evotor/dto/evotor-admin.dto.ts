@@ -216,7 +216,8 @@ export class EvotorAdminStoreSyncDto {
 
 export class EvotorAdminDeleteSyncDocumentsQueryDto {
   @ApiPropertyOptional({
-    description: 'Evotor user id filter. If omitted, all sync documents are deleted.',
+    description:
+      'Evotor user id filter. If omitted, all sync documents are deleted.',
     example: '01-000000000000001',
   })
   @IsOptional()
@@ -225,7 +226,8 @@ export class EvotorAdminDeleteSyncDocumentsQueryDto {
   evotorUserId?: string;
 
   @ApiPropertyOptional({
-    description: 'Evotor store id filter. Used with evotorUserId to limit deletion.',
+    description:
+      'Evotor store id filter. Used with evotorUserId to limit deletion.',
     example: '20190607-4F3B-40E0-80F0-00155D012500',
   })
   @IsOptional()
@@ -332,10 +334,16 @@ export class EvotorStoreSelectOptionDto extends EvotorSelectOptionDto {
 }
 
 export class EvotorAdminSelectorsDto {
-  @ApiProperty({ description: 'Evotor user options', type: [EvotorSelectOptionDto] })
+  @ApiProperty({
+    description: 'Evotor user options',
+    type: [EvotorSelectOptionDto],
+  })
   users: EvotorSelectOptionDto[];
 
-  @ApiProperty({ description: 'Evotor store options', type: [EvotorStoreSelectOptionDto] })
+  @ApiProperty({
+    description: 'Evotor store options',
+    type: [EvotorStoreSelectOptionDto],
+  })
   stores: EvotorStoreSelectOptionDto[];
 }
 

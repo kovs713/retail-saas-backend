@@ -805,7 +805,7 @@ Question: ${query}`;
   }
 
   private buildEmptyContextAnswer(query: string): string | null {
-    return /[\u0400-\u04FF]/u.test(query) ? 'Не знаю.' : 'I don\'t know.';
+    return /[\u0400-\u04FF]/u.test(query) ? 'Не знаю.' : "I don't know.";
   }
 
   private isCatalogDocument(doc: {

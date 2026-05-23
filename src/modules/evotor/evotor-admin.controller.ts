@@ -368,9 +368,8 @@ export class EvotorAdminController {
   private async listLocalEvotorProducts(
     query: EvotorAdminListQueryDto,
   ): Promise<EvotorAdminListResponse<EvotorProductDto>> {
-    const [products, total] = await this.productRepository.findSyncedAdmin(
-      query,
-    );
+    const [products, total] =
+      await this.productRepository.findSyncedAdmin(query);
 
     return {
       items: products.map((product) => this.toEvotorProductDto(product)),

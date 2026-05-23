@@ -223,11 +223,6 @@ export class EvotorService {
       );
     }
 
-    const totalImportedOrders = orderResults.reduce(
-      (sum, r) => sum + r.importedCount,
-      0,
-    );
-
     return {
       bridgeSync,
       storeId: integration.externalStoreId,
@@ -612,7 +607,9 @@ export class EvotorService {
       true,
     );
     const remoteIds = new Set(remoteProducts.map((product) => product.id));
-    const remoteSkus = new Set(remoteProducts.map((product) => product.article_number));
+    const remoteSkus = new Set(
+      remoteProducts.map((product) => product.article_number),
+    );
     const remoteBarcodes = new Set(
       remoteProducts
         .map((product) => product.barcode)
@@ -1278,14 +1275,15 @@ export class EvotorService {
   }
 
   private getIntegrationStoreIds(integration: EvotorIntegration): string[] {
-    const metadata = integration.metadata as Record<string, unknown> | null;
+    const metadata = integration.metadata;
     const bridgeStores = Array.isArray(metadata?.bridgeStores)
       ? metadata.bridgeStores
       : [];
     const fromBridgeStores = bridgeStores
       .map((store) => this.getBridgeStoreExternalId(store))
-      .filter((value): value is string =>
-        typeof value === 'string' && value.length > 0,
+      .filter(
+        (value): value is string =>
+          typeof value === 'string' && value.length > 0,
       );
     const fallback = integration.externalStoreId
       ? [integration.externalStoreId]
