@@ -1,5 +1,6 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { mockAuthGuard, mockGuard } from '@/common/utils';
+import { ProductRepository } from '@/modules/product/repositories';
 import { EvotorAdminController } from './evotor-admin.controller';
 import { EvotorApiService } from './evotor-api.service';
 import { EvotorApplicationService } from './evotor-application.service';
@@ -16,6 +17,7 @@ describe('EvotorAdminController', () => {
   let evotorApiService: DeepMocked<EvotorApiService>;
   let evotorService: DeepMocked<EvotorService>;
   let evotorApplicationService: DeepMocked<EvotorApplicationService>;
+  let productRepository: DeepMocked<ProductRepository>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -26,6 +28,10 @@ describe('EvotorAdminController', () => {
         {
           provide: EvotorApplicationService,
           useValue: createMock<EvotorApplicationService>(),
+        },
+        {
+          provide: ProductRepository,
+          useValue: createMock<ProductRepository>(),
         },
         { provide: JwtService, useValue: createMock<JwtService>() },
         { provide: ConfigService, useValue: createMock<ConfigService>() },
@@ -49,6 +55,8 @@ describe('EvotorAdminController', () => {
     evotorApiService = module.get(EvotorApiService);
     evotorService = module.get(EvotorService);
     evotorApplicationService = module.get(EvotorApplicationService);
+    productRepository = module.get(ProductRepository);
+    productRepository.findSyncedAdmin.mockResolvedValue([[], 0] as never);
   });
 
   it('lists Evotor applications', async () => {
@@ -178,6 +186,11 @@ describe('EvotorAdminController', () => {
     const query = {
       evotorUserId: 'evotor-user-1',
       storeId: 'store-1',
+      storeUuid: '20190405-F247-4028-8080-1031D2F79B44',
+      productId: 'e2e7770b-4840-45b2-8b19-43ccf54c0059',
+      search: 'TetraPro',
+      name: 'Energy Crisps',
+      code: '3706',
       skip: 0,
       take: 20,
     };
@@ -202,6 +215,54 @@ describe('EvotorAdminController', () => {
     expect(evotorApiService.listAdminDevices).toHaveBeenCalledWith(query);
     expect(evotorApiService.listAdminProducts).toHaveBeenCalledWith(query);
     expect(evotorApiService.listAdminDocuments).toHaveBeenCalledWith(query);
+  });
+
+  it('falls back to local Evotor products when bridge list is empty', async () => {
+    const query = { skip: 0, take: 20 };
+    evotorApiService.listAdminProducts.mockResolvedValue({
+      items: [],
+      total: 0,
+      skip: 0,
+      take: 20,
+    });
+    productRepository.findSyncedAdmin.mockResolvedValue([
+      [
+        {
+          id: 'local-product-1',
+          sku: 'sku-1',
+          name: 'Product 1',
+          price: 100,
+          quantity: 3,
+          externalId: 'evotor-product-1',
+          externalStoreId: 'store-1',
+          metadata: { evotor: { userId: '01-000000000000001' } },
+          createdAt: new Date('2026-05-23T00:00:00.000Z'),
+          updatedAt: new Date('2026-05-23T00:00:00.000Z'),
+        },
+      ],
+      1,
+    ] as never);
+
+    const result = await controller.listProducts(query);
+
+    expect(productRepository.findSyncedAdmin).toHaveBeenCalledWith(query);
+    expect(result).toEqual({
+      success: true,
+      data: {
+        items: [
+          expect.objectContaining({
+            id: 'evotor-product-1',
+            articleNumber: 'sku-1',
+            localProductId: 'local-product-1',
+            storeId: 'store-1',
+            evotorUserId: '01-000000000000001',
+          }),
+        ],
+        total: 1,
+        skip: 0,
+        take: 20,
+      },
+    });
   });
 
   it('links a shop to a bridge store', async () => {

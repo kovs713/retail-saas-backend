@@ -2,6 +2,8 @@ import { Roles } from '@/common/decorators';
 import { ApiResponse as AppApiResponse } from '@/common/dto';
 import { RegistrationStatus, Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
+import { Product } from '@/modules/product/entities';
+import { ProductRepository } from '@/modules/product/repositories';
 import {
   EvotorAccountDto,
   EvotorAdminCloudTokenDto,
@@ -56,6 +58,7 @@ export class EvotorAdminController {
     private readonly evotorApiService: EvotorApiService,
     private readonly evotorService: EvotorService,
     private readonly evotorApplicationService: EvotorApplicationService,
+    private readonly productRepository: ProductRepository,
   ) {}
 
   @Get('applications')
@@ -199,6 +202,16 @@ export class EvotorAdminController {
     @Query() query: EvotorAdminListQueryDto,
   ): Promise<AppApiResponse<EvotorAdminListResponse<EvotorProductDto>>> {
     const result = await this.evotorApiService.listAdminProducts(query);
+    if (result.total === 0) {
+      const localResult = await this.listLocalEvotorProducts(query);
+      if (localResult.total > 0) {
+        return {
+          success: true,
+          data: localResult,
+        };
+      }
+    }
+
     return {
       success: true,
       data: this.redactSensitive(result),
@@ -350,5 +363,55 @@ export class EvotorAdminController {
           : this.redactSensitive(entry),
       ]),
     ) as T;
+  }
+
+  private async listLocalEvotorProducts(
+    query: EvotorAdminListQueryDto,
+  ): Promise<EvotorAdminListResponse<EvotorProductDto>> {
+    const [products, total] = await this.productRepository.findSyncedAdmin(
+      query,
+    );
+
+    return {
+      items: products.map((product) => this.toEvotorProductDto(product)),
+      total,
+      skip: query.skip ?? 0,
+      take: query.take ?? 20,
+    };
+  }
+
+  private toEvotorProductDto(product: Product): EvotorProductDto {
+    const evotorMetadata = this.getEvotorMetadata(product);
+
+    return {
+      id: product.externalId ?? product.id,
+      articleNumber: product.sku,
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      storeId: product.externalStoreId ?? evotorMetadata.storeId,
+      evotorUserId: evotorMetadata.userId,
+      localProductId: product.id,
+      metadata: product.metadata,
+      createdAt: product.createdAt?.toISOString(),
+      updatedAt: product.updatedAt?.toISOString(),
+    };
+  }
+
+  private getEvotorMetadata(product: Product): {
+    storeId?: string;
+    userId?: string;
+  } {
+    const evotor = product.metadata?.evotor;
+    if (!evotor || typeof evotor !== 'object' || Array.isArray(evotor)) {
+      return {};
+    }
+
+    const metadata = evotor as Record<string, unknown>;
+    return {
+      storeId:
+        typeof metadata.storeId === 'string' ? metadata.storeId : undefined,
+      userId: typeof metadata.userId === 'string' ? metadata.userId : undefined,
+    };
   }
 }

@@ -435,6 +435,65 @@ export class ProductRepository extends Repository<Product> {
     });
   }
 
+  async findSyncedAdmin(query: {
+    skip?: number;
+    take?: number;
+    evotorUserId?: string;
+    storeId?: string;
+    storeUuid?: string;
+    productId?: string;
+    search?: string;
+    name?: string;
+    code?: string;
+  }): Promise<[Product[], number]> {
+    const skip = query.skip ?? 0;
+    const take = Math.min(query.take ?? 20, 100);
+    const queryBuilder = this.repository
+      .createQueryBuilder('product')
+      .where('product.externalSource = :externalSource', {
+        externalSource: 'evotor',
+      })
+      .andWhere('product.deletedAt IS NULL');
+
+    const storeId = query.storeId ?? query.storeUuid;
+    if (storeId) {
+      queryBuilder.andWhere('product.externalStoreId = :storeId', {
+        storeId,
+      });
+    }
+
+    if (query.productId) {
+      queryBuilder.andWhere('product.externalId = :productId', {
+        productId: query.productId,
+      });
+    }
+
+    if (query.code) {
+      queryBuilder.andWhere('product.sku = :code', { code: query.code });
+    }
+
+    const nameFilter = query.search ?? query.name;
+    if (nameFilter) {
+      const search = `%${this.escapeLikePattern(nameFilter)}%`;
+      queryBuilder.andWhere(`product.name ILIKE :search ESCAPE '\\'`, {
+        search,
+      });
+    }
+
+    if (query.evotorUserId) {
+      queryBuilder.andWhere(
+        "product.metadata -> 'evotor' ->> 'userId' = :evotorUserId",
+        { evotorUserId: query.evotorUserId },
+      );
+    }
+
+    return queryBuilder
+      .orderBy('product.createdAt', 'DESC')
+      .skip(skip)
+      .take(take)
+      .getManyAndCount();
+  }
+
   async incrementQuantity(
     id: string,
     shopId: string,

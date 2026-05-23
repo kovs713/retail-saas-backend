@@ -4,4 +4,9 @@ export interface RemoteProduct {
   name: string;
   price: number;
   quantity: number;
+  barcode?: string;
+  productId?: string;
+  code?: string;
+  rawPayload?: Record<string, unknown>;
+  raw_payload?: Record<string, unknown>;
 }

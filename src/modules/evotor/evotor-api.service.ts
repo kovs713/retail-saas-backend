@@ -77,6 +77,11 @@ type EvotorAdminListQuery = Pick<
   EvotorAdminListQueryDto,
   | 'evotorUserId'
   | 'storeId'
+  | 'storeUuid'
+  | 'productId'
+  | 'search'
+  | 'name'
+  | 'code'
   | 'skip'
   | 'take'
   | 'dateFrom'
@@ -567,6 +572,14 @@ export class EvotorApiService {
       if (query.storeId) params.storeId = query.storeId;
     }
 
+    if (resource === 'products') {
+      if (query.storeUuid) params.storeUuid = query.storeUuid;
+      if (query.productId) params.productId = query.productId;
+      if (query.search) params.search = query.search;
+      if (query.name) params.name = query.name;
+      if (query.code) params.code = query.code;
+    }
+
     if (inboxResources.includes(resource)) {
       if (query.eventType) params.eventType = query.eventType;
       if (query.dateFrom) params.dateFrom = query.dateFrom;
@@ -615,13 +628,10 @@ export class EvotorApiService {
   }
 
   private getEvotorUserId(record: Record<string, unknown>): string | null {
-    const evotorUserId = this.pickString([record], [
-      'evotorUserId',
-      'externalUserId',
-      'userId',
-      'user_id',
-      'evotor_user_id',
-    ]);
+    const evotorUserId = this.pickString(
+      [record],
+      ['evotorUserId', 'externalUserId', 'userId', 'user_id', 'evotor_user_id'],
+    );
 
     if (evotorUserId) {
       return evotorUserId;
@@ -632,14 +642,17 @@ export class EvotorApiService {
   }
 
   private getEvotorStoreId(record: Record<string, unknown>): string | null {
-    return this.pickString([record], [
-      'externalStoreId',
-      'storeUuid',
-      'store_uuid',
-      'uuid',
-      'storeId',
-      'store_id',
-    ]);
+    return this.pickString(
+      [record],
+      [
+        'externalStoreId',
+        'storeUuid',
+        'store_uuid',
+        'uuid',
+        'storeId',
+        'store_id',
+      ],
+    );
   }
 
   private async request<T>(
@@ -800,15 +813,43 @@ export class EvotorApiService {
       return null;
     }
 
-    const rawPayload = this.asRecord(product.rawPayload);
+    const rawPayload =
+      this.asRecord(product.rawPayload) ?? this.asRecord(product.raw_payload);
+
+    const payload = this.asRecord(product.payload);
     const data = this.asRecord(product.data);
-    const records = [product, rawPayload, data];
+    const productNode = this.asRecord(product.product);
+
+    const rawPayloadPayload = this.asRecord(rawPayload?.payload);
+    const rawPayloadData = this.asRecord(rawPayload?.data);
+    const rawPayloadProduct = this.asRecord(rawPayload?.product);
+
+    const payloadData = this.asRecord(payload?.data);
+    const payloadProduct = this.asRecord(payload?.product);
+
+    const dataProduct = this.asRecord(data?.product);
+
+    const records = [
+      product,
+      rawPayload,
+      payload,
+      data,
+      productNode,
+      rawPayloadPayload,
+      rawPayloadData,
+      rawPayloadProduct,
+      payloadData,
+      payloadProduct,
+      dataProduct,
+    ].filter(Boolean);
+
     const id = this.pickString(records, [
+      'productId',
       'id',
       'uuid',
-      'productId',
       'product_id',
     ]);
+
     if (!id) {
       return null;
     }
@@ -819,15 +860,50 @@ export class EvotorApiService {
         'articleNumber',
         'article',
         'code',
+        'sku',
       ]) ?? id;
+    const barcode = this.pickString(records, ['barcode', 'barCode']);
+
+    const quantityRecords = [
+      rawPayload,
+      rawPayloadPayload,
+      rawPayloadData,
+      rawPayloadProduct,
+      product,
+      payload,
+      data,
+      productNode,
+      payloadData,
+      payloadProduct,
+      dataProduct,
+    ].filter(Boolean);
+    const quantity = this.pickNumber(quantityRecords, [
+      'quantity',
+      'stock',
+      'stockQuantity',
+      'stock_quantity',
+      'balance',
+      'amount',
+    ]);
+
+    if (id === '6cfccd83-e3b7-45e4-bela-1356811c94b4') {
+      this.logger.debug({
+        message: 'EVOTOR_TARGET_PRODUCT_QUANTITY_DEBUG',
+        productId: id,
+        expectedQuantity: 277,
+        productQuantity: product.quantity,
+        rawPayloadQuantity: rawPayload?.quantity,
+        normalizedQuantity: quantity ?? 0,
+      });
+    }
 
     return {
       id,
       article_number: articleNumber,
-      name: this.pickString(records, ['name']) ?? articleNumber,
+      name: this.pickString(records, ['name', 'title']) ?? articleNumber,
       price: this.pickNumber(records, ['price']) ?? 0,
-      quantity:
-        this.pickNumber(records, ['quantity', 'stock', 'stockQuantity']) ?? 0,
+      quantity: quantity ?? 0,
+      ...(barcode ? { barcode } : {}),
     };
   }
 

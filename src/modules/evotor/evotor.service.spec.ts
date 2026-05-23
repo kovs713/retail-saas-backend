@@ -224,7 +224,7 @@ describe('EvotorService', () => {
       Promise.resolve(value as EvotorIntegration),
     );
     productRepository.findSyncedByShop.mockResolvedValue([]);
-    evotorApiService.getProducts.mockResolvedValue([]);
+    evotorApiService.getAdminProducts.mockResolvedValue([]);
     evotorApiService.getDocuments.mockResolvedValue([]);
 
     const result = await service.syncBridgeAccount('shop-1', {
@@ -238,9 +238,9 @@ describe('EvotorService', () => {
       dateFrom: '2026-05-01',
       dateTo: '2026-05-16',
     });
-    expect(evotorApiService.getProducts).toHaveBeenCalledWith(
-      'store-shop-1',
+    expect(evotorApiService.getAdminProducts).toHaveBeenCalledWith(
       'evotor-user-1',
+      'store-shop-1',
     );
     expect(evotorApiService.getDocuments).toHaveBeenCalledWith(
       'store-shop-1',
@@ -346,7 +346,7 @@ describe('EvotorService', () => {
     integrationRepository.save.mockImplementation(async (value) =>
       Promise.resolve(value as EvotorIntegration),
     );
-    evotorApiService.getProducts.mockResolvedValue([
+    evotorApiService.getAdminProducts.mockResolvedValue([
       {
         id: 'remote-1',
         article_number: 'SKU-001',
@@ -358,9 +358,9 @@ describe('EvotorService', () => {
 
     const result = await service.syncProducts('shop-1');
 
-    expect(evotorApiService.getProducts).toHaveBeenCalledWith(
-      'store-shop-1',
+    expect(evotorApiService.getAdminProducts).toHaveBeenCalledWith(
       'evotor-user-1',
+      'store-shop-1',
     );
     expect(productRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -401,7 +401,95 @@ describe('EvotorService', () => {
     );
   });
 
-  it('imports products from persisted bridge products when store products are empty', async () => {
+  it('imports and aggregates products from bridge stores metadata', async () => {
+    const storeA = '20200812-D55B-40E4-8063-F2AF124593FC';
+    const storeB = '20190405-F247-4028-8080-1031D2F79B44';
+    const productId = 'e2e7770b-4840-45b2-8b19-43ccf54c0059';
+    const integration = {
+      id: 'integration-1',
+      shopId: 'shop-1',
+      status: 'connected',
+      externalStoreId: storeA,
+      externalUserId: 'evotor-user-1',
+      metadata: {
+        bridgeStores: [
+          { id: 'bridge-store-row-1', rawPayload: { id: storeA } },
+          { id: 'bridge-store-row-2', rawPayload: { uuid: storeB } },
+        ],
+      },
+    } as EvotorIntegration;
+
+    integrationRepository.findOne.mockResolvedValue(integration);
+    integrationRepository.save.mockImplementation(async (value) =>
+      Promise.resolve(value as EvotorIntegration),
+    );
+    productRepository.findSyncedByShop.mockResolvedValue([]);
+    productRepository.create.mockImplementation((value) => value as never);
+    evotorApiService.getAdminProducts.mockImplementation(
+      async (_evotorUserId, storeId) => {
+        if (storeId === storeA) {
+          return [
+            {
+              id: 'remote-a',
+              article_number: '3706',
+              barcode: '4004218141582',
+              name: 'TetraPro Energy Crisps',
+              price: 1200,
+              quantity: 0,
+            },
+          ];
+        }
+
+        return [
+          {
+            id: productId,
+            productId,
+            code: '3706',
+            article_number: '3706',
+            barcode: '4004218141582',
+            name: 'TetraPro Energy Crisps',
+            price: 1200,
+            quantity: 3,
+            rawPayload: { quantity: 3 },
+          },
+        ];
+      },
+    );
+
+    const result = await service.syncProducts('shop-1');
+
+    expect(evotorApiService.getAdminProducts).toHaveBeenCalledWith(
+      'evotor-user-1',
+      storeA,
+    );
+    expect(evotorApiService.getAdminProducts).toHaveBeenCalledWith(
+      'evotor-user-1',
+      storeB,
+    );
+    expect(productRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sku: '3706',
+        name: 'TetraPro Energy Crisps',
+        quantity: 3,
+        externalId: productId,
+        barcode: '4004218141582',
+        metadata: expect.objectContaining({
+          evotor: expect.objectContaining({
+            id: productId,
+            storeId: storeA,
+            storeIds: [storeA, storeB],
+            quantitiesByStore: {
+              [storeA]: 0,
+              [storeB]: 3,
+            },
+          }),
+        }),
+      }),
+    );
+    expect(result.importedCount).toBe(1);
+  });
+
+  it('imports products from persisted bridge products', async () => {
     const integration = {
       id: 'integration-1',
       shopId: 'shop-1',
@@ -416,7 +504,6 @@ describe('EvotorService', () => {
     );
     productRepository.findSyncedByShop.mockResolvedValue([]);
     productRepository.create.mockImplementation((value) => value as never);
-    evotorApiService.getProducts.mockResolvedValue([]);
     evotorApiService.getAdminProducts.mockResolvedValue([
       {
         id: 'remote-1',
@@ -429,6 +516,7 @@ describe('EvotorService', () => {
 
     const result = await service.syncProducts('shop-1');
 
+    expect(evotorApiService.getProducts).not.toHaveBeenCalled();
     expect(evotorApiService.getAdminProducts).toHaveBeenCalledWith(
       'evotor-user-1',
       'store-shop-1',
@@ -470,7 +558,7 @@ describe('EvotorService', () => {
     );
     productRepository.findSyncedByShop.mockResolvedValue([syncedProduct]);
     productRepository.create.mockImplementation((value) => value as never);
-    evotorApiService.getProducts.mockResolvedValue([
+    evotorApiService.getAdminProducts.mockResolvedValue([
       {
         id: 'remote-1',
         article_number: 'SKU-001',

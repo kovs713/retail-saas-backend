@@ -12,6 +12,7 @@ import {
   EvotorAdminLinkStoreDto,
   EvotorAdminListResponse,
   EvotorInboxEventDto,
+  RemoteProduct,
   SyncEvotorDto,
 } from './dto';
 import { EvotorIntegration } from './entities';
@@ -54,6 +55,17 @@ interface SyncApprovedIntegrationResult {
     skippedCount: number;
     syncedAt: string;
   };
+}
+
+interface AggregatedRemoteProduct {
+  id: string;
+  article_number: string;
+  name: string;
+  price: number;
+  quantity: number;
+  barcode?: string;
+  storeIds: string[];
+  quantitiesByStore: Record<string, number>;
 }
 
 const SELL_INBOX_EVENTS_CACHE_TTL_SECONDS = 3600;
@@ -191,11 +203,11 @@ export class EvotorService {
       shopId,
       evotorUserId,
     );
-    const productResults: Array<{
-      importedCount: number;
-      deletedCount: number;
-      syncedAt: string;
-    }> = [];
+    const productsResult = await this.syncProductsForStores(
+      shopId,
+      integration,
+      storeIds,
+    );
     const orderResults: Array<{
       importedCount: number;
       skippedCount: number;
@@ -203,9 +215,6 @@ export class EvotorService {
     }> = [];
 
     for (const storeId of storeIds) {
-      productResults.push(
-        await this.syncProductsForStore(shopId, integration, storeId),
-      );
       orderResults.push(
         await this.syncSellOrdersForStore(shopId, integration, storeId, {
           dateFrom: options.dateFrom,
@@ -224,15 +233,9 @@ export class EvotorService {
       storeId: integration.externalStoreId,
       storeIds,
       products: {
-        importedCount: productResults.reduce(
-          (sum, result) => sum + result.importedCount,
-          0,
-        ),
-        deletedCount: productResults.reduce(
-          (sum, result) => sum + result.deletedCount,
-          0,
-        ),
-        syncedAt: new Date().toISOString(),
+        importedCount: productsResult.importedCount,
+        deletedCount: productsResult.deletedCount,
+        syncedAt: productsResult.syncedAt,
       },
       orders: {
         importedCount: orderResults.reduce(
@@ -546,33 +549,74 @@ export class EvotorService {
     syncedAt: string;
   }> {
     const integration = await this.getConnectedIntegration(shopId);
-    return this.syncProductsForStore(
+    return this.syncProductsForStores(
       shopId,
       integration,
-      integration.externalStoreId,
+      this.getIntegrationStoreIds(integration),
     );
   }
 
-  private async syncProductsForStore(
+  private async syncProductsForStores(
     shopId: string,
     integration: EvotorIntegration,
-    storeId: string,
+    storeIds: string[],
   ): Promise<{
     importedCount: number;
     deletedCount: number;
     syncedAt: string;
   }> {
     const syncTimestamp = new Date();
-    const remoteProducts = await this.loadStoreProducts(
-      storeId,
-      integration.externalUserId,
+    const uniqueStoreIds = [...new Set(storeIds.filter(Boolean))];
+    this.logger.warn({
+      message: 'REAL_EVOTOR_PRODUCT_MATERIALIZER_HIT',
+      method: 'syncProductsForStores',
+      integrationId: integration?.id,
+      shopId: integration?.shopId,
+      externalStoreId: integration?.externalStoreId,
+      bridgeStores: integration?.metadata?.bridgeStores,
+    });
+
+    const productsByStore = await Promise.all(
+      uniqueStoreIds.map(async (storeId) => {
+        const products = await this.loadStoreProducts(
+          storeId,
+          integration.externalUserId,
+        );
+
+        this.logger.warn({
+          message: 'REAL_EVOTOR_PRODUCT_MATERIALIZER_STORE_RESULT',
+          storeId,
+          total: products.length,
+          positive: products.filter((product) => Number(product.quantity) > 0)
+            .length,
+          maxQuantity: products.reduce(
+            (max, product) => Math.max(max, Number(product.quantity ?? 0)),
+            0,
+          ),
+          sample: products.slice(0, 3).map((product) => ({
+            productId: product.productId ?? product.id,
+            code: product.code ?? product.article_number,
+            name: product.name,
+            quantity: product.quantity,
+            rawQuantity:
+              product.rawPayload?.quantity ?? product.raw_payload?.quantity,
+          })),
+        });
+
+        return { storeId, products };
+      }),
     );
-    const syncedProducts = (
-      await this.productRepository.findSyncedByShop(shopId, true)
-    ).filter((product) => product.externalStoreId === storeId);
+    const remoteProducts = this.aggregateRemoteProducts(productsByStore);
+    const syncedProducts = await this.productRepository.findSyncedByShop(
+      shopId,
+      true,
+    );
     const remoteIds = new Set(remoteProducts.map((product) => product.id));
-    const remoteSkus = new Set(
-      remoteProducts.map((product) => product.article_number),
+    const remoteSkus = new Set(remoteProducts.map((product) => product.article_number));
+    const remoteBarcodes = new Set(
+      remoteProducts
+        .map((product) => product.barcode)
+        .filter((barcode): barcode is string => Boolean(barcode)),
     );
     const syncedByExternalId = new Map(
       syncedProducts.map((product) => [product.externalId, product]),
@@ -580,12 +624,20 @@ export class EvotorService {
     const syncedBySku = new Map(
       syncedProducts.map((product) => [product.sku, product]),
     );
+    const syncedByBarcode = new Map(
+      syncedProducts
+        .filter((product) => Boolean(product.barcode))
+        .map((product) => [product.barcode, product]),
+    );
     const matchedProductIds = new Set<string>();
     let importedCount = 0;
     let deletedCount = 0;
 
     for (const remoteProduct of remoteProducts) {
       const existingProduct =
+        (remoteProduct.barcode
+          ? syncedByBarcode.get(remoteProduct.barcode)
+          : undefined) ??
         syncedByExternalId.get(remoteProduct.id) ??
         syncedBySku.get(remoteProduct.article_number) ??
         (await this.productRepository.findBySku(
@@ -597,7 +649,9 @@ export class EvotorService {
         ...(existingProduct?.metadata ?? {}),
         evotor: {
           id: remoteProduct.id,
-          storeId,
+          storeId: integration.externalStoreId,
+          storeIds: remoteProduct.storeIds,
+          quantitiesByStore: remoteProduct.quantitiesByStore,
           ...(integration.externalUserId
             ? { userId: integration.externalUserId }
             : {}),
@@ -613,33 +667,34 @@ export class EvotorService {
             sku: remoteProduct.article_number,
             name: existingProduct.name,
             price: remoteProduct.price,
-            quantity: remoteProduct.quantity,
+            quantity: Math.max(0, remoteProduct.quantity),
             description: existingProduct.description ?? null,
             cost: existingProduct.cost ?? null,
             categoryId: existingProduct.categoryId ?? null,
-            barcode: existingProduct.barcode ?? null,
+            barcode: existingProduct.barcode ?? remoteProduct.barcode ?? null,
             images: existingProduct.images ?? [],
             metadata: nextMetadata,
             externalSource: 'evotor',
             externalId: remoteProduct.id,
-            externalStoreId: storeId,
+            externalStoreId: remoteProduct.storeIds[0],
             deletedAt: null,
+            updatedAt: syncTimestamp,
           }
         : this.productRepository.create({
             shopId,
             sku: remoteProduct.article_number,
             name: remoteProduct.name,
             price: remoteProduct.price,
-            quantity: remoteProduct.quantity,
+            quantity: Math.max(0, remoteProduct.quantity),
             description: null,
             cost: null,
             categoryId: null,
-            barcode: null,
+            barcode: remoteProduct.barcode ?? null,
             images: [],
             metadata: nextMetadata,
             externalSource: 'evotor',
             externalId: remoteProduct.id,
-            externalStoreId: storeId,
+            externalStoreId: remoteProduct.storeIds[0],
             deletedAt: null,
           });
 
@@ -655,6 +710,7 @@ export class EvotorService {
         syncedProduct.deletedAt ||
         remoteIds.has(syncedProduct.externalId) ||
         remoteSkus.has(syncedProduct.sku) ||
+        (syncedProduct.barcode && remoteBarcodes.has(syncedProduct.barcode)) ||
         matchedProductIds.has(syncedProduct.id)
       ) {
         continue;
@@ -680,6 +736,58 @@ export class EvotorService {
       deletedCount,
       syncedAt: integration.lastSyncAt.toISOString(),
     };
+  }
+
+  private aggregateRemoteProducts(
+    productsByStore: Array<{ storeId: string; products: RemoteProduct[] }>,
+  ): AggregatedRemoteProduct[] {
+    const aggregated = new Map<string, AggregatedRemoteProduct>();
+
+    for (const { storeId, products } of productsByStore) {
+      this.logger.debug(
+        `Loaded ${products.length} Evotor products from store ${storeId}`,
+      );
+
+      for (const product of products) {
+        const key = this.getRemoteProductMergeKey(product);
+        const quantity = Math.max(0, product.quantity ?? 0);
+        const existing = aggregated.get(key);
+
+        if (existing) {
+          existing.quantity += quantity;
+          existing.quantitiesByStore[storeId] =
+            (existing.quantitiesByStore[storeId] ?? 0) + quantity;
+          if (!existing.storeIds.includes(storeId)) {
+            existing.storeIds.push(storeId);
+          }
+          if (quantity > 0) {
+            existing.id = product.id;
+          }
+          continue;
+        }
+
+        aggregated.set(key, {
+          id: product.id,
+          article_number: product.article_number,
+          name: product.name,
+          price: product.price,
+          quantity,
+          ...(product.barcode ? { barcode: product.barcode } : {}),
+          storeIds: [storeId],
+          quantitiesByStore: { [storeId]: quantity },
+        });
+      }
+    }
+
+    this.logger.debug(
+      `Aggregated ${aggregated.size} Evotor products from ${productsByStore.length} stores`,
+    );
+
+    return [...aggregated.values()];
+  }
+
+  private getRemoteProductMergeKey(product: RemoteProduct): string {
+    return product.barcode ?? product.article_number ?? product.id;
   }
 
   private async getConnectedIntegration(
@@ -789,6 +897,10 @@ export class EvotorService {
     storeId: string,
     evotorUserId: string | null,
   ) {
+    if (evotorUserId) {
+      return this.evotorApiService.getAdminProducts(evotorUserId, storeId);
+    }
+
     try {
       const products = await this.evotorApiService.getProducts(
         storeId,
@@ -1161,19 +1273,44 @@ export class EvotorService {
     }
 
     return stores
-      .map((store) =>
-        store && typeof store === 'object' && !Array.isArray(store)
-          ? this.pickBridgeString(store as BridgeRecord, [
-              'externalStoreId',
-              'storeUuid',
-              'uuid',
-              'storeId',
-              'store_id',
-              'id',
-            ])
-          : null,
-      )
+      .map((store) => this.getBridgeStoreExternalId(store))
       .filter((storeId): storeId is string => Boolean(storeId));
+  }
+
+  private getIntegrationStoreIds(integration: EvotorIntegration): string[] {
+    const metadata = integration.metadata as Record<string, unknown> | null;
+    const bridgeStores = Array.isArray(metadata?.bridgeStores)
+      ? metadata.bridgeStores
+      : [];
+    const fromBridgeStores = bridgeStores
+      .map((store) => this.getBridgeStoreExternalId(store))
+      .filter((value): value is string =>
+        typeof value === 'string' && value.length > 0,
+      );
+    const fallback = integration.externalStoreId
+      ? [integration.externalStoreId]
+      : [];
+
+    return Array.from(new Set([...fromBridgeStores, ...fallback]));
+  }
+
+  private getBridgeStoreExternalId(store: unknown): string | null {
+    if (!store || typeof store !== 'object' || Array.isArray(store)) {
+      return null;
+    }
+
+    const record = store as BridgeRecord;
+    const rawPayload =
+      record.rawPayload &&
+      typeof record.rawPayload === 'object' &&
+      !Array.isArray(record.rawPayload)
+        ? (record.rawPayload as BridgeRecord)
+        : null;
+
+    const value =
+      record.externalStoreId ?? rawPayload?.id ?? rawPayload?.uuid ?? null;
+
+    return typeof value === 'string' && value.length > 0 ? value : null;
   }
 
   private async syncCatalogProduct(product: Product): Promise<void> {

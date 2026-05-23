@@ -61,6 +61,48 @@ export class EvotorAdminListQueryDto {
   storeId?: string;
 
   @ApiPropertyOptional({
+    description: 'Evotor store UUID filter',
+    example: '20190607-4F3B-40E0-80F0-00155D012500',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(EVOTOR_UUID_PATTERN, { message: 'Invalid storeUuid format' })
+  storeUuid?: string;
+
+  @ApiPropertyOptional({
+    description: 'Evotor product UUID filter',
+    example: '5499b8ee-79de-47e7-9c66-6373869e232a',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(EVOTOR_UUID_PATTERN, { message: 'Invalid productId format' })
+  productId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Search products by name',
+    example: 'TetraPro Energy Crisps',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter products by name',
+    example: 'TetraPro Energy Crisps',
+  })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter products by code/SKU',
+    example: '3706',
+  })
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @ApiPropertyOptional({
     description: 'Documents filter start date',
     example: '2026-05-01',
   })
