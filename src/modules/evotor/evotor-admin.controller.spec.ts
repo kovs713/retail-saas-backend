@@ -85,19 +85,6 @@ describe('EvotorAdminController', () => {
       reviewedAt: new Date('2026-05-18T00:00:00.000Z'),
       createdAt: new Date('2026-05-18T00:00:00.000Z'),
     } as never);
-    evotorService.syncApprovedIntegration.mockResolvedValue({
-      storeId: 'store-1',
-      products: {
-        importedCount: 1,
-        deletedCount: 0,
-        syncedAt: '2026-05-18T00:00:00.000Z',
-      },
-      orders: {
-        importedCount: 1,
-        skippedCount: 0,
-        syncedAt: '2026-05-18T00:00:00.000Z',
-      },
-    } as never);
 
     const result = await controller.approveApplication('application-1');
 
@@ -107,6 +94,10 @@ describe('EvotorAdminController', () => {
     expect(evotorService.syncApprovedIntegration).toHaveBeenCalledWith(
       'shop-1',
       'evotor-user-1',
+      { runBridgeSync: false },
+    );
+    expect(evotorService.warmSellDashboardCaches).toHaveBeenCalledWith(
+      'shop-1',
     );
     expect(result).toEqual({
       success: true,

@@ -214,6 +214,11 @@ export class EvotorService {
       );
     }
 
+    const totalImportedOrders = orderResults.reduce(
+      (sum, r) => sum + r.importedCount,
+      0,
+    );
+
     return {
       bridgeSync,
       storeId: integration.externalStoreId,
