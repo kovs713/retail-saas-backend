@@ -533,7 +533,6 @@ describe('EvotorService', () => {
       externalStoreId: 'store-shop-1',
       externalUserId: 'evotor-user-1',
     } as EvotorIntegration);
-    evotorApiService.countSellEvents.mockResolvedValue(2);
     evotorApiService.listAdminInboxEvents.mockResolvedValue({
       items: [
         {
@@ -559,10 +558,6 @@ describe('EvotorService', () => {
 
     const result = await service.getLatestSellInboxEvents('shop-1', 0, 1);
 
-    expect(evotorApiService.countSellEvents).toHaveBeenCalledWith(
-      'evotor-user-1',
-      'store-shop-1',
-    );
     expect(evotorApiService.listAdminInboxEvents).toHaveBeenCalledWith({
       evotorUserId: 'evotor-user-1',
       storeId: 'store-shop-1',
@@ -578,7 +573,7 @@ describe('EvotorService', () => {
           payload: { type: 'SELL' },
         },
       ],
-      total: 2,
+      total: 1,
       skip: 0,
       take: 1,
     });
@@ -592,11 +587,84 @@ describe('EvotorService', () => {
             payload: { type: 'SELL' },
           },
         ],
-        total: 2,
+        total: 1,
         skip: 0,
         take: 1,
       },
-      30,
+      3600,
+    );
+  });
+
+  it('returns empty sell inbox events when bridge data is missing', async () => {
+    shopService.findById.mockResolvedValue({ id: 'shop-1' } as never);
+    integrationRepository.findOne.mockResolvedValue({
+      id: 'integration-1',
+      shopId: 'shop-1',
+      status: 'connected',
+      externalStoreId: 'store-shop-1',
+      externalUserId: 'evotor-user-1',
+    } as EvotorIntegration);
+    evotorApiService.listAdminInboxEvents.mockRejectedValue(
+      new NotFoundException('Evotor bridge data not found'),
+    );
+
+    const result = await service.getLatestSellInboxEvents('shop-1', 0, 5);
+
+    expect(result).toEqual({ items: [], total: 0, skip: 0, take: 5 });
+    expect(cacheService.set).toHaveBeenCalledWith(
+      'evotor:sell-inbox-events:shop-1:0:5',
+      { items: [], total: 0, skip: 0, take: 5 },
+      3600,
+    );
+  });
+
+  it('returns zero sell event counts when bridge data is missing', async () => {
+    shopService.findById.mockResolvedValue({ id: 'shop-1' } as never);
+    integrationRepository.findOne.mockResolvedValue({
+      id: 'integration-1',
+      shopId: 'shop-1',
+      status: 'connected',
+      externalStoreId: 'store-shop-1',
+      externalUserId: 'evotor-user-1',
+    } as EvotorIntegration);
+    evotorApiService.countSellEvents.mockRejectedValue(
+      new NotFoundException('Evotor bridge data not found'),
+    );
+
+    await expect(service.getSellEventsCount('shop-1')).resolves.toEqual({
+      totalCount: 0,
+      periodCount: 0,
+    });
+  });
+
+  it('warms sell dashboard caches', async () => {
+    shopService.findById.mockResolvedValue({ id: 'shop-1' } as never);
+    integrationRepository.findOne.mockResolvedValue({
+      id: 'integration-1',
+      shopId: 'shop-1',
+      status: 'connected',
+      externalStoreId: 'store-shop-1',
+      externalUserId: 'evotor-user-1',
+    } as EvotorIntegration);
+    evotorApiService.listAdminInboxEvents.mockResolvedValue({
+      items: [
+        {
+          id: 'evt-1',
+          eventType: 'evotor.documents.received',
+          payload: { type: 'SELL' },
+        },
+      ],
+      total: 1,
+      skip: 0,
+      take: 100,
+    } as never);
+
+    await service.warmSellDashboardCaches('shop-1');
+
+    expect(cacheService.set).toHaveBeenCalledWith(
+      'evotor:sell-inbox-events:shop-1:0:5',
+      expect.objectContaining({ total: 1, skip: 0, take: 5 }),
+      3600,
     );
   });
 

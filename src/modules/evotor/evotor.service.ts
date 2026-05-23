@@ -56,7 +56,7 @@ interface SyncApprovedIntegrationResult {
   };
 }
 
-const SELL_INBOX_EVENTS_CACHE_TTL_SECONDS = 30;
+const SELL_INBOX_EVENTS_CACHE_TTL_SECONDS = 3600;
 
 @Injectable()
 export class EvotorService {
@@ -324,6 +324,8 @@ export class EvotorService {
       importedCount += 1;
     }
 
+    await this.invalidateSellDashboardCache(shopId);
+
     return {
       importedCount,
       skippedCount,
@@ -347,18 +349,30 @@ export class EvotorService {
       return { totalCount: 0, periodCount: 0 };
     }
 
-    const [totalCount, periodCount] = await Promise.all([
-      this.evotorApiService.countSellEvents(
+    let totalCount: number;
+    let periodCount: number;
+
+    try {
+      totalCount = await this.evotorApiService.countSellEvents(
         integration.externalUserId,
         integration.externalStoreId,
-      ),
-      this.evotorApiService.countSellEvents(
-        integration.externalUserId,
-        integration.externalStoreId,
-        dateFrom,
-        dateTo,
-      ),
-    ]);
+      );
+      periodCount =
+        dateFrom || dateTo
+          ? await this.evotorApiService.countSellEvents(
+              integration.externalUserId,
+              integration.externalStoreId,
+              dateFrom,
+              dateTo,
+            )
+          : totalCount;
+    } catch (error) {
+      if (this.isBridgeNotFound(error)) {
+        return { totalCount: 0, periodCount: 0 };
+      }
+
+      throw error;
+    }
 
     return { totalCount, periodCount };
   }
@@ -406,28 +420,29 @@ export class EvotorService {
       return emptyResult;
     }
 
-    const total = await this.evotorApiService.countSellEvents(
-      integration.externalUserId,
-      integration.externalStoreId,
-    );
-
-    if (safeSkip >= total) {
-      return { items: [], total, skip: safeSkip, take: safeTake };
-    }
-
     const items: EvotorInboxEventDto[] = [];
     let bridgeSkip = 0;
     let sellOffset = 0;
     const bridgeTake = 100;
 
     while (items.length < safeTake) {
-      const response = await this.evotorApiService.listAdminInboxEvents({
-        evotorUserId: integration.externalUserId,
-        storeId: integration.externalStoreId,
-        eventType: 'evotor.documents.received',
-        skip: bridgeSkip,
-        take: bridgeTake,
-      });
+      let response: EvotorAdminListResponse<EvotorInboxEventDto>;
+
+      try {
+        response = await this.evotorApiService.listAdminInboxEvents({
+          evotorUserId: integration.externalUserId,
+          storeId: integration.externalStoreId,
+          eventType: 'evotor.documents.received',
+          skip: bridgeSkip,
+          take: bridgeTake,
+        });
+      } catch (error) {
+        if (this.isBridgeNotFound(error)) {
+          break;
+        }
+
+        throw error;
+      }
 
       if (!response.items.length) {
         break;
@@ -451,7 +466,7 @@ export class EvotorService {
         }
       }
 
-      if (response.items.length < bridgeTake || sellOffset >= total) {
+      if (response.items.length < bridgeTake) {
         break;
       }
 
@@ -460,7 +475,7 @@ export class EvotorService {
 
     const result = {
       items,
-      total,
+      total: sellOffset,
       skip: safeSkip,
       take: safeTake,
     };
@@ -478,6 +493,19 @@ export class EvotorService {
     const integration = await this.getConnectedIntegration(shopId, false);
     integration.status = 'disconnected';
     return this.repository.save(integration);
+  }
+
+  async warmSellDashboardCaches(shopId: string): Promise<void> {
+    try {
+      await Promise.all([
+        this.getLatestSellInboxEvents(shopId, 0, 5),
+        this.getLatestSellInboxEvents(shopId, 0, 20),
+      ]);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to warm Evotor sell dashboard cache for shop ${shopId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
   }
 
   async getPresentationStatus(shopId: string): Promise<{
@@ -1181,6 +1209,13 @@ export class EvotorService {
       this.cacheService.delPattern('product:id:*'),
       this.cacheService.delPattern(`product:sku:${shopId}:*`),
       this.cacheService.delPattern(`product:barcode:${shopId}:*`),
+    ]);
+  }
+
+  private async invalidateSellDashboardCache(shopId: string): Promise<void> {
+    await Promise.all([
+      this.cacheService.delPattern(`evotor:sell-events-count:${shopId}:*`),
+      this.cacheService.delPattern(`evotor:sell-inbox-events:${shopId}:*`),
     ]);
   }
 }
