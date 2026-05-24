@@ -1,13 +1,16 @@
 import { createCategory, createProduct } from '@/core/database/factories';
 import { VectorStoreService } from '@/modules/rag/vector-store/vector-store.service';
+import { ProductRepository } from './repositories';
 import { CatalogIndexService } from './catalog-index.service';
 
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test, TestingModule } from '@nestjs/testing';
+import { createHash } from 'node:crypto';
 
 describe('CatalogIndexService', () => {
   let service: CatalogIndexService;
   let vectorStoreService: DeepMocked<VectorStoreService>;
+  let productRepository: DeepMocked<ProductRepository>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -17,18 +20,24 @@ describe('CatalogIndexService', () => {
           provide: VectorStoreService,
           useValue: createMock<VectorStoreService>(),
         },
+        {
+          provide: ProductRepository,
+          useValue: createMock<ProductRepository>(),
+        },
       ],
     }).compile();
 
     service = module.get(CatalogIndexService);
     vectorStoreService = module.get(VectorStoreService);
+    productRepository = module.get(ProductRepository);
+    productRepository.update.mockResolvedValue({ affected: 1 } as any);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it('replaces indexed catalog chunks for a product with semantic product text', async () => {
+  it('indexes a normal catalog product with name', async () => {
     const product = createProduct({
       id: 'product-1',
       shopId: 'shop-1',
@@ -67,6 +76,7 @@ describe('CatalogIndexService', () => {
       'shop-1',
       expect.any(Array),
     );
+    expect(productRepository.update).toHaveBeenCalled();
   });
 
   it('removes indexed catalog chunks for a product', async () => {
@@ -75,6 +85,100 @@ describe('CatalogIndexService', () => {
     expect(vectorStoreService.deleteDocumentsByFilter).toHaveBeenCalledWith(
       'shop-1',
       { type: 'product', productId: 'product-1' },
+    );
+  });
+
+  it('skips sell_document product', async () => {
+    const product = createProduct({
+      id: 'product-2',
+      name: 'Test Item',
+      metadata: { evotor: { source: 'sell_document' } },
+    });
+
+    await service.upsertProduct(product);
+
+    expect(vectorStoreService.addTexts).not.toHaveBeenCalled();
+    expect(productRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('skips product with empty name', async () => {
+    const product = createProduct({ id: 'product-3', name: '' });
+
+    await service.upsertProduct(product);
+
+    expect(vectorStoreService.addTexts).not.toHaveBeenCalled();
+  });
+
+  it('skips deleted product', async () => {
+    const product = createProduct({
+      id: 'product-4',
+      deletedAt: new Date(),
+    });
+
+    await service.upsertProduct(product);
+
+    expect(vectorStoreService.addTexts).not.toHaveBeenCalled();
+  });
+
+  it('skips hidden storefront product', async () => {
+    const product = createProduct({
+      id: 'product-hidden',
+      name: 'Hidden Product',
+      metadata: {
+        storefront: { publicationStatus: 'HIDDEN' },
+      },
+    });
+
+    await service.upsertProduct(product);
+
+    expect(vectorStoreService.addTexts).not.toHaveBeenCalled();
+    expect(vectorStoreService.deleteDocumentsByFilter).toHaveBeenCalledWith(
+      product.shopId,
+      { type: 'product', productId: 'product-hidden' },
+    );
+  });
+
+  it('skips re-index when content unchanged (same hash)', async () => {
+    const product = createProduct({
+      id: 'product-5',
+      name: 'Unchanged Product',
+      metadata: { color: 'red' },
+    });
+    const text = (service as any).buildProductText(product);
+    const hash = createHash('sha256').update(text).digest('hex');
+    (product.metadata as any).rag = { contentHash: hash };
+
+    await service.upsertProduct(product);
+
+    expect(vectorStoreService.addTexts).not.toHaveBeenCalled();
+  });
+
+  it('re-indexes when description changed', async () => {
+    const hash =
+      '0000000000000000000000000000000000000000000000000000000000000000';
+    const product = createProduct({
+      id: 'product-6',
+      name: 'Changed Product',
+      description: 'New description',
+      metadata: { rag: { contentHash: hash } },
+    });
+
+    await service.upsertProduct(product);
+
+    expect(vectorStoreService.addTexts).toHaveBeenCalled();
+  });
+
+  it('removes from Chroma when product is not indexable anymore', async () => {
+    const product = createProduct({
+      id: 'product-7',
+      name: 'Removed',
+      shopId: 'shop-1',
+    });
+    await service.upsertProduct(product);
+    expect(vectorStoreService.addTexts).toHaveBeenCalled();
+    expect(vectorStoreService.deleteDocumentsByFilter).toHaveBeenCalledWith(
+      'shop-1',
+      { type: 'product', productId: 'product-7' },
     );
   });
 });

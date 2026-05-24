@@ -102,7 +102,6 @@ describe('EvotorAdminController', () => {
     expect(evotorService.syncApprovedIntegration).toHaveBeenCalledWith(
       'shop-1',
       'evotor-user-1',
-      { runBridgeSync: false },
     );
     expect(evotorService.warmSellDashboardCaches).toHaveBeenCalledWith(
       'shop-1',

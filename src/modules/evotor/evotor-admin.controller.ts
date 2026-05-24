@@ -86,7 +86,6 @@ export class EvotorAdminController {
     await this.evotorService.syncApprovedIntegration(
       application.shopId,
       application.evotorUserId,
-      { runBridgeSync: false },
     );
     void this.evotorService.warmSellDashboardCaches(application.shopId);
     return {

@@ -6,6 +6,7 @@ import { OrderRepository } from '@/modules/order/repositories';
 import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import { Product } from '@/modules/product/entities';
 import { ProductRepository } from '@/modules/product/repositories';
+import { ProductService } from '@/modules/product/product.service';
 import { ShopService } from '@/modules/shop/shop.service';
 import {
   ConnectEvotorDto,
@@ -39,6 +40,7 @@ interface SyncApprovedIntegrationOptions {
   dateFrom?: string;
   dateTo?: string;
   runBridgeSync?: boolean;
+  trigger?: 'APPROVE' | 'FORCE';
 }
 
 interface SyncApprovedIntegrationResult {
@@ -83,6 +85,7 @@ export class EvotorService {
     private readonly evotorApiService: EvotorApiService,
     private readonly catalogIndexService: CatalogIndexService,
     private readonly cacheService: CacheService,
+    private readonly productService: ProductService,
   ) {}
 
   async connect(
@@ -181,6 +184,7 @@ export class EvotorService {
       dateFrom: payload.dateFrom,
       dateTo: payload.dateTo,
       runBridgeSync: true,
+      trigger: 'FORCE',
     });
   }
 
@@ -190,25 +194,69 @@ export class EvotorService {
     options: SyncApprovedIntegrationOptions = {},
   ): Promise<SyncApprovedIntegrationResult> {
     await this.shopService.findById(shopId);
+    const trigger = options.trigger ?? 'APPROVE';
+    const existingIntegration = await this.repository.findByShopId(shopId);
 
-    const bridgeSync =
-      options.runBridgeSync === false
-        ? undefined
-        : await this.evotorApiService.syncAdmin({
-            evotorUserId,
-            dateFrom: options.dateFrom,
-            dateTo: options.dateTo,
-          });
+    let bridgeSync: unknown;
+    if (options.runBridgeSync !== false) {
+      try {
+        this.logger.warn({
+          message: 'CORE_BRIDGE_SYNC_START',
+          shopId,
+          integrationId: existingIntegration?.id,
+          bridgeAccountId: evotorUserId,
+          trigger,
+        });
+        bridgeSync = await this.evotorApiService.syncAdmin({
+          evotorUserId,
+          dateFrom: options.dateFrom,
+          dateTo: options.dateTo,
+        });
+        this.logger.warn({
+          message: 'CORE_BRIDGE_SYNC_DONE',
+          shopId,
+          integrationId: existingIntegration?.id,
+          bridgeAccountId: evotorUserId,
+        });
+      } catch (error) {
+        this.logger.warn({
+          message: 'CORE_BRIDGE_SYNC_FAILED',
+          shopId,
+          bridgeAccountId: evotorUserId,
+          trigger,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
 
     const { integration, storeIds } = await this.ensureBridgeIntegrations(
       shopId,
       evotorUserId,
     );
+    const usePersistedEndpoint = true;
     const productsResult = await this.syncProductsForStores(
       shopId,
       integration,
       storeIds,
+      false,
+      usePersistedEndpoint,
+      trigger,
     );
+
+    const importEndpoint = usePersistedEndpoint
+      ? 'BridgeProductsAdminEndpoint'
+      : 'BridgeProductsLiveProxyEndpoint';
+
+    this.logger.debug({
+      message: 'CORE_EVOTOR_IMPORT_FLOW',
+      integrationId: integration.id,
+      bridgeAccountId: evotorUserId,
+      trigger,
+      bridgeSyncTriggered: bridgeSync !== undefined,
+      importEndpoint,
+      productsReceived:
+        productsResult.importedCount + productsResult.deletedCount,
+    });
     const orderResults: Array<{
       importedCount: number;
       skippedCount: number;
@@ -566,16 +614,51 @@ export class EvotorService {
     };
   }
 
-  async syncProducts(shopId: string): Promise<{
+  async syncProducts(
+    shopId: string,
+    indexToRag?: boolean,
+  ): Promise<{
     importedCount: number;
     deletedCount: number;
     syncedAt: string;
   }> {
     const integration = await this.getConnectedIntegration(shopId);
+    if (integration.externalUserId) {
+      try {
+        this.logger.warn({
+          message: 'CORE_BRIDGE_SYNC_START',
+          shopId,
+          integrationId: integration.id,
+          bridgeAccountId: integration.externalUserId,
+          trigger: 'FORCE',
+        });
+        await this.evotorApiService.syncAdmin({
+          evotorUserId: integration.externalUserId,
+        });
+        this.logger.warn({
+          message: 'CORE_BRIDGE_SYNC_DONE',
+          shopId,
+          integrationId: integration.id,
+          bridgeAccountId: integration.externalUserId,
+        });
+      } catch (error) {
+        this.logger.warn({
+          message: 'CORE_BRIDGE_SYNC_FAILED',
+          shopId,
+          integrationId: integration.id,
+          bridgeAccountId: integration.externalUserId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
     return this.syncProductsForStores(
       shopId,
       integration,
       this.getIntegrationStoreIds(integration),
+      indexToRag,
+      true,
+      'FORCE',
     );
   }
 
@@ -583,6 +666,9 @@ export class EvotorService {
     shopId: string,
     integration: EvotorIntegration,
     storeIds: string[],
+    indexToRag = false,
+    usePersistedEndpoint = false,
+    trigger: 'APPROVE' | 'FORCE' = 'FORCE',
   ): Promise<{
     importedCount: number;
     deletedCount: number;
@@ -590,6 +676,22 @@ export class EvotorService {
   }> {
     const syncTimestamp = new Date();
     const uniqueStoreIds = [...new Set(storeIds.filter(Boolean))];
+    const evotorAccountId = this.getIntegrationEvotorAccountId(integration);
+    const endpoint = usePersistedEndpoint
+      ? 'GET /admin/evotor/products'
+      : 'GET /api/evotor/stores/:storeId/products';
+    this.logger.warn({
+      message: 'CORE_IMPORT_PRODUCTS_REQUEST',
+      endpoint,
+      bridgeAccountId: integration.externalUserId,
+      evotorAccountId,
+      storeIds: uniqueStoreIds,
+      visibilityMode: 'metadata.storefront.publicationStatus',
+      indexToRag,
+      trigger,
+      shopId,
+      integrationId: integration.id,
+    });
     this.logger.warn({
       message: 'REAL_EVOTOR_PRODUCT_MATERIALIZER_HIT',
       method: 'syncProductsForStores',
@@ -604,6 +706,8 @@ export class EvotorService {
         const products = await this.loadStoreProducts(
           storeId,
           integration.externalUserId,
+          evotorAccountId,
+          usePersistedEndpoint,
         );
 
         this.logger.warn({
@@ -629,7 +733,30 @@ export class EvotorService {
         return { storeId, products };
       }),
     );
+    const receivedProducts = productsByStore.flatMap(({ products }) => products);
+    this.logger.warn({
+      message: 'CORE_IMPORT_PRODUCTS_RESPONSE',
+      receivedTotal: receivedProducts.length,
+      uniqueStores: uniqueStoreIds,
+      sample: receivedProducts.slice(0, 3).map((product) => ({
+        productId: product.id,
+        storeId:
+          product.rawPayload?.storeId ??
+          product.rawPayload?.storeUuid ??
+          product.raw_payload?.storeId ??
+          product.raw_payload?.storeUuid,
+        sku: product.article_number,
+        quantity: product.quantity,
+      })),
+    });
     const remoteProducts = this.aggregateRemoteProducts(productsByStore);
+    this.logger.warn({
+      message: 'CORE_IMPORT_PRODUCTS_NORMALIZED',
+      normalizedTotal: remoteProducts.length,
+      skippedNoId: 0,
+      skippedWrongStore: 0,
+      skippedSellDocument: 0,
+    });
     const syncedProducts = await this.productRepository.findSyncedByShop(
       shopId,
       true,
@@ -657,6 +784,8 @@ export class EvotorService {
     const matchedProductIds = new Set<string>();
     let importedCount = 0;
     let deletedCount = 0;
+    let createdCount = 0;
+    let updatedCount = 0;
 
     for (const remoteProduct of remoteProducts) {
       const existingProduct =
@@ -724,7 +853,14 @@ export class EvotorService {
           });
 
       const savedProduct = await this.productRepository.save(product);
-      await this.syncCatalogProduct(savedProduct);
+      if (existingProduct) {
+        updatedCount += 1;
+      } else {
+        createdCount += 1;
+      }
+      if (indexToRag) {
+        await this.syncCatalogProduct(savedProduct);
+      }
       matchedProductIds.add(savedProduct.id);
       importedCount += 1;
     }
@@ -747,6 +883,13 @@ export class EvotorService {
     }
 
     integration.lastSyncAt = syncTimestamp;
+    this.logger.warn({
+      message: 'CORE_IMPORT_PRODUCTS_SAVED',
+      created: createdCount,
+      updated: updatedCount,
+      shopId,
+      indexToRag,
+    });
     integration.metadata = {
       ...(integration.metadata ?? {}),
       lastImportedCount: importedCount,
@@ -754,6 +897,16 @@ export class EvotorService {
       lastSyncStatus: 'success',
     };
     await this.repository.save(integration);
+    try {
+      await this.productService.applyDemoCatalogSeed(shopId, false, false);
+    } catch (error) {
+      this.logger.warn({
+        message: 'DEMO_CATALOG_SEED_APPLY_FAILED',
+        shopId,
+        integrationId: integration.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
     await this.invalidateProductCache(shopId);
 
     return {
@@ -924,12 +1077,22 @@ export class EvotorService {
   }
 
   private async loadStoreProducts(
-    storeId: string,
+    storeUuid: string,
     evotorUserId: string | null,
+    evotorAccountId: string | null,
+    usePersistedEndpoint = false,
   ) {
+    if (usePersistedEndpoint) {
+      return this.loadPersistedStoreProducts(
+        evotorUserId!,
+        evotorAccountId,
+        storeUuid,
+      );
+    }
+
     try {
       const products = await this.evotorApiService.getProducts(
-        storeId,
+        storeUuid,
         evotorUserId,
       );
 
@@ -942,17 +1105,79 @@ export class EvotorService {
       }
     } catch (error) {
       if (evotorUserId && this.isBridgeNotFound(error)) {
-        return this.evotorApiService.getAdminProducts(
+        return this.evotorApiService.getAdminProducts({
           evotorUserId,
-          storeId,
-          true,
-        );
+          evotorAccountId,
+          storeUuid,
+          storefrontOnly: true,
+        });
       }
 
       throw error;
     }
 
-    return this.evotorApiService.getAdminProducts(evotorUserId, storeId, true);
+    return this.evotorApiService.getAdminProducts({
+      evotorUserId,
+      evotorAccountId,
+      storeUuid,
+      storefrontOnly: true,
+    });
+  }
+
+  private async loadPersistedStoreProducts(
+    evotorUserId: string,
+    evotorAccountId: string | null,
+    storeUuid: string,
+  ): Promise<RemoteProduct[]> {
+    const maxAttempts = 5;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const products = await this.evotorApiService.getAdminProducts({
+        evotorUserId,
+        evotorAccountId,
+        storeUuid,
+        storefrontOnly: true,
+      });
+
+      if (products.length > 0) {
+        return products;
+      }
+
+      if (attempt === maxAttempts) {
+        const fallbackProducts = await this.evotorApiService.getAdminProducts({
+          evotorUserId,
+          evotorAccountId,
+          storeUuid,
+          storefrontOnly: false,
+        });
+        this.logger.warn({
+          message: 'CORE_EVOTOR_PERSISTED_PRODUCTS_UNFILTERED_FALLBACK',
+          evotorUserId,
+          evotorAccountId,
+          storeUuid,
+          filteredProductsReceived: products.length,
+          fallbackProductsReceived: fallbackProducts.length,
+        });
+        return fallbackProducts;
+      }
+
+      this.logger.warn({
+        message: 'CORE_EVOTOR_PERSISTED_PRODUCTS_RETRY',
+        evotorUserId,
+        evotorAccountId,
+        storeUuid,
+        attempt,
+        maxAttempts,
+        productsReceived: products.length,
+      });
+      await this.sleep(process.env.NODE_ENV === 'test' ? 0 : 2000);
+    }
+
+    return [];
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async loadStoreDocuments(
@@ -1280,6 +1505,43 @@ export class EvotorService {
     return Array.from(new Set([...fromBridgeStores, ...fallback]));
   }
 
+  private getIntegrationEvotorAccountId(
+    integration: EvotorIntegration,
+  ): string | null {
+    const metadata = integration.metadata ?? {};
+    const candidates = [
+      metadata.evotorAccountId,
+      metadata.accountId,
+      metadata.bridgeAccountId,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && this.isUuid(candidate)) {
+        return candidate;
+      }
+    }
+
+    const bridgeAccount = metadata.bridgeAccount;
+    if (
+      bridgeAccount &&
+      typeof bridgeAccount === 'object' &&
+      !Array.isArray(bridgeAccount)
+    ) {
+      const id = (bridgeAccount as BridgeRecord).id;
+      if (typeof id === 'string' && this.isUuid(id)) {
+        return id;
+      }
+    }
+
+    return null;
+  }
+
+  private isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    );
+  }
+
   private getBridgeStoreExternalId(store: unknown): string | null {
     if (!store || typeof store !== 'object' || Array.isArray(store)) {
       return null;
@@ -1294,12 +1556,30 @@ export class EvotorService {
         : null;
 
     const value =
-      record.externalStoreId ?? rawPayload?.id ?? rawPayload?.uuid ?? null;
+      record.storeUuid ??
+      record.store_uuid ??
+      record.uuid ??
+      rawPayload?.storeUuid ??
+      rawPayload?.store_uuid ??
+      rawPayload?.uuid ??
+      rawPayload?.id ??
+      record.externalStoreId ??
+      null;
 
     return typeof value === 'string' && value.length > 0 ? value : null;
   }
 
   private async syncCatalogProduct(product: Product): Promise<void> {
+    this.logger.debug({
+      message: 'EVOTOR_CATALOG_SYNC_PRODUCT',
+      productId: product.id,
+      externalId: product.externalId,
+      externalSource: product.externalSource,
+      shopId: product.shopId,
+      metadata: product.metadata,
+      reason: 'evotor_product_sync',
+    });
+
     try {
       await this.catalogIndexService.upsertProduct(product);
     } catch (error) {

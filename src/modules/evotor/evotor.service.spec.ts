@@ -1,6 +1,7 @@
 import { CacheService } from '@/core/cache/cache.service';
 import { OrderRepository } from '@/modules/order/repositories';
 import { CatalogIndexService } from '@/modules/product/catalog-index.service';
+import { ProductService } from '@/modules/product/product.service';
 import { ProductRepository } from '@/modules/product/repositories';
 import { ShopService } from '@/modules/shop/shop.service';
 import { EvotorApiService } from './evotor-api.service';
@@ -19,6 +20,8 @@ describe('EvotorService', () => {
   let cacheService: DeepMocked<CacheService>;
   let integrationRepository: DeepMocked<EvotorIntegrationRepository>;
   let productRepository: DeepMocked<ProductRepository>;
+  let catalogIndexService: DeepMocked<CatalogIndexService>;
+  let productService: DeepMocked<ProductService>;
 
   const mockIntegration = {
     id: 'int-1',
@@ -48,6 +51,7 @@ describe('EvotorService', () => {
           provide: CatalogIndexService,
           useValue: createMock<CatalogIndexService>(),
         },
+        { provide: ProductService, useValue: createMock<ProductService>() },
         { provide: CacheService, useValue: createMock<CacheService>() },
       ],
     }).compile();
@@ -59,6 +63,8 @@ describe('EvotorService', () => {
     cacheService = module.get(CacheService);
     integrationRepository = module.get(EvotorIntegrationRepository);
     productRepository = module.get(ProductRepository);
+    catalogIndexService = module.get(CatalogIndexService);
+    productService = module.get(ProductService);
 
     cacheService.generateKey.mockImplementation((...parts) =>
       parts.filter((part) => part !== undefined && part !== null).join(':'),
@@ -66,6 +72,18 @@ describe('EvotorService', () => {
     cacheService.get.mockResolvedValue(null);
     integrationRepository.findOne.mockResolvedValue(mockIntegration);
     evotorApiService.getProducts.mockResolvedValue([]);
+    evotorApiService.getAdminProducts.mockResolvedValue([]);
+    evotorApiService.syncAdmin.mockResolvedValue({ result: 'ok' });
+    productService.applyDemoCatalogSeed.mockResolvedValue({
+      seedPath: 'data/demo-seed.csv',
+      dryRun: false,
+      csvProducts: 0,
+      publishedCount: 0,
+      hiddenCount: 0,
+      skippedManualOverrideCount: 0,
+      updatedQuantityCount: 0,
+      updatedPriceCount: 0,
+    });
   });
 
   afterEach(() => {
@@ -181,31 +199,180 @@ describe('EvotorService', () => {
   });
 
   describe('syncProducts', () => {
-    it('creates products from catalog product sync', async () => {
-      const mockRemoteProducts = [
-        {
-          id: 'remote-p1',
-          article_number: 'ART001',
-          name: 'Test Product',
-          price: 1000,
-          quantity: 10,
-          barcode: '1234567890',
-        },
-      ];
+    const mockRemoteProducts = [
+      {
+        id: 'remote-p1',
+        article_number: 'ART001',
+        name: 'Test Product',
+        price: 1000,
+        quantity: 10,
+        barcode: '1234567890',
+      },
+    ];
 
-      evotorApiService.getProducts.mockResolvedValue(mockRemoteProducts);
+    beforeEach(() => {
+      evotorApiService.getAdminProducts.mockResolvedValue(mockRemoteProducts);
       productRepository.findSyncedByShop.mockResolvedValue([]);
       productRepository.findBySku.mockResolvedValue(null);
       productRepository.create.mockImplementation((dto) => dto);
       productRepository.save.mockImplementation((product) =>
         Promise.resolve({ ...product, id: 'new-id' }),
       );
+    });
 
+    it('creates products without RAG indexing by default', async () => {
       const result = await service.syncProducts('shop-1');
 
       expect(productRepository.create).toHaveBeenCalled();
       expect(productRepository.save).toHaveBeenCalled();
+      expect(catalogIndexService.upsertProduct).not.toHaveBeenCalled();
+      expect(evotorApiService.syncAdmin).toHaveBeenCalledWith({
+        evotorUserId: 'evotor-user-1',
+      });
+      expect(evotorApiService.getAdminProducts).toHaveBeenCalledWith({
+        evotorUserId: 'evotor-user-1',
+        evotorAccountId: null,
+        storeUuid: 'store-1',
+        storefrontOnly: true,
+      });
+      expect(evotorApiService.getProducts).not.toHaveBeenCalled();
       expect(result.importedCount).toBeGreaterThan(0);
+    });
+
+    it('indexes to RAG when indexToRag=true', async () => {
+      const result = await service.syncProducts('shop-1', true);
+
+      expect(productRepository.create).toHaveBeenCalled();
+      expect(productRepository.save).toHaveBeenCalled();
+      expect(catalogIndexService.upsertProduct).toHaveBeenCalled();
+      expect(result.importedCount).toBeGreaterThan(0);
+    });
+
+    it('applies demo seed visibility after force sync', async () => {
+      await service.syncProducts('shop-1');
+
+      expect(productService.applyDemoCatalogSeed).toHaveBeenCalledWith(
+        'shop-1',
+        false,
+        false,
+      );
+    });
+  });
+
+  describe('syncApprovedIntegration', () => {
+    const mockApprovedProducts = [
+      {
+        id: 'remote-p1',
+        article_number: 'ART001',
+        name: 'Test Product',
+        price: 1000,
+        quantity: 10,
+        barcode: '1234567890',
+      },
+    ];
+    const mockBridgeSyncResult = {
+      result: 'ok',
+      syncedAt: '2026-05-24T00:00:00Z',
+    };
+
+    beforeEach(() => {
+      jest.spyOn(service as any, 'ensureBridgeIntegrations').mockResolvedValue({
+        integration: mockIntegration,
+        storeIds: ['store-1'],
+      });
+      evotorApiService.syncAdmin.mockResolvedValue(mockBridgeSyncResult);
+      evotorApiService.getAdminProducts.mockResolvedValue(mockApprovedProducts);
+      productRepository.findSyncedByShop.mockResolvedValue([]);
+      productRepository.findBySku.mockResolvedValue(null);
+      productRepository.create.mockImplementation((dto) => dto);
+      productRepository.save.mockImplementation((product) =>
+        Promise.resolve({ ...product, id: 'new-id' }),
+      );
+      productService.applyDemoCatalogSeed.mockClear();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('calls bridge sync before product import', async () => {
+      await service.syncApprovedIntegration('shop-1', 'evotor-user-1');
+
+      expect(evotorApiService.syncAdmin).toHaveBeenCalledTimes(1);
+      expect(evotorApiService.syncAdmin).toHaveBeenCalledWith({
+        evotorUserId: 'evotor-user-1',
+      });
+    });
+
+    it('uses persisted admin endpoint for product import (not live proxy)', async () => {
+      await service.syncApprovedIntegration('shop-1', 'evotor-user-1');
+
+      expect(evotorApiService.getAdminProducts).toHaveBeenCalled();
+      expect(evotorApiService.getProducts).not.toHaveBeenCalled();
+    });
+
+    it('imports products via getAdminProducts with storefrontOnly=true', async () => {
+      await service.syncApprovedIntegration('shop-1', 'evotor-user-1');
+
+      expect(evotorApiService.getAdminProducts).toHaveBeenCalledWith({
+        evotorUserId: 'evotor-user-1',
+        evotorAccountId: null,
+        storeUuid: 'store-1',
+        storefrontOnly: true,
+      });
+    });
+
+    it('does not index to Chroma during approve flow', async () => {
+      await service.syncApprovedIntegration('shop-1', 'evotor-user-1');
+
+      expect(catalogIndexService.upsertProduct).not.toHaveBeenCalled();
+    });
+
+    it('logs CORE_EVOTOR_IMPORT_FLOW debug message', async () => {
+      const loggerSpy = jest.spyOn((service as any).logger, 'debug');
+
+      await service.syncApprovedIntegration('shop-1', 'evotor-user-1');
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'CORE_EVOTOR_IMPORT_FLOW',
+          integrationId: 'int-1',
+          bridgeAccountId: 'evotor-user-1',
+          trigger: 'APPROVE',
+          bridgeSyncTriggered: true,
+          importEndpoint: 'BridgeProductsAdminEndpoint',
+        }),
+      );
+    });
+
+    it('skips bridge sync when runBridgeSync=false', async () => {
+      await service.syncApprovedIntegration('shop-1', 'evotor-user-1', {
+        runBridgeSync: false,
+      });
+
+      expect(evotorApiService.syncAdmin).not.toHaveBeenCalled();
+    });
+
+    it('still imports from admin endpoint when bridge sync skipped', async () => {
+      await service.syncApprovedIntegration('shop-1', 'evotor-user-1', {
+        runBridgeSync: false,
+      });
+
+      expect(evotorApiService.getAdminProducts).toHaveBeenCalled();
+      expect(evotorApiService.getProducts).not.toHaveBeenCalled();
+    });
+
+    it('imports products without bridge sync error (empty store case)', async () => {
+      evotorApiService.getAdminProducts.mockResolvedValue([]);
+      productRepository.findSyncedByShop.mockResolvedValue([]);
+
+      const result = await service.syncApprovedIntegration(
+        'shop-1',
+        'evotor-user-1',
+      );
+
+      expect(result.products.importedCount).toBe(0);
+      expect(result.products.deletedCount).toBe(0);
     });
   });
 });

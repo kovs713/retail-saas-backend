@@ -88,6 +88,47 @@ export class ProductDto {
   metadata: Record<string, unknown> | null;
 
   @ApiProperty({
+    description: 'Storefront publication status',
+    example: 'PUBLISHED',
+    enum: ['PUBLISHED', 'HIDDEN', 'DRAFT'],
+  })
+  @Expose()
+  @Transform(({ obj }) => {
+    const metadata = (obj as Product).metadata;
+    const storefront = metadata?.storefront as
+      | Record<string, unknown>
+      | undefined;
+    const status = storefront?.publicationStatus;
+    return typeof status === 'string' ? status : 'HIDDEN';
+  })
+  publicationStatus: string;
+
+  @ApiProperty({
+    description: 'Whether product belongs to demo CSV seed',
+    example: true,
+  })
+  @Expose()
+  @Transform(({ obj }) => {
+    const metadata = (obj as Product).metadata;
+    return metadata?.demoSeed === true;
+  })
+  demoSeed: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Whether owner manually controls storefront visibility',
+    example: true,
+  })
+  @Expose()
+  @Transform(({ obj }) => {
+    const metadata = (obj as Product).metadata;
+    const storefront = metadata?.storefront as
+      | Record<string, unknown>
+      | undefined;
+    return storefront?.manualVisibilityOverride === true ? true : undefined;
+  })
+  manualVisibilityOverride?: boolean;
+
+  @ApiProperty({
     description: 'Created at timestamp',
     example: '2024-01-01T00:00:00.000Z',
   })

@@ -57,6 +57,14 @@ export class ProductRepository extends Repository<Product> {
       });
     }
 
+    const visibility = query.visibility ?? 'PUBLISHED';
+    if (visibility !== 'ALL') {
+      queryBuilder.andWhere(
+        "product.metadata->'storefront'->>'publicationStatus' = :visibility",
+        { visibility },
+      );
+    }
+
     if (query.category) {
       queryBuilder.andWhere('product.categoryId = :categoryId', {
         categoryId: query.category,
@@ -185,8 +193,33 @@ export class ProductRepository extends Repository<Product> {
       .andWhere('product.externalSource = :externalSource', {
         externalSource: 'evotor',
       })
+      .andWhere(
+        "product.metadata->'storefront'->>'publicationStatus' = :visibility",
+        { visibility: 'PUBLISHED' },
+      )
       .andWhere('product.deletedAt IS NULL')
       .getOne();
+  }
+
+  async findSyncedPublishedDemoByShop(shopId: string): Promise<Product[]> {
+    return this.repository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.images', 'images')
+      .where('product.shopId = :shopId', { shopId })
+      .andWhere('product.externalSource = :externalSource', {
+        externalSource: 'evotor',
+      })
+      .andWhere('product.deletedAt IS NULL')
+      .andWhere(
+        "product.metadata->'storefront'->>'publicationStatus' = :visibility",
+        { visibility: 'PUBLISHED' },
+      )
+      .andWhere("product.metadata->>'demoSeed' = :demoSeed", {
+        demoSeed: 'true',
+      })
+      .orderBy('product.createdAt', 'DESC')
+      .getMany();
   }
 
   async findBySku(sku: string, shopId: string): Promise<Product | null> {
@@ -321,17 +354,21 @@ export class ProductRepository extends Repository<Product> {
   }
 
   async findSyncedActiveByShop(shopId: string): Promise<Product[]> {
-    return this.repository.find({
-      where: {
-        shopId,
+    return this.repository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.images', 'images')
+      .where('product.shopId = :shopId', { shopId })
+      .andWhere('product.externalSource = :externalSource', {
         externalSource: 'evotor',
-        deletedAt: IsNull(),
-      },
-      relations: ['category', 'images'],
-      order: {
-        createdAt: 'DESC',
-      },
-    });
+      })
+      .andWhere('product.deletedAt IS NULL')
+      .andWhere(
+        "product.metadata->'storefront'->>'publicationStatus' = :visibility",
+        { visibility: 'PUBLISHED' },
+      )
+      .orderBy('product.createdAt', 'DESC')
+      .getMany();
   }
 
   async countByShop(

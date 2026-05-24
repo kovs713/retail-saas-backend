@@ -11,6 +11,8 @@ import {
   ProductRepository,
 } from './repositories';
 
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   BadRequestException,
   ConflictException,
@@ -18,6 +20,23 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { FindOptionsWhere, QueryDeepPartialEntity } from 'typeorm';
+
+interface DemoSeedRow {
+  sku: string;
+  price?: number;
+  quantity?: number;
+}
+
+export interface DemoCatalogSeedResult {
+  seedPath: string;
+  dryRun: boolean;
+  csvProducts: number;
+  publishedCount: number;
+  hiddenCount: number;
+  skippedManualOverrideCount: number;
+  updatedQuantityCount: number;
+  updatedPriceCount: number;
+}
 
 @Injectable()
 export class ProductService {
@@ -259,6 +278,7 @@ export class ProductService {
       query.minPrice ?? 'min-all',
       query.maxPrice ?? 'max-all',
       query.inStock === undefined ? 'stock-all' : String(query.inStock),
+      query.visibility ?? 'PUBLISHED',
       query.sortBy || 'sort-default',
       query.sortOrder || 'order-default',
     );
@@ -496,6 +516,183 @@ export class ProductService {
     }
 
     return products.length;
+  }
+
+  async reindexPublishedDemoProducts(shopId: string): Promise<number> {
+    const products =
+      await this.productRepository.findSyncedPublishedDemoByShop(shopId);
+
+    await this.catalogIndexService.clearCatalog(shopId);
+    for (const product of products) {
+      await this.catalogIndexService.upsertProduct(product);
+    }
+
+    return products.length;
+  }
+
+  async applyDemoCatalogSeed(
+    shopId: string,
+    dryRun = false,
+    failIfMissing = true,
+  ): Promise<DemoCatalogSeedResult> {
+    const seedPath = this.resolveDemoCatalogSeedPath();
+    this.logger.log(
+      `Applying demo catalog seed: path=${seedPath}, dryRun=${dryRun}`,
+    );
+
+    if (!existsSync(seedPath)) {
+      if (!failIfMissing) {
+        return {
+          seedPath,
+          dryRun,
+          csvProducts: 0,
+          publishedCount: 0,
+          hiddenCount: 0,
+          skippedManualOverrideCount: 0,
+          updatedQuantityCount: 0,
+          updatedPriceCount: 0,
+        };
+      }
+
+      throw new BadRequestException(
+        `Demo catalog seed file not found: ${seedPath}`,
+      );
+    }
+
+    const seedRows = this.parseDemoCatalogSeed(seedPath);
+    const seedBySku = new Map(seedRows.map((row) => [row.sku, row]));
+    const result: DemoCatalogSeedResult = {
+      seedPath,
+      dryRun,
+      csvProducts: seedRows.length,
+      publishedCount: 0,
+      hiddenCount: 0,
+      skippedManualOverrideCount: 0,
+      updatedQuantityCount: 0,
+      updatedPriceCount: 0,
+    };
+
+    if (seedRows.length === 0) {
+      return result;
+    }
+
+    const products = await this.productRepository.findSyncedByShop(
+      shopId,
+      true,
+    );
+
+    for (const product of products) {
+      const metadata = this.cloneMetadata(product.metadata);
+      const storefront = this.getStorefrontMetadata(metadata);
+      if (storefront.manualVisibilityOverride === true) {
+        result.skippedManualOverrideCount += 1;
+        continue;
+      }
+
+      const seedRow = seedBySku.get(product.sku);
+      storefront.publicationStatus = seedRow ? 'PUBLISHED' : 'HIDDEN';
+      metadata.storefront = storefront;
+      metadata.demoSeed = Boolean(seedRow);
+
+      const updatePayload: QueryDeepPartialEntity<Product> = {
+        metadata,
+      } as unknown as QueryDeepPartialEntity<Product>;
+
+      if (seedRow) {
+        result.publishedCount += 1;
+        if (
+          seedRow.quantity !== undefined &&
+          Number(product.quantity) !== seedRow.quantity
+        ) {
+          updatePayload.quantity = seedRow.quantity;
+          result.updatedQuantityCount += 1;
+        }
+        if (
+          seedRow.price !== undefined &&
+          Number(product.price) !== seedRow.price
+        ) {
+          updatePayload.price = seedRow.price;
+          result.updatedPriceCount += 1;
+        }
+      } else {
+        result.hiddenCount += 1;
+      }
+
+      if (!dryRun) {
+        await this.productRepository.update(product.id, updatePayload);
+      }
+    }
+
+    if (!dryRun) {
+      await this.invalidateProductCache(shopId);
+    }
+
+    return result;
+  }
+
+  private resolveDemoCatalogSeedPath(): string {
+    return resolve(
+      process.cwd(),
+      process.env.DEMO_CATALOG_SEED_PATH || 'data/demo-seed.csv',
+    );
+  }
+
+  private parseDemoCatalogSeed(seedPath: string): DemoSeedRow[] {
+    const content = readFileSync(seedPath, 'utf8');
+    const [headerLine, ...lines] = content.split(/\r?\n/);
+    const headers = headerLine
+      .split(',')
+      .map((header) => header.trim().toLowerCase());
+    const skuIndex = headers.indexOf('sku');
+    if (skuIndex === -1) {
+      throw new BadRequestException(
+        'Demo catalog seed CSV must include sku column',
+      );
+    }
+    const priceIndex = headers.indexOf('price');
+    const quantityIndex = headers.indexOf('quantity');
+
+    return lines
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const cells = line.split(',').map((cell) => cell.trim());
+        const sku = cells[skuIndex];
+        if (!sku) {
+          throw new BadRequestException(
+            'Demo catalog seed CSV contains empty sku',
+          );
+        }
+        const row: DemoSeedRow = { sku };
+        if (priceIndex !== -1 && cells[priceIndex]) {
+          row.price = Number(cells[priceIndex]);
+        }
+        if (quantityIndex !== -1 && cells[quantityIndex]) {
+          row.quantity = Number(cells[quantityIndex]);
+        }
+        return row;
+      });
+  }
+
+  private cloneMetadata(
+    metadata: Product['metadata'],
+  ): Record<string, unknown> {
+    return { ...(metadata ?? {}) };
+  }
+
+  private getStorefrontMetadata(
+    metadata: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const storefront = metadata.storefront;
+    if (
+      !storefront ||
+      typeof storefront !== 'object' ||
+      Array.isArray(storefront)
+    ) {
+      return {};
+    }
+
+    return { ...(storefront as Record<string, unknown>) };
   }
 
   async syncCatalogProducts(

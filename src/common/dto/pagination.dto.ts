@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -87,6 +88,16 @@ export class Pagination {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Product visibility filter',
+    example: 'PUBLISHED',
+    enum: ['PUBLISHED', 'HIDDEN', 'DRAFT', 'ALL'],
+    default: 'PUBLISHED',
+  })
+  @IsOptional()
+  @IsIn(['PUBLISHED', 'HIDDEN', 'DRAFT', 'ALL'])
+  visibility?: 'PUBLISHED' | 'HIDDEN' | 'DRAFT' | 'ALL';
 
   @ApiPropertyOptional({
     description: 'Shop ID override',

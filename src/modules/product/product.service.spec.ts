@@ -18,6 +18,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { UpdateResult } from 'typeorm';
 
 describe('ProductService', () => {
@@ -81,6 +83,126 @@ describe('ProductService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('applyDemoCatalogSeed', () => {
+    const seedDir = '/tmp/opencode/retail-saas-seed-tests';
+    const seedPath = join(seedDir, 'demo-seed.csv');
+    let previousSeedPath: string | undefined;
+
+    beforeEach(() => {
+      previousSeedPath = process.env.DEMO_CATALOG_SEED_PATH;
+      mkdirSync(seedDir, { recursive: true });
+      process.env.DEMO_CATALOG_SEED_PATH = seedPath;
+    });
+
+    afterEach(() => {
+      if (previousSeedPath === undefined) {
+        delete process.env.DEMO_CATALOG_SEED_PATH;
+      } else {
+        process.env.DEMO_CATALOG_SEED_PATH = previousSeedPath;
+      }
+      if (existsSync(seedDir)) {
+        rmSync(seedDir, { recursive: true, force: true });
+      }
+    });
+
+    it('marks CSV products as PUBLISHED and non-CSV products as HIDDEN', async () => {
+      writeFileSync(seedPath, 'sku,name,price,quantity\nSKU-1,One,1500,7\n');
+      productRepository.findSyncedByShop.mockResolvedValue([
+        createProduct({
+          id: 'product-1',
+          shopId: 'shop-1',
+          sku: 'SKU-1',
+          price: 1000,
+          quantity: 1,
+        }),
+        createProduct({
+          id: 'product-2',
+          shopId: 'shop-1',
+          sku: 'SKU-2',
+          price: 2000,
+          quantity: 2,
+        }),
+      ]);
+
+      const result = await service.applyDemoCatalogSeed('shop-1');
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          csvProducts: 1,
+          publishedCount: 1,
+          hiddenCount: 1,
+          updatedPriceCount: 1,
+          updatedQuantityCount: 1,
+        }),
+      );
+      expect(productRepository.update).toHaveBeenCalledWith(
+        'product-1',
+        expect.objectContaining({
+          price: 1500,
+          quantity: 7,
+          metadata: expect.objectContaining({
+            demoSeed: true,
+            storefront: expect.objectContaining({
+              publicationStatus: 'PUBLISHED',
+            }),
+          }),
+        }),
+      );
+      expect(productRepository.update).toHaveBeenCalledWith(
+        'product-2',
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            demoSeed: false,
+            storefront: expect.objectContaining({
+              publicationStatus: 'HIDDEN',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('does not overwrite manual visibility overrides', async () => {
+      writeFileSync(seedPath, 'sku,name\nSKU-1,One\n');
+      productRepository.findSyncedByShop.mockResolvedValue([
+        createProduct({
+          id: 'product-1',
+          shopId: 'shop-1',
+          sku: 'SKU-1',
+          metadata: {
+            storefront: {
+              manualVisibilityOverride: true,
+              publicationStatus: 'DRAFT',
+            },
+          },
+        }),
+      ]);
+
+      const result = await service.applyDemoCatalogSeed('shop-1');
+
+      expect(result.skippedManualOverrideCount).toBe(1);
+      expect(productRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('dry run reports changes without writing', async () => {
+      writeFileSync(seedPath, 'sku,name\nSKU-1,One\n');
+      productRepository.findSyncedByShop.mockResolvedValue([
+        createProduct({ id: 'product-1', shopId: 'shop-1', sku: 'SKU-1' }),
+      ]);
+
+      const result = await service.applyDemoCatalogSeed('shop-1', true);
+
+      expect(result.dryRun).toBe(true);
+      expect(result.publishedCount).toBe(1);
+      expect(productRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('fails clearly when seed file is missing', async () => {
+      await expect(service.applyDemoCatalogSeed('shop-1')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
   });
 
   describe('findOne', () => {
@@ -270,6 +392,22 @@ describe('ProductService', () => {
         secondProduct,
       );
       expect(result).toBe(2);
+    });
+
+    it('should clear catalog docs and reindex only published demo products', async () => {
+      const product = createProduct({ id: 'prod_demo', shopId: 'shop-1' });
+      productRepository.findSyncedPublishedDemoByShop.mockResolvedValue([
+        product,
+      ]);
+
+      const result = await service.reindexPublishedDemoProducts('shop-1');
+
+      expect(
+        productRepository.findSyncedPublishedDemoByShop,
+      ).toHaveBeenCalledWith('shop-1');
+      expect(catalogIndexService.clearCatalog).toHaveBeenCalledWith('shop-1');
+      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(product);
+      expect(result).toBe(1);
     });
   });
 

@@ -73,6 +73,13 @@ interface RequestOptions {
   timeoutMs?: number;
 }
 
+interface GetAdminProductsOptions {
+  evotorUserId?: string;
+  evotorAccountId?: string | null;
+  storeUuid?: string;
+  storefrontOnly?: boolean;
+}
+
 type EvotorAdminListQuery = Pick<
   EvotorAdminListQueryDto,
   | 'evotorUserId'
@@ -87,7 +94,11 @@ type EvotorAdminListQuery = Pick<
   | 'dateFrom'
   | 'dateTo'
   | 'eventType'
-> & { storefrontOnly?: string };
+> & {
+  accountId?: string;
+  evotorAccountId?: string;
+  storefrontOnly?: string;
+};
 
 @Injectable()
 export class EvotorApiService {
@@ -136,33 +147,70 @@ export class EvotorApiService {
     return products;
   }
 
-  async getAdminProducts(
-    evotorUserId: string,
-    storeId?: string,
-    storefrontOnly?: boolean,
-  ): Promise<RemoteProduct[]> {
+  async getAdminProducts({
+    evotorUserId,
+    evotorAccountId,
+    storeUuid,
+    storefrontOnly,
+  }: GetAdminProductsOptions): Promise<RemoteProduct[]> {
     const products: RemoteProduct[] = [];
     const take = 100;
     let skip = 0;
     let total = 0;
+    let rawTotal = 0;
+    let skippedNoId = 0;
+    let skippedSellDocument = 0;
+    let skippedFiltered = 0;
 
     do {
+      const bridgeAccountId = this.isUuid(evotorAccountId)
+        ? evotorAccountId
+        : undefined;
       const response = await this.listAdminProducts({
         evotorUserId,
-        storeId,
+        accountId: bridgeAccountId,
+        evotorAccountId: bridgeAccountId,
+        storeUuid,
         skip,
         take,
         ...(storefrontOnly ? { storefrontOnly: 'true' } : {}),
       });
 
       total = response.total;
-      products.push(
-        ...response.items
-          .map((item) => this.normalizeRemoteProduct(item))
-          .filter((item): item is RemoteProduct => item !== null),
-      );
+      rawTotal += response.items.length;
+      for (const item of response.items) {
+        const normalized = this.normalizeRemoteProduct(item);
+        if (normalized) {
+          products.push(normalized);
+          continue;
+        }
+
+        const reason = this.getRemoteProductSkipReason(item);
+        if (reason === 'sell_document') {
+          skippedSellDocument += 1;
+        } else if (reason === 'no_id') {
+          skippedNoId += 1;
+        } else {
+          skippedFiltered += 1;
+        }
+      }
       skip += response.items.length;
     } while (skip < total && skip > 0);
+
+    this.logger.warn({
+      message: 'CORE_IMPORT_PRODUCTS_NORMALIZED',
+      endpoint: 'GET /admin/evotor/products',
+      evotorUserId,
+      evotorAccountId: this.isUuid(evotorAccountId) ? evotorAccountId : undefined,
+      storeUuid,
+      storefrontOnly: storefrontOnly === true,
+      rawTotal,
+      normalizedTotal: products.length,
+      skippedNoId,
+      skippedWrongStore: 0,
+      skippedSellDocument,
+      skippedFiltered,
+    });
 
     return products;
   }
@@ -565,6 +613,8 @@ export class EvotorApiService {
     if (query.skip !== undefined) params.skip = String(query.skip);
     if (query.take !== undefined) params.take = String(query.take);
     if (query.evotorUserId) params.evotorUserId = query.evotorUserId;
+    if (query.accountId) params.accountId = query.accountId;
+    if (query.evotorAccountId) params.evotorAccountId = query.evotorAccountId;
 
     // Only pass resource-specific filters
     const storeResources = ['stores', 'devices', 'products', 'documents'];
@@ -589,8 +639,24 @@ export class EvotorApiService {
       if (query.dateTo) params.dateTo = query.dateTo;
     }
 
+    const path = this.buildPath(`/admin/evotor/${resource}`, params);
+    if (resource === 'products') {
+      this.logger.warn({
+        message: 'CORE_BRIDGE_GET_ADMIN_PRODUCTS_URL',
+        url: this.buildUrl(path),
+        query: {
+          ...params,
+          evotorUserId: query.evotorUserId,
+          evotorAccountId: query.evotorAccountId,
+          sentAccountId: Boolean(params.accountId),
+          sentEvotorAccountId: Boolean(params.evotorAccountId),
+          storeUuid: query.storeUuid,
+        },
+      });
+    }
+
     const response = await this.request<BridgeListResponse<T>>(
-      this.buildPath(`/admin/evotor/${resource}`, params),
+      path,
       { method: 'GET' },
       { evotorUserId: query.evotorUserId, retry: true },
     );
@@ -747,6 +813,15 @@ export class EvotorApiService {
 
     const search = params.toString();
     return search ? `${path}?${search}` : path;
+  }
+
+  private isUuid(value: string | null | undefined): value is string {
+    return (
+      typeof value === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        value,
+      )
+    );
   }
 
   private buildHeaders(
@@ -933,6 +1008,64 @@ export class EvotorApiService {
       quantity: quantity ?? 0,
       ...(barcode ? { barcode } : {}),
     };
+  }
+
+  private getRemoteProductSkipReason(
+    value: unknown,
+  ): 'not_object' | 'filtered' | 'sell_document' | 'no_id' {
+    const product = this.asRecord(value);
+    if (!product) {
+      return 'not_object';
+    }
+
+    const rawPayload =
+      this.asRecord(product.rawPayload) ?? this.asRecord(product.raw_payload);
+    const payload = this.asRecord(product.payload);
+    const data = this.asRecord(product.data);
+    const productNode = this.asRecord(product.product);
+    const records = [
+      product,
+      rawPayload,
+      payload,
+      data,
+      productNode,
+      this.asRecord(rawPayload?.payload),
+      this.asRecord(rawPayload?.data),
+      this.asRecord(rawPayload?.product),
+      this.asRecord(payload?.data),
+      this.asRecord(payload?.product),
+      this.asRecord(data?.product),
+    ].filter(Boolean);
+
+    if (this.pickString(records, ['source']) === 'sell_document') {
+      return 'sell_document';
+    }
+
+    for (const record of records) {
+      if (!record) continue;
+      const allowToSell = record['allow_to_sell'] ?? record['allowToSell'];
+      if (
+        record['group'] === true ||
+        record['group'] === 1 ||
+        record['group'] === '1' ||
+        record['group'] === 'true' ||
+        allowToSell === false ||
+        allowToSell === 0 ||
+        allowToSell === '0' ||
+        allowToSell === 'false'
+      ) {
+        return 'filtered';
+      }
+    }
+
+    const id = this.pickString(records, [
+      'productId',
+      'id',
+      'uuid',
+      'product_id',
+    ]);
+
+    return id ? 'filtered' : 'no_id';
   }
 
   private normalizeRemoteDocument(value: unknown): unknown {

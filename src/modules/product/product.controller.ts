@@ -12,6 +12,7 @@ import { ShopService } from '@/modules/shop/shop.service';
 import {
   CategoryDto,
   CreateCategoryDto,
+  DemoCatalogSeedResultDto,
   ProductDto,
   ProductImageDto,
   ProductImageUploadResponseDto,
@@ -99,6 +100,43 @@ export class ProductController {
       success: true,
       data: result.data?.map((product) => ProductDto.fromEntity(product)) ?? [],
       pagination: result.pagination,
+    };
+  }
+
+  @Post('demo-seed')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Apply demo catalog CSV publication whitelist',
+  })
+  @ApiQuery({
+    name: 'dryRun',
+    required: false,
+    type: Boolean,
+    description: 'Preview changes without writing updates',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Demo catalog seed applied successfully',
+    type: DemoCatalogSeedResultDto,
+  })
+  async applyDemoSeed(
+    @Query('dryRun') dryRun: string | boolean | undefined,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<DemoCatalogSeedResultDto>> {
+    const isDryRun =
+      dryRun === true ||
+      (typeof dryRun === 'string' && dryRun.toLowerCase() === 'true');
+    const result = await this.productService.applyDemoCatalogSeed(
+      tenantContext.shopId,
+      isDryRun,
+    );
+
+    return {
+      success: true,
+      data: result,
+      message: isDryRun
+        ? 'Demo catalog seed dry run completed'
+        : 'Demo catalog seed applied successfully',
     };
   }
 

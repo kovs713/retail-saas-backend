@@ -246,6 +246,10 @@ export class RagService {
     return this.productService.rebuildCatalogIndex(shopId);
   }
 
+  async reindexPublishedDemoProducts(shopId: string): Promise<number> {
+    return this.productService.reindexPublishedDemoProducts(shopId);
+  }
+
   async clearDocuments(shopId: string): Promise<void> {
     await this.vectorStoreService.deleteDocuments(shopId);
     this.logger.log(`Cleared all documents for organization: ${shopId}`);
