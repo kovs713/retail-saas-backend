@@ -5,11 +5,14 @@ import { LocationRepository, ShopRepository } from './repositories';
 import { ShopController } from './shop.controller';
 import { ShopService } from './shop.service';
 
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Shop, Location]), ProductModule],
+  imports: [
+    TypeOrmModule.forFeature([Shop, Location]),
+    forwardRef(() => ProductModule),
+  ],
   providers: [ShopService, ShopRepository, LocationRepository],
   exports: [ShopService, ShopRepository],
   controllers: [ShopController, PublicShopController],

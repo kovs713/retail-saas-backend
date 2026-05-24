@@ -6,8 +6,9 @@ import {
 } from '@/common/dto';
 import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
-import { TenantContext } from '@/common/types';
+import { Request, TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
+import { ShopService } from '@/modules/shop/shop.service';
 import {
   CategoryDto,
   CreateCategoryDto,
@@ -25,11 +26,13 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -66,7 +69,10 @@ export class ProductController {
   ]);
   private static readonly maxUploadSizeBytes = 10 * 1024 * 1024;
 
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly shopService: ShopService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -79,14 +85,13 @@ export class ProductController {
   async findAll(
     @Query() query: Pagination,
     @Tenant() tenantContext: TenantContext,
+    @Req() req: Request,
   ): Promise<PaginationResponse<ProductDto>> {
+    const shopId = await this.resolveShopId(query.shopId, tenantContext, req);
     this.logger.log(
       `Finding products with query: page=${query.page}, limit=${query.limit}`,
     );
-    const result = await this.productService.findAll(
-      query,
-      tenantContext.shopId,
-    );
+    const result = await this.productService.findAll(query, shopId);
     this.logger.log(
       `Found ${result.data?.length || 0} products (total: ${result.pagination?.total})`,
     );
@@ -95,6 +100,28 @@ export class ProductController {
       data: result.data?.map((product) => ProductDto.fromEntity(product)) ?? [],
       pagination: result.pagination,
     };
+  }
+
+  private async resolveShopId(
+    requestedShopId: string | undefined,
+    tenantContext: TenantContext,
+    req: Request,
+  ): Promise<string> {
+    if (!requestedShopId || requestedShopId === tenantContext.shopId) {
+      return tenantContext.shopId;
+    }
+
+    if (req.user.role === Role.ADMIN) {
+      await this.shopService.findById(requestedShopId);
+      return requestedShopId;
+    }
+
+    const shop = await this.shopService.findById(requestedShopId);
+    if (shop.ownerId !== req.user.sub) {
+      throw new ForbiddenException('You do not have access to this shop');
+    }
+
+    return requestedShopId;
   }
 
   @Get('stats')

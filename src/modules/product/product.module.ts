@@ -1,4 +1,5 @@
 import { VectorStoreModule } from '@/modules/rag/vector-store/vector-store.module';
+import { ShopModule } from '@/modules/shop/shop.module';
 import { CatalogIndexService } from './catalog-index.service';
 import { Category, Product, ProductImage } from './entities';
 import { ProductController } from './product.controller';
@@ -10,13 +11,14 @@ import {
   ProductRepository,
 } from './repositories';
 
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Product, Category, ProductImage]),
     VectorStoreModule.forRootAsync(),
+    forwardRef(() => ShopModule),
   ],
   providers: [
     ProductService,

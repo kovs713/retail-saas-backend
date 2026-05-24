@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
 } from 'class-validator';
@@ -86,4 +87,12 @@ export class Pagination {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Shop ID override',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsUUID()
+  shopId?: string;
 }
