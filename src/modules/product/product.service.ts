@@ -23,8 +23,23 @@ import { FindOptionsWhere, QueryDeepPartialEntity } from 'typeorm';
 
 interface DemoSeedRow {
   sku: string;
+  storeUuid: string;
+  externalId?: string;
+  articleNumber?: string;
+  barcode?: string;
+  name: string;
+  description?: string;
   price?: number;
   quantity?: number;
+}
+
+interface DemoSeedParseStats {
+  rowsTotal: number;
+  parsedRows: number;
+  skippedNoIdentity: number;
+  skippedNoName: number;
+  skippedNotAllowed: number;
+  skippedGroup: number;
 }
 
 export interface DemoCatalogSeedResult {
@@ -423,6 +438,21 @@ export class ProductService {
     return count;
   }
 
+  async getStats(shopId: string): Promise<{
+    published: number;
+    hidden: number;
+    inStock: number;
+    outOfStock: number;
+  }> {
+    const [published, hidden, inStock, outOfStock] = await Promise.all([
+      this.productRepository.countPublishedByShop(shopId),
+      this.productRepository.countHiddenByShop(shopId),
+      this.productRepository.countInStockByShop(shopId),
+      this.productRepository.countOutOfStockByShop(shopId),
+    ]);
+    return { published, hidden, inStock, outOfStock };
+  }
+
   async countByCategory(categoryId: string, shopId: string): Promise<number> {
     const count = await this.productRepository.countSyncedByCategory(
       shopId,
@@ -638,40 +668,216 @@ export class ProductService {
   }
 
   private parseDemoCatalogSeed(seedPath: string): DemoSeedRow[] {
-    const content = readFileSync(seedPath, 'utf8');
+    const content = readFileSync(seedPath, 'utf8').replace(/^\uFEFF/, '');
     const [headerLine, ...lines] = content.split(/\r?\n/);
-    const headers = headerLine
-      .split(',')
-      .map((header) => header.trim().toLowerCase());
-    const skuIndex = headers.indexOf('sku');
-    if (skuIndex === -1) {
+    const columns = this.parseCsvLine(headerLine).map((header) =>
+      header.trim().replace(/^\uFEFF/, ''),
+    );
+    const normalizedColumns = columns.map((column) =>
+      this.normalizeCsvColumn(column),
+    );
+    this.logger.log({
+      message: 'DEMO_SEED_CSV_COLUMNS',
+      columns,
+    });
+
+    const indexes = {
+      storeUuid: this.findCsvColumnIndex(normalizedColumns, [
+        'store_uuid',
+        'storeuuid',
+        'externalstoreid',
+        'store_id',
+      ]),
+      externalId: this.findCsvColumnIndex(normalizedColumns, [
+        'uuid',
+        'id',
+        'productid',
+        'product_uuid',
+      ]),
+      code: this.findCsvColumnIndex(normalizedColumns, ['sku', 'код', 'code']),
+      articleNumber: this.findCsvColumnIndex(normalizedColumns, [
+        'артикул',
+        'articlenumber',
+        'article_number',
+      ]),
+      barcode: this.findCsvColumnIndex(normalizedColumns, [
+        'штрих-код',
+        'barcode',
+        'barcode',
+        'barcodes',
+      ]),
+      name: this.findCsvColumnIndex(normalizedColumns, [
+        'наименование',
+        'name',
+        'title',
+      ]),
+      price: this.findCsvColumnIndex(normalizedColumns, ['цена', 'price']),
+      quantity: this.findCsvColumnIndex(normalizedColumns, [
+        'остаток',
+        'quantity',
+        'stock',
+        'stockquantity',
+      ]),
+      allowToSell: this.findCsvColumnIndex(normalizedColumns, [
+        'в продаже',
+        'allow_to_sell',
+        'allowtosell',
+      ]),
+      group: this.findCsvColumnIndex(normalizedColumns, [
+        'признак группы',
+        'group',
+        'isgroup',
+      ]),
+      type: this.findCsvColumnIndex(normalizedColumns, ['тип', 'type']),
+      description: this.findCsvColumnIndex(normalizedColumns, [
+        'описание',
+        'description',
+      ]),
+    };
+
+    if (indexes.storeUuid === -1) {
       throw new BadRequestException(
-        'Demo catalog seed CSV must include sku column',
+        'Demo catalog seed CSV must include store_uuid/storeUuid column',
       );
     }
-    const priceIndex = headers.indexOf('price');
-    const quantityIndex = headers.indexOf('quantity');
 
-    return lines
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const cells = line.split(',').map((cell) => cell.trim());
-        const sku = cells[skuIndex];
-        if (!sku) {
-          throw new BadRequestException(
-            'Demo catalog seed CSV contains empty sku',
-          );
-        }
-        const row: DemoSeedRow = { sku };
-        if (priceIndex !== -1 && cells[priceIndex]) {
-          row.price = Number(cells[priceIndex]);
-        }
-        if (quantityIndex !== -1 && cells[quantityIndex]) {
-          row.quantity = Number(cells[quantityIndex]);
-        }
-        return row;
-      });
+    const rows: DemoSeedRow[] = [];
+    const stats: DemoSeedParseStats = {
+      rowsTotal: 0,
+      parsedRows: 0,
+      skippedNoIdentity: 0,
+      skippedNoName: 0,
+      skippedNotAllowed: 0,
+      skippedGroup: 0,
+    };
+
+    for (const line of lines.map((value) => value.trim()).filter(Boolean)) {
+      stats.rowsTotal += 1;
+      const cells = this.parseCsvLine(line).map((cell) => cell.trim());
+      const row = this.normalizeDemoSeedRow(cells, indexes, stats);
+      if (!row) continue;
+      rows.push(row);
+      stats.parsedRows += 1;
+    }
+
+    this.logger.log({
+      message: 'DEMO_SEED_CSV_PARSED',
+      ...stats,
+      sample: rows.slice(0, 3),
+    });
+
+    return rows;
+  }
+
+  private normalizeDemoSeedRow(
+    cells: string[],
+    indexes: Record<string, number>,
+    stats: DemoSeedParseStats,
+  ): DemoSeedRow | null {
+    const get = (key: string) =>
+      indexes[key] === -1 ? '' : (cells[indexes[key]] ?? '').trim();
+    const storeUuid = get('storeUuid');
+    const externalId = get('externalId');
+    const code = get('code');
+    const articleNumber = get('articleNumber');
+    const barcode = get('barcode');
+    const name = get('name');
+    const allowToSell = this.parseCsvBoolean(get('allowToSell'));
+    const group = this.parseCsvBoolean(get('group'));
+
+    if (allowToSell === false) {
+      stats.skippedNotAllowed += 1;
+      return null;
+    }
+    if (group === true) {
+      stats.skippedGroup += 1;
+      return null;
+    }
+    if (!name) {
+      stats.skippedNoName += 1;
+      return null;
+    }
+    if (!externalId && !code && !articleNumber && !barcode) {
+      stats.skippedNoIdentity += 1;
+      return null;
+    }
+    if (!storeUuid) {
+      stats.skippedNoIdentity += 1;
+      return null;
+    }
+
+    const sku = code || articleNumber || barcode || externalId;
+    const row: DemoSeedRow = {
+      sku,
+      storeUuid,
+      name,
+      ...(externalId ? { externalId } : {}),
+      ...(articleNumber ? { articleNumber } : {}),
+      ...(barcode ? { barcode } : {}),
+      ...(get('type') ? { type: get('type') } : {}),
+      ...(get('description') ? { description: get('description') } : {}),
+    } as DemoSeedRow;
+    const price = this.parseCsvNumber(get('price'));
+    if (price !== null) row.price = price;
+    const quantity = this.parseCsvNumber(get('quantity'));
+    if (quantity !== null) row.quantity = quantity;
+
+    return row;
+  }
+
+  private parseCsvLine(line: string): string[] {
+    const cells: string[] = [];
+    let current = '';
+    let quoted = false;
+
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      const next = line[index + 1];
+      if (char === '"' && quoted && next === '"') {
+        current += '"';
+        index += 1;
+        continue;
+      }
+      if (char === '"') {
+        quoted = !quoted;
+        continue;
+      }
+      if (char === ';' && !quoted) {
+        cells.push(current);
+        current = '';
+        continue;
+      }
+      current += char;
+    }
+
+    cells.push(current);
+    return cells;
+  }
+
+  private normalizeCsvColumn(value: string): string {
+    return value.trim().replace(/^\uFEFF/, '').toLowerCase();
+  }
+
+  private findCsvColumnIndex(columns: string[], aliases: string[]): number {
+    const normalizedAliases = aliases.map((alias) =>
+      this.normalizeCsvColumn(alias),
+    );
+    return columns.findIndex((column) => normalizedAliases.includes(column));
+  }
+
+  private parseCsvBoolean(value: string): boolean | null {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return null;
+    if (['true', '1', 'yes', 'да'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'нет'].includes(normalized)) return false;
+    return null;
+  }
+
+  private parseCsvNumber(value: string): number | null {
+    const normalized = value.trim().replace(/\s/g, '').replace(',', '.');
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   private cloneMetadata(

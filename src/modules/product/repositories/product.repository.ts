@@ -8,6 +8,7 @@ import {
   FindOptionsWhere,
   IsNull,
   LessThan,
+  LessThanOrEqual,
   MoreThan,
   Repository,
 } from 'typeorm';
@@ -408,6 +409,59 @@ export class ProductRepository extends Repository<Product> {
         };
     return this.repository.count({
       where: countWhere,
+    });
+  }
+
+  async countPublishedByShop(shopId: string): Promise<number> {
+    return this.repository
+      .createQueryBuilder('product')
+      .where('product.shopId = :shopId', { shopId })
+      .andWhere('product.externalSource = :externalSource', {
+        externalSource: 'evotor',
+      })
+      .andWhere('product.deletedAt IS NULL')
+      .andWhere(
+        "product.metadata->'storefront'->>'publicationStatus' = :visibility",
+        { visibility: 'PUBLISHED' },
+      )
+      .getCount();
+  }
+
+  async countHiddenByShop(shopId: string): Promise<number> {
+    return this.repository
+      .createQueryBuilder('product')
+      .where('product.shopId = :shopId', { shopId })
+      .andWhere('product.externalSource = :externalSource', {
+        externalSource: 'evotor',
+      })
+      .andWhere('product.deletedAt IS NULL')
+      .andWhere(
+        "(product.metadata->'storefront'->>'publicationStatus' IS NULL OR " +
+        "product.metadata->'storefront'->>'publicationStatus' != :visibility)",
+        { visibility: 'PUBLISHED' },
+      )
+      .getCount();
+  }
+
+  async countInStockByShop(shopId: string): Promise<number> {
+    return this.repository.count({
+      where: {
+        shopId,
+        externalSource: 'evotor',
+        quantity: MoreThan(0),
+        deletedAt: IsNull(),
+      },
+    });
+  }
+
+  async countOutOfStockByShop(shopId: string): Promise<number> {
+    return this.repository.count({
+      where: {
+        shopId,
+        externalSource: 'evotor',
+        quantity: LessThanOrEqual(0),
+        deletedAt: IsNull(),
+      },
     });
   }
 

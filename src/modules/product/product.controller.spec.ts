@@ -288,13 +288,20 @@ describe('ProductController', () => {
 
   describe('getStats', () => {
     it('should return statistics', async () => {
-      service.count.mockResolvedValue(100);
-      service.findLowStock.mockResolvedValue([mockProduct]);
+      const mockStats = {
+        published: 50,
+        hidden: 30,
+        inStock: 40,
+        outOfStock: 60,
+      };
+      service.getStats.mockResolvedValue(mockStats);
       const result = await controller.getStats(tenantContext);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data!.totalProducts).toBe(100);
-      expect(result.data!.lowStockCount).toBe(1);
+      expect(result.data!.published).toBe(50);
+      expect(result.data!.hidden).toBe(30);
+      expect(result.data!.inStock).toBe(40);
+      expect(result.data!.outOfStock).toBe(60);
     });
   });
 

@@ -173,20 +173,18 @@ export class ProductController {
   async getStats(
     @Tenant()
     tenantContext: TenantContext,
-  ): Promise<AppApiResponse<{ totalProducts: number; lowStockCount: number }>> {
+  ): Promise<
+    AppApiResponse<{
+      published: number;
+      hidden: number;
+      inStock: number;
+      outOfStock: number;
+    }>
+  > {
     this.logger.log('Getting product statistics');
-    const totalProducts = await this.productService.count(tenantContext.shopId);
-    const lowStockProducts = await this.productService.findLowStock(
-      10,
-      tenantContext.shopId,
-    );
-    this.logger.log(
-      `Statistics: ${totalProducts} total, ${lowStockProducts.length} low stock`,
-    );
-    return {
-      success: true,
-      data: { totalProducts, lowStockCount: lowStockProducts.length },
-    };
+    const stats = await this.productService.getStats(tenantContext.shopId);
+    this.logger.log(`Statistics: ${JSON.stringify(stats)}`);
+    return { success: true, data: stats };
   }
 
   @Get('low-stock')

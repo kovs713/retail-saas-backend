@@ -108,7 +108,10 @@ describe('ProductService', () => {
     });
 
     it('marks CSV products as PUBLISHED and non-CSV products as HIDDEN', async () => {
-      writeFileSync(seedPath, 'sku,name,price,quantity\nSKU-1,One,1500,7\n');
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Цена;Остаток\nstore-1;uuid-1;One;SKU-1;1500;7\n',
+      );
       productRepository.findSyncedByShop.mockResolvedValue([
         createProduct({
           id: 'product-1',
@@ -164,7 +167,10 @@ describe('ProductService', () => {
     });
 
     it('does not overwrite manual visibility overrides', async () => {
-      writeFileSync(seedPath, 'sku,name\nSKU-1,One\n');
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код\nstore-1;uuid-1;One;SKU-1\n',
+      );
       productRepository.findSyncedByShop.mockResolvedValue([
         createProduct({
           id: 'product-1',
@@ -186,7 +192,10 @@ describe('ProductService', () => {
     });
 
     it('dry run reports changes without writing', async () => {
-      writeFileSync(seedPath, 'sku,name\nSKU-1,One\n');
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код\nstore-1;uuid-1;One;SKU-1\n',
+      );
       productRepository.findSyncedByShop.mockResolvedValue([
         createProduct({ id: 'product-1', shopId: 'shop-1', sku: 'SKU-1' }),
       ]);
@@ -202,6 +211,118 @@ describe('ProductService', () => {
       await expect(service.applyDemoCatalogSeed('shop-1')).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('parses CSV with Russian columns successfully', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Артикул;В продаже;Признак группы;Цена;Остаток\nstore-1;uuid-1;Товар;ART-1;TRUE;FALSE;10,5;3\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+
+      expect(rows).toEqual([
+        expect.objectContaining({
+          storeUuid: 'store-1',
+          externalId: 'uuid-1',
+          name: 'Товар',
+          sku: 'ART-1',
+          price: 10.5,
+          quantity: 3,
+        }),
+      ]);
+    });
+
+    it('uses Код as sku when sku column is missing', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код\nstore-1;uuid-1;Товар;CODE-1\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+
+      expect(rows[0].sku).toBe('CODE-1');
+    });
+
+    it('uses Артикул as sku when Код is missing', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Артикул\nstore-1;uuid-1;Товар;ART-1\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+
+      expect(rows[0].sku).toBe('ART-1');
+    });
+
+    it('uses Штрих-код as sku when Код and Артикул are missing', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Штрих-код\nstore-1;uuid-1;Товар;460123\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows[0].sku).toBe('460123');
+    });
+
+    it('parses quantity from Остаток as number', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Остаток\nstore-1;uuid-1;Товар;CODE-1;12,5\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows[0].quantity).toBe(12.5);
+    });
+
+    it('parses price from Цена as number', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Цена\nstore-1;uuid-1;Товар;CODE-1;99,9\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows[0].price).toBe(99.9);
+    });
+
+    it('skips rows where В продаже is FALSE', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;В продаже\nstore-1;uuid-1;Товар;CODE-1;FALSE\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows).toHaveLength(0);
+    });
+
+    it('skips rows where Признак группы is TRUE', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Признак группы\nstore-1;uuid-1;Товар;CODE-1;TRUE\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows).toHaveLength(0);
+    });
+
+    it('accepts quantity=0 row', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Остаток\nstore-1;uuid-1;Товар;CODE-1;0\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows[0].quantity).toBe(0);
+    });
+
+    it('accepts negative quantity row', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Остаток\nstore-1;uuid-1;Товар;CODE-1;-4\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows[0].quantity).toBe(-4);
     });
   });
 
