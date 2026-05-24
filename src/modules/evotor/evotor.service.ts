@@ -197,42 +197,20 @@ export class EvotorService {
     const trigger = options.trigger ?? 'APPROVE';
     const existingIntegration = await this.repository.findByShopId(shopId);
 
-    let bridgeSync: unknown;
-    if (options.runBridgeSync !== false) {
-      try {
-        this.logger.warn({
-          message: 'CORE_BRIDGE_SYNC_START',
-          shopId,
-          integrationId: existingIntegration?.id,
-          bridgeAccountId: evotorUserId,
-          trigger,
-        });
-        bridgeSync = await this.evotorApiService.syncAdmin({
-          evotorUserId,
-          dateFrom: options.dateFrom,
-          dateTo: options.dateTo,
-        });
-        this.logger.warn({
-          message: 'CORE_BRIDGE_SYNC_DONE',
-          shopId,
-          integrationId: existingIntegration?.id,
-          bridgeAccountId: evotorUserId,
-        });
-      } catch (error) {
-        this.logger.warn({
-          message: 'CORE_BRIDGE_SYNC_FAILED',
-          shopId,
-          bridgeAccountId: evotorUserId,
-          trigger,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
     const { integration, storeIds } = await this.ensureBridgeIntegrations(
       shopId,
       evotorUserId,
     );
+    const bridgeSync =
+      options.runBridgeSync === false
+        ? undefined
+        : await this.syncBridgeStoreProducts(
+            shopId,
+            integration,
+            storeIds,
+            evotorUserId,
+            trigger,
+          );
     const usePersistedEndpoint = true;
     const productsResult = await this.syncProductsForStores(
       shopId,
@@ -624,32 +602,13 @@ export class EvotorService {
   }> {
     const integration = await this.getConnectedIntegration(shopId);
     if (integration.externalUserId) {
-      try {
-        this.logger.warn({
-          message: 'CORE_BRIDGE_SYNC_START',
-          shopId,
-          integrationId: integration.id,
-          bridgeAccountId: integration.externalUserId,
-          trigger: 'FORCE',
-        });
-        await this.evotorApiService.syncAdmin({
-          evotorUserId: integration.externalUserId,
-        });
-        this.logger.warn({
-          message: 'CORE_BRIDGE_SYNC_DONE',
-          shopId,
-          integrationId: integration.id,
-          bridgeAccountId: integration.externalUserId,
-        });
-      } catch (error) {
-        this.logger.warn({
-          message: 'CORE_BRIDGE_SYNC_FAILED',
-          shopId,
-          integrationId: integration.id,
-          bridgeAccountId: integration.externalUserId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
+      await this.syncBridgeStoreProducts(
+        shopId,
+        integration,
+        this.getIntegrationStoreIds(integration),
+        integration.externalUserId,
+        'FORCE',
+      );
     }
 
     return this.syncProductsForStores(
@@ -914,6 +873,55 @@ export class EvotorService {
       deletedCount,
       syncedAt: integration.lastSyncAt.toISOString(),
     };
+  }
+
+  private async syncBridgeStoreProducts(
+    shopId: string,
+    integration: EvotorIntegration,
+    storeIds: string[],
+    evotorUserId: string,
+    trigger: 'APPROVE' | 'FORCE',
+  ): Promise<unknown[]> {
+    const uniqueStoreIds = [...new Set(storeIds.filter(Boolean))];
+    const results: unknown[] = [];
+
+    for (const storeId of uniqueStoreIds) {
+      try {
+        this.logger.warn({
+          message: 'CORE_BRIDGE_SYNC_START',
+          shopId,
+          integrationId: integration.id,
+          bridgeAccountId: evotorUserId,
+          trigger,
+          endpoint: 'POST /api/evotor/sync/stores/:storeId/products',
+          storeId,
+        });
+        const result = await this.evotorApiService.syncStoreProducts(storeId, {
+          evotorUserId,
+        });
+        results.push(result);
+        this.logger.warn({
+          message: 'CORE_BRIDGE_SYNC_DONE',
+          shopId,
+          integrationId: integration.id,
+          bridgeAccountId: evotorUserId,
+          trigger,
+          storeId,
+        });
+      } catch (error) {
+        this.logger.warn({
+          message: 'CORE_BRIDGE_SYNC_FAILED',
+          shopId,
+          integrationId: integration.id,
+          bridgeAccountId: evotorUserId,
+          trigger,
+          storeId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return results;
   }
 
   private aggregateRemoteProducts(

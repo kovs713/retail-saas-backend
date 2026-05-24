@@ -74,6 +74,7 @@ describe('EvotorService', () => {
     evotorApiService.getProducts.mockResolvedValue([]);
     evotorApiService.getAdminProducts.mockResolvedValue([]);
     evotorApiService.syncAdmin.mockResolvedValue({ result: 'ok' });
+    evotorApiService.syncStoreProducts.mockResolvedValue({ result: 'ok' });
     productService.applyDemoCatalogSeed.mockResolvedValue({
       seedPath: 'data/demo-seed.csv',
       dryRun: false,
@@ -226,9 +227,10 @@ describe('EvotorService', () => {
       expect(productRepository.create).toHaveBeenCalled();
       expect(productRepository.save).toHaveBeenCalled();
       expect(catalogIndexService.upsertProduct).not.toHaveBeenCalled();
-      expect(evotorApiService.syncAdmin).toHaveBeenCalledWith({
+      expect(evotorApiService.syncStoreProducts).toHaveBeenCalledWith('store-1', {
         evotorUserId: 'evotor-user-1',
       });
+      expect(evotorApiService.syncAdmin).not.toHaveBeenCalled();
       expect(evotorApiService.getAdminProducts).toHaveBeenCalledWith({
         evotorUserId: 'evotor-user-1',
         evotorAccountId: null,
@@ -280,7 +282,7 @@ describe('EvotorService', () => {
         integration: mockIntegration,
         storeIds: ['store-1'],
       });
-      evotorApiService.syncAdmin.mockResolvedValue(mockBridgeSyncResult);
+      evotorApiService.syncStoreProducts.mockResolvedValue(mockBridgeSyncResult);
       evotorApiService.getAdminProducts.mockResolvedValue(mockApprovedProducts);
       productRepository.findSyncedByShop.mockResolvedValue([]);
       productRepository.findBySku.mockResolvedValue(null);
@@ -295,13 +297,14 @@ describe('EvotorService', () => {
       jest.restoreAllMocks();
     });
 
-    it('calls bridge sync before product import', async () => {
+    it('calls product-only bridge sync before product import', async () => {
       await service.syncApprovedIntegration('shop-1', 'evotor-user-1');
 
-      expect(evotorApiService.syncAdmin).toHaveBeenCalledTimes(1);
-      expect(evotorApiService.syncAdmin).toHaveBeenCalledWith({
+      expect(evotorApiService.syncStoreProducts).toHaveBeenCalledTimes(1);
+      expect(evotorApiService.syncStoreProducts).toHaveBeenCalledWith('store-1', {
         evotorUserId: 'evotor-user-1',
       });
+      expect(evotorApiService.syncAdmin).not.toHaveBeenCalled();
     });
 
     it('uses persisted admin endpoint for product import (not live proxy)', async () => {
@@ -350,6 +353,7 @@ describe('EvotorService', () => {
         runBridgeSync: false,
       });
 
+      expect(evotorApiService.syncStoreProducts).not.toHaveBeenCalled();
       expect(evotorApiService.syncAdmin).not.toHaveBeenCalled();
     });
 
