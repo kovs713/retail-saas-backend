@@ -296,7 +296,9 @@ export class ProductService {
       },
     };
 
-    await this.cacheService.set(cacheKey, result, 300);
+    if (total > 0) {
+      await this.cacheService.set(cacheKey, result, 300);
+    }
 
     return result;
   }
