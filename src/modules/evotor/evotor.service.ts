@@ -69,6 +69,7 @@ interface AggregatedRemoteProduct {
 }
 
 const SELL_INBOX_EVENTS_CACHE_TTL_SECONDS = 3600;
+const SELL_EVENTS_COUNT_CACHE_TTL_SECONDS = 300;
 
 @Injectable()
 export class EvotorService {
@@ -310,6 +311,12 @@ export class EvotorService {
       const existingOrder = await this.orderRepository.findById(orderId);
 
       if (existingOrder) {
+        if (this.shouldUpdateEvotorOrderExternalFields(existingOrder)) {
+          existingOrder.externalSource = 'evotor';
+          existingOrder.externalId = sellDocument.id;
+          existingOrder.externalStoreId = storeId;
+          await this.orderRepository.save(existingOrder);
+        }
         skippedCount += 1;
         continue;
       }
@@ -318,6 +325,7 @@ export class EvotorService {
         this.toOrderEntity(
           orderId,
           shopId,
+          storeId,
           sellDocument,
           productIdsByRemoteKey,
         ),
@@ -352,32 +360,57 @@ export class EvotorService {
       return { totalCount: 0, periodCount: 0 };
     }
 
-    let totalCount: number;
-    let periodCount: number;
+    const cacheKey = this.cacheService.generateKey(
+      'evotor',
+      'sell-events-count',
+      shopId,
+      dateFrom ?? 'all',
+      dateTo ?? 'all',
+    );
+    const cached = await this.cacheService.get<{
+      totalCount: number;
+      periodCount: number;
+    }>(cacheKey);
 
-    try {
-      totalCount = await this.evotorApiService.countSellEvents(
-        integration.externalUserId,
-        integration.externalStoreId,
-      );
-      periodCount =
-        dateFrom || dateTo
-          ? await this.evotorApiService.countSellEvents(
-              integration.externalUserId,
-              integration.externalStoreId,
-              dateFrom,
-              dateTo,
-            )
-          : totalCount;
-    } catch (error) {
-      if (this.isBridgeNotFound(error)) {
-        return { totalCount: 0, periodCount: 0 };
-      }
-
-      throw error;
+    if (cached) {
+      return cached;
     }
 
-    return { totalCount, periodCount };
+    const baseQuery = {
+      evotorUserId: integration.externalUserId,
+      eventType: 'evotor.document.sell' as const,
+      skip: 0,
+      take: 1,
+    };
+
+    const hasPeriod = Boolean(dateFrom || dateTo);
+    const totalPromise = this.evotorApiService.listAdminInboxEvents({
+      ...baseQuery,
+    });
+
+    const [totalResponse, periodResponse] = hasPeriod
+      ? await Promise.all([
+          totalPromise,
+          this.evotorApiService.listAdminInboxEvents({
+            ...baseQuery,
+            dateFrom,
+            dateTo,
+          }),
+        ])
+      : [await totalPromise, undefined];
+
+    const totalCount = totalResponse.total;
+    const periodCount = periodResponse?.total ?? totalCount;
+
+    const result = { totalCount, periodCount };
+
+    await this.cacheService.set(
+      cacheKey,
+      result,
+      SELL_EVENTS_COUNT_CACHE_TTL_SECONDS,
+    );
+
+    return result;
   }
 
   async getLatestSellInboxEvents(
@@ -812,60 +845,39 @@ export class EvotorService {
     evotorUserId: string,
   ): Promise<{ integration: EvotorIntegration; storeIds: string[] }> {
     const existing = await this.repository.findByShopId(shopId);
+    const bridgeStores = await this.getBridgeStores(evotorUserId);
+    const storeIds = this.getBridgeStoreIds(bridgeStores);
 
     if (existing?.externalStoreId) {
       if (existing.externalUserId && existing.externalUserId !== evotorUserId) {
         throw new ConflictException('Shop is linked to another Evotor account');
       }
 
+      for (const storeId of storeIds) {
+        await this.assertExternalStoreAvailable(shopId, storeId);
+      }
+
       existing.provider = 'evotor';
       existing.status = 'connected';
       existing.externalUserId = evotorUserId;
-      const metadataStoreIds = this.getMetadataStoreIds(existing.metadata);
-
-      if (
-        metadataStoreIds.length > 0 &&
-        !metadataStoreIds.includes(existing.externalStoreId)
-      ) {
-        existing.externalStoreId = metadataStoreIds[0];
-      }
+      existing.externalStoreId = storeIds[0];
+      existing.metadata = {
+        ...(existing.metadata ?? {}),
+        mode: 'approved_bridge_sync',
+        bridgeStores,
+        linkedAt:
+          typeof existing.metadata?.linkedAt === 'string'
+            ? existing.metadata.linkedAt
+            : new Date().toISOString(),
+        syncedStoresAt: new Date().toISOString(),
+      };
 
       const saved = await this.repository.save(existing);
 
       return {
         integration: saved,
-        storeIds:
-          metadataStoreIds.length > 0
-            ? metadataStoreIds
-            : [saved.externalStoreId],
+        storeIds,
       };
-    }
-
-    const stores = await this.evotorApiService.listAdminStores({
-      evotorUserId,
-      take: 100,
-    });
-
-    if (stores.items.length === 0) {
-      throw new NotFoundException('Evotor stores not found in bridge');
-    }
-
-    const bridgeStores = stores.items as BridgeRecord[];
-    const storeIds = bridgeStores
-      .map((store) =>
-        this.pickBridgeString(store, [
-          'externalStoreId',
-          'storeUuid',
-          'uuid',
-          'storeId',
-          'store_id',
-          'id',
-        ]),
-      )
-      .filter((storeId): storeId is string => Boolean(storeId));
-
-    if (storeIds.length === 0) {
-      throw new BadRequestException('Evotor store id is missing in bridge');
     }
 
     for (const storeId of storeIds) {
@@ -882,12 +894,38 @@ export class EvotorService {
       mode: 'approved_bridge_sync',
       linkedAt: new Date().toISOString(),
       bridgeStores,
+      syncedStoresAt: new Date().toISOString(),
     };
 
     return {
       integration: await this.repository.save(integration),
       storeIds,
     };
+  }
+
+  private async getBridgeStores(evotorUserId: string): Promise<BridgeRecord[]> {
+    const stores = await this.evotorApiService.listAdminStores({
+      evotorUserId,
+      take: 100,
+    });
+
+    if (stores.items.length === 0) {
+      throw new NotFoundException('Evotor stores not found in bridge');
+    }
+
+    return stores.items as BridgeRecord[];
+  }
+
+  private getBridgeStoreIds(bridgeStores: BridgeRecord[]): string[] {
+    const storeIds = bridgeStores
+      .map((store) => this.getBridgeStoreExternalId(store))
+      .filter((storeId): storeId is string => Boolean(storeId));
+
+    if (storeIds.length === 0) {
+      throw new BadRequestException('Evotor store id is missing in bridge');
+    }
+
+    return [...new Set(storeIds)];
   }
 
   private async loadStoreProducts(
@@ -1119,6 +1157,7 @@ export class EvotorService {
   private toOrderEntity(
     id: string,
     shopId: string,
+    storeId: string,
     document: EvotorSellDocumentPayload,
     productIdsByRemoteKey: Map<string, string>,
   ): Partial<Order> {
@@ -1139,6 +1178,9 @@ export class EvotorService {
       ),
       totalAmount: Math.round(document.body.result_sum),
       status: OrderStatus.COMPLETED,
+      externalSource: 'evotor',
+      externalId: document.id,
+      externalStoreId: storeId,
       ...(occurredAt ? { createdAt: occurredAt, updatedAt: occurredAt } : {}),
     };
   }
@@ -1194,6 +1236,30 @@ export class EvotorService {
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
+  private parseOptionalQueryDate(
+    value: string | undefined,
+    field: string,
+  ): Date | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException(`Invalid ${field}`);
+    }
+
+    return date;
+  }
+
+  private shouldUpdateEvotorOrderExternalFields(order: Order): boolean {
+    return (
+      order.externalSource !== 'evotor' ||
+      !order.externalId ||
+      !order.externalStoreId
+    );
+  }
+
   private toStringOrNull(
     value: string | number | null | undefined,
   ): string | null {
@@ -1239,39 +1305,6 @@ export class EvotorService {
     const hex = bytes.toString('hex');
 
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-  }
-
-  private pickBridgeString(
-    record: BridgeRecord,
-    keys: string[],
-  ): string | null {
-    for (const key of keys) {
-      const value = record[key];
-
-      if (typeof value === 'string' && value.trim() !== '') {
-        return value;
-      }
-    }
-
-    return null;
-  }
-
-  private getMetadataStoreIds(
-    metadata: Record<string, unknown> | null,
-  ): string[] {
-    if (!metadata) {
-      return [];
-    }
-
-    const stores = metadata.bridgeStores;
-
-    if (!Array.isArray(stores)) {
-      return [];
-    }
-
-    return stores
-      .map((store) => this.getBridgeStoreExternalId(store))
-      .filter((storeId): storeId is string => Boolean(storeId));
   }
 
   private getIntegrationStoreIds(integration: EvotorIntegration): string[] {
