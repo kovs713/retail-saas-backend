@@ -18,6 +18,7 @@ describe('EvotorService', () => {
   let evotorApiService: DeepMocked<EvotorApiService>;
   let cacheService: DeepMocked<CacheService>;
   let integrationRepository: DeepMocked<EvotorIntegrationRepository>;
+  let productRepository: DeepMocked<ProductRepository>;
 
   const mockIntegration = {
     id: 'int-1',
@@ -37,7 +38,10 @@ describe('EvotorService', () => {
           useValue: createMock<EvotorIntegrationRepository>(),
         },
         { provide: ShopService, useValue: createMock<ShopService>() },
-        { provide: ProductRepository, useValue: createMock<ProductRepository>() },
+        {
+          provide: ProductRepository,
+          useValue: createMock<ProductRepository>(),
+        },
         { provide: OrderRepository, useValue: createMock<OrderRepository>() },
         { provide: EvotorApiService, useValue: createMock<EvotorApiService>() },
         {
@@ -54,12 +58,14 @@ describe('EvotorService', () => {
     evotorApiService = module.get(EvotorApiService);
     cacheService = module.get(CacheService);
     integrationRepository = module.get(EvotorIntegrationRepository);
+    productRepository = module.get(ProductRepository);
 
     cacheService.generateKey.mockImplementation((...parts) =>
       parts.filter((part) => part !== undefined && part !== null).join(':'),
     );
     cacheService.get.mockResolvedValue(null);
     integrationRepository.findOne.mockResolvedValue(mockIntegration);
+    evotorApiService.getProducts.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -134,6 +140,72 @@ describe('EvotorService', () => {
 
       expect(result).toEqual({ totalCount: 100, periodCount: 100 });
       expect(evotorApiService.listAdminInboxEvents).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('ensureSellPositionProducts', () => {
+    it('skips product creation for sell_document positions', async () => {
+      const mockDocument = {
+        id: 'doc-1',
+        type: 'SELL',
+        body: {
+          positions: [
+            {
+              id: 1,
+              product_id: 'remote-p1',
+              product_name: 'Позиция по свободной цене',
+              quantity: 1,
+              price: 100,
+              result_price: 100,
+              sum: 100,
+              result_sum: 100,
+              product_type: 'NORMAL',
+              tax: { type: 'NO_VAT', sum: 0, result_sum: 0 },
+            },
+          ],
+          payments: [{ id: 'pay-1', type: 'CASH', sum: 100 }],
+          result_sum: 100,
+        },
+      };
+
+      await (service as any).ensureSellPositionProducts(
+        'shop-1',
+        'store-1',
+        mockDocument,
+        new Map(),
+      );
+
+      expect(productRepository.save).not.toHaveBeenCalled();
+      expect(productRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('syncProducts', () => {
+    it('creates products from catalog product sync', async () => {
+      const mockRemoteProducts = [
+        {
+          id: 'remote-p1',
+          article_number: 'ART001',
+          name: 'Test Product',
+          price: 1000,
+          quantity: 10,
+          barcode: '1234567890',
+        },
+      ];
+
+      evotorApiService.getProducts.mockResolvedValue(mockRemoteProducts);
+      productRepository.findSyncedByShop.mockResolvedValue([]);
+      productRepository.findBySku.mockResolvedValue(null);
+      productRepository.create.mockImplementation((dto) => dto);
+      productRepository.save.mockImplementation((product) =>
+        Promise.resolve({ ...product, id: 'new-id' }),
+      );
+
+      const result = await service.syncProducts('shop-1');
+
+      expect(productRepository.create).toHaveBeenCalled();
+      expect(productRepository.save).toHaveBeenCalled();
+      expect(result.importedCount).toBeGreaterThan(0);
     });
   });
 });

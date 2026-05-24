@@ -91,6 +91,106 @@ describe('EvotorApiService', () => {
     expect(headers.get('X-Authorization')).toBeNull();
   });
 
+  it('filters out products with allow_to_sell=false', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          items: [
+            {
+              uuid: 'product-1',
+              name: 'Not for sale',
+              price: 100,
+              quantity: 5,
+              allow_to_sell: false,
+            },
+          ],
+        },
+        paging: {},
+      }),
+    );
+
+    const result = await service.getProducts('store/1', 'evotor-user-1');
+
+    expect(result).toEqual([]);
+  });
+
+  it('filters out product groups (group=true)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          items: [
+            {
+              uuid: 'group-1',
+              name: 'Category Group',
+              price: 0,
+              quantity: 0,
+              group: true,
+            },
+          ],
+        },
+        paging: {},
+      }),
+    );
+
+    const result = await service.getProducts('store/1', 'evotor-user-1');
+
+    expect(result).toEqual([]);
+  });
+
+  it('keeps product with quantity=0 and allow_to_sell=true', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          items: [
+            {
+              uuid: 'product-1',
+              articleNumber: 'SKU-001',
+              name: 'Out of Stock Product',
+              price: 1000,
+              quantity: 0,
+            },
+          ],
+        },
+        paging: {},
+      }),
+    );
+
+    const result = await service.getProducts('store/1', 'evotor-user-1');
+
+    expect(result).toEqual([
+      {
+        id: 'product-1',
+        article_number: 'SKU-001',
+        name: 'Out of Stock Product',
+        price: 1000,
+        quantity: 0,
+      },
+    ]);
+  });
+
+  it('filters out products with source=sell_document', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          items: [
+            {
+              uuid: 'product-1',
+              name: 'Sell Document Item',
+              price: 200,
+              quantity: 1,
+              source: 'sell_document',
+            },
+          ],
+        },
+        paging: {},
+      }),
+    );
+
+    const result = await service.getProducts('store/1', 'evotor-user-1');
+
+    expect(result).toEqual([]);
+  });
+
   it('reads documents through the bridge proxy with pagination', async () => {
     fetchMock
       .mockResolvedValueOnce(

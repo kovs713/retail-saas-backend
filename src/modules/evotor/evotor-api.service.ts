@@ -87,7 +87,7 @@ type EvotorAdminListQuery = Pick<
   | 'dateFrom'
   | 'dateTo'
   | 'eventType'
->;
+> & { storefrontOnly?: string };
 
 @Injectable()
 export class EvotorApiService {
@@ -139,6 +139,7 @@ export class EvotorApiService {
   async getAdminProducts(
     evotorUserId: string,
     storeId?: string,
+    storefrontOnly?: boolean,
   ): Promise<RemoteProduct[]> {
     const products: RemoteProduct[] = [];
     const take = 100;
@@ -151,6 +152,7 @@ export class EvotorApiService {
         storeId,
         skip,
         take,
+        ...(storefrontOnly ? { storefrontOnly: 'true' } : {}),
       });
 
       total = response.total;
@@ -578,6 +580,7 @@ export class EvotorApiService {
       if (query.search) params.search = query.search;
       if (query.name) params.name = query.name;
       if (query.code) params.code = query.code;
+      if (query.storefrontOnly) params.storefrontOnly = query.storefrontOnly;
     }
 
     if (inboxResources.includes(resource)) {
@@ -842,6 +845,31 @@ export class EvotorApiService {
       payloadProduct,
       dataProduct,
     ].filter(Boolean);
+
+    // Safety net: reject non-storefront products
+    for (const record of records) {
+      if (!record) continue;
+      if (
+        record['group'] === true ||
+        record['group'] === 1 ||
+        record['group'] === '1' ||
+        record['group'] === 'true'
+      ) {
+        return null;
+      }
+      const allowToSell = record['allow_to_sell'] ?? record['allowToSell'];
+      if (
+        allowToSell === false ||
+        allowToSell === 0 ||
+        allowToSell === '0' ||
+        allowToSell === 'false'
+      ) {
+        return null;
+      }
+    }
+    if (this.pickString(records, ['source']) === 'sell_document') {
+      return null;
+    }
 
     const id = this.pickString(records, [
       'productId',

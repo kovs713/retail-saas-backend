@@ -296,12 +296,7 @@ export class EvotorService {
         continue;
       }
 
-      await this.ensureSellPositionProducts(
-        shopId,
-        storeId,
-        sellDocument,
-        productIdsByRemoteKey,
-      );
+      this.ensureSellPositionProducts(shopId, storeId, sellDocument);
 
       const orderId = this.getEvotorOrderId(
         integration.externalUserId,
@@ -932,28 +927,32 @@ export class EvotorService {
     storeId: string,
     evotorUserId: string | null,
   ) {
-    if (evotorUserId) {
-      return this.evotorApiService.getAdminProducts(evotorUserId, storeId);
-    }
-
     try {
       const products = await this.evotorApiService.getProducts(
         storeId,
         evotorUserId,
       );
 
-      if (products.length > 0 || !evotorUserId) {
+      if (products && products.length > 0) {
         return products;
       }
 
-      return this.evotorApiService.getAdminProducts(evotorUserId, storeId);
+      if (!evotorUserId) {
+        return products ?? [];
+      }
     } catch (error) {
       if (evotorUserId && this.isBridgeNotFound(error)) {
-        return this.evotorApiService.getAdminProducts(evotorUserId, storeId);
+        return this.evotorApiService.getAdminProducts(
+          evotorUserId,
+          storeId,
+          true,
+        );
       }
 
       throw error;
     }
+
+    return this.evotorApiService.getAdminProducts(evotorUserId, storeId, true);
   }
 
   private async loadStoreDocuments(
@@ -1076,61 +1075,17 @@ export class EvotorService {
     return isEvotorSellDocumentPayload(payload) ? payload : null;
   }
 
-  private async ensureSellPositionProducts(
+  private ensureSellPositionProducts(
     shopId: string,
     storeId: string,
     document: EvotorSellDocumentPayload,
-    productIdsByRemoteKey: Map<string, string>,
-  ): Promise<void> {
-    for (const position of document.body.positions) {
-      const remoteKey = this.getPositionRemoteKey(position);
-
-      if (productIdsByRemoteKey.has(remoteKey)) {
-        continue;
-      }
-
-      const sku = this.getPositionSku(position, remoteKey);
-      const existingProduct = await this.productRepository.findBySku(
-        sku,
-        shopId,
-      );
-
-      if (existingProduct) {
-        this.addProductLookup(productIdsByRemoteKey, existingProduct);
-        productIdsByRemoteKey.set(remoteKey, existingProduct.id);
-        continue;
-      }
-
-      const product = this.productRepository.create({
-        shopId,
-        sku,
-        name: this.toStringOrNull(position.product_name) ?? sku,
-        price: Math.round(position.result_price ?? position.price),
-        quantity: 0,
-        description: null,
-        cost: null,
-        categoryId: null,
-        barcode: this.toStringOrNull(position.bar_code),
-        images: [],
-        metadata: {
-          evotor: {
-            id: remoteKey,
-            storeId,
-            managed: true,
-            source: 'sell_document',
-            syncedAt: new Date().toISOString(),
-          },
-        },
-        externalSource: 'evotor',
-        externalId: remoteKey,
-        externalStoreId: storeId,
-        deletedAt: null,
-      });
-      const savedProduct = await this.productRepository.save(product);
-
-      await this.syncCatalogProduct(savedProduct);
-      this.addProductLookup(productIdsByRemoteKey, savedProduct);
-    }
+  ): void {
+    this.logger.warn({
+      message: 'SKIP_SELL_DOCUMENT_PRODUCT_MATERIALIZATION',
+      storeId,
+      documentId: document.id,
+      positionsCount: document.body.positions.length,
+    });
   }
 
   private buildProductRemoteLookup(products: Product[]): Map<string, string> {
