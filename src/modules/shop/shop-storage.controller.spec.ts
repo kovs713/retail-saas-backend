@@ -76,9 +76,6 @@ describe('ShopStorageController', () => {
 
     shopService.findById.mockResolvedValue(mockShop);
     storageService.getPresignedPutUrl.mockResolvedValue('https://s3/upload');
-    storageService.getPublicUrl.mockReturnValue(
-      'https://s3/bucket/shops/shop-1/logo/logo.png',
-    );
   });
 
   afterEach(() => {
@@ -98,12 +95,9 @@ describe('ShopStorageController', () => {
       'shops/shop-1/logo/logo.png',
       900,
     );
-    expect(storageService.getPublicUrl).toHaveBeenCalledWith(
-      'shops/shop-1/logo/logo.png',
-    );
     expect(result).toEqual({
       uploadUrl: 'https://s3/upload',
-      publicUrl: 'https://s3/bucket/shops/shop-1/logo/logo.png',
+      publicUrl: '/public/media/test-shop/shops/logo/logo.png',
     });
   });
 
@@ -121,10 +115,10 @@ describe('ShopStorageController', () => {
     );
   });
 
-  it('sanitizes filename before building key', async () => {
+  it('uses safe filename as object key suffix', async () => {
     await controller.getLogoPresignedUrl(
       'shop-1',
-      'my logo.png',
+      'my-logo.png',
       tenantContext,
       ownerRequest,
     );
@@ -133,6 +127,17 @@ describe('ShopStorageController', () => {
       'shops/shop-1/logo/my-logo.png',
       900,
     );
+  });
+
+  it('rejects invalid filename', async () => {
+    await expect(
+      controller.getLogoPresignedUrl(
+        'shop-1',
+        'my logo.png',
+        tenantContext,
+        ownerRequest,
+      ),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('rejects owner requesting another shop', async () => {

@@ -49,13 +49,6 @@ export class ObjectStorageService {
     }
   }
 
-  getPublicUrl(key: string): string {
-    const protocol = this.s3Config.useSSL ? 'https' : 'http';
-    const encodedKey = key.split('/').map(encodeURIComponent).join('/');
-
-    return `${protocol}://${this.s3Config.host}:${this.s3Config.port}/${this.bucket}/${encodedKey}`;
-  }
-
   async putObject(
     key: string,
     payload: Buffer | Readable,

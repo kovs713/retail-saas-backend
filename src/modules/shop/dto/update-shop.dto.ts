@@ -1,11 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsBoolean,
-  IsObject,
-  IsOptional,
-  IsString,
-  IsUrl,
-} from 'class-validator';
+import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class UpdateShopDto {
   @ApiPropertyOptional({ description: 'Shop name', example: 'My Shop' })
@@ -53,7 +47,7 @@ export class UpdateShopDto {
     nullable: true,
   })
   @IsOptional()
-  @IsUrl()
+  @IsString()
   logoUrl?: string | null;
 
   @ApiPropertyOptional({
@@ -62,7 +56,7 @@ export class UpdateShopDto {
     nullable: true,
   })
   @IsOptional()
-  @IsUrl()
+  @IsString()
   bannerUrl?: string | null;
 
   @ApiPropertyOptional({ description: 'Is shop active', example: true })

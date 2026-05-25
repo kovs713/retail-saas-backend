@@ -76,7 +76,7 @@ export class ShopStorageController {
     req: Request,
   ): Promise<ShopMediaPresignedUrlDto> {
     this.assertShopAccess(shopId, tenantContext, req);
-    await this.shopService.findById(shopId);
+    const shop = await this.shopService.findById(shopId);
 
     const safeFileName = this.sanitizeFileName(filename);
     const key = `shops/${shopId}/${mediaType}/${safeFileName}`;
@@ -86,22 +86,36 @@ export class ShopStorageController {
         key,
         ShopStorageController.uploadUrlTtlSeconds,
       ),
-      publicUrl: this.storageService.getPublicUrl(key),
+      publicUrl: this.buildPublicShopMediaUrl(
+        shop.slug,
+        mediaType,
+        safeFileName,
+      ),
     };
   }
 
   private sanitizeFileName(filename: string): string {
-    const safeFileName = filename
-      ?.trim()
-      .split('/')
-      .pop()
-      ?.replace(/[^a-zA-Z0-9._-]/g, '-');
-
-    if (!safeFileName || safeFileName === '.' || safeFileName === '..') {
-      throw new BadRequestException('filename is required');
+    const trimmed = filename?.trim() ?? '';
+    const validPattern = /^[a-zA-Z0-9._-]+$/;
+    if (!trimmed || !validPattern.test(trimmed)) {
+      throw new BadRequestException('Invalid image file name');
     }
 
-    return safeFileName;
+    const extension = trimmed.split('.').pop()?.toLowerCase();
+    const allowedExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
+    if (!extension || !allowedExtensions.has(extension)) {
+      throw new BadRequestException('Unsupported image extension');
+    }
+
+    return trimmed;
+  }
+
+  private buildPublicShopMediaUrl(
+    shopSlug: string,
+    mediaType: ShopMediaType,
+    imageName: string,
+  ): string {
+    return `/public/media/${shopSlug}/shops/${mediaType}/${imageName}`;
   }
 
   private assertShopAccess(
