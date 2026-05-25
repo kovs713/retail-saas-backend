@@ -50,18 +50,20 @@ export class UpdateShopDto {
   @ApiPropertyOptional({
     description: 'Logo URL',
     example: 'https://example.com/logo.png',
+    nullable: true,
   })
   @IsOptional()
   @IsUrl()
-  logoUrl?: string;
+  logoUrl?: string | null;
 
   @ApiPropertyOptional({
     description: 'Banner URL',
     example: 'https://example.com/banner.jpg',
+    nullable: true,
   })
   @IsOptional()
   @IsUrl()
-  bannerUrl?: string;
+  bannerUrl?: string | null;
 
   @ApiPropertyOptional({ description: 'Is shop active', example: true })
   @IsOptional()

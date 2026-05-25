@@ -3,6 +3,7 @@ import { Location, Shop } from './entities';
 import { PublicShopController } from './public-shop.controller';
 import { LocationRepository, ShopRepository } from './repositories';
 import { ShopController } from './shop.controller';
+import { ShopStorageController } from './shop-storage.controller';
 import { ShopService } from './shop.service';
 
 import { forwardRef, Module } from '@nestjs/common';
@@ -15,6 +16,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
   ],
   providers: [ShopService, ShopRepository, LocationRepository],
   exports: [ShopService, ShopRepository],
-  controllers: [ShopController, PublicShopController],
+  controllers: [ShopController, PublicShopController, ShopStorageController],
 })
 export class ShopModule {}

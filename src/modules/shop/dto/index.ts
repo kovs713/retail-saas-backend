@@ -2,6 +2,7 @@ export * from './create-location.dto';
 export * from './create-shop.dto';
 export * from './location.dto';
 export * from './shop.dto';
+export * from './shop-media-presigned-url.dto';
 export * from './storefront-pagination-query.dto';
 export * from './storefront-paginated-response.dto';
 export * from './storefront-response.dto';
