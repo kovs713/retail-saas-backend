@@ -855,7 +855,10 @@ export class ProductService {
   }
 
   private normalizeCsvColumn(value: string): string {
-    return value.trim().replace(/^\uFEFF/, '').toLowerCase();
+    return value
+      .trim()
+      .replace(/^\uFEFF/, '')
+      .toLowerCase();
   }
 
   private findCsvColumnIndex(columns: string[], aliases: string[]): number {

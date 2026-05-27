@@ -201,7 +201,9 @@ export class EvotorApiService {
       message: 'CORE_IMPORT_PRODUCTS_NORMALIZED',
       endpoint: 'GET /admin/evotor/products',
       evotorUserId,
-      evotorAccountId: this.isUuid(evotorAccountId) ? evotorAccountId : undefined,
+      evotorAccountId: this.isUuid(evotorAccountId)
+        ? evotorAccountId
+        : undefined,
       storeUuid,
       storefrontOnly: storefrontOnly === true,
       rawTotal,

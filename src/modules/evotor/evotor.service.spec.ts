@@ -227,9 +227,12 @@ describe('EvotorService', () => {
       expect(productRepository.create).toHaveBeenCalled();
       expect(productRepository.save).toHaveBeenCalled();
       expect(catalogIndexService.upsertProduct).not.toHaveBeenCalled();
-      expect(evotorApiService.syncStoreProducts).toHaveBeenCalledWith('store-1', {
-        evotorUserId: 'evotor-user-1',
-      });
+      expect(evotorApiService.syncStoreProducts).toHaveBeenCalledWith(
+        'store-1',
+        {
+          evotorUserId: 'evotor-user-1',
+        },
+      );
       expect(evotorApiService.syncAdmin).not.toHaveBeenCalled();
       expect(evotorApiService.getAdminProducts).toHaveBeenCalledWith({
         evotorUserId: 'evotor-user-1',
@@ -282,7 +285,9 @@ describe('EvotorService', () => {
         integration: mockIntegration,
         storeIds: ['store-1'],
       });
-      evotorApiService.syncStoreProducts.mockResolvedValue(mockBridgeSyncResult);
+      evotorApiService.syncStoreProducts.mockResolvedValue(
+        mockBridgeSyncResult,
+      );
       evotorApiService.getAdminProducts.mockResolvedValue(mockApprovedProducts);
       productRepository.findSyncedByShop.mockResolvedValue([]);
       productRepository.findBySku.mockResolvedValue(null);
@@ -301,9 +306,12 @@ describe('EvotorService', () => {
       await service.syncApprovedIntegration('shop-1', 'evotor-user-1');
 
       expect(evotorApiService.syncStoreProducts).toHaveBeenCalledTimes(1);
-      expect(evotorApiService.syncStoreProducts).toHaveBeenCalledWith('store-1', {
-        evotorUserId: 'evotor-user-1',
-      });
+      expect(evotorApiService.syncStoreProducts).toHaveBeenCalledWith(
+        'store-1',
+        {
+          evotorUserId: 'evotor-user-1',
+        },
+      );
       expect(evotorApiService.syncAdmin).not.toHaveBeenCalled();
     });
 

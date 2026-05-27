@@ -437,7 +437,7 @@ export class ProductRepository extends Repository<Product> {
       .andWhere('product.deletedAt IS NULL')
       .andWhere(
         "(product.metadata->'storefront'->>'publicationStatus' IS NULL OR " +
-        "product.metadata->'storefront'->>'publicationStatus' != :visibility)",
+          "product.metadata->'storefront'->>'publicationStatus' != :visibility)",
         { visibility: 'PUBLISHED' },
       )
       .getCount();

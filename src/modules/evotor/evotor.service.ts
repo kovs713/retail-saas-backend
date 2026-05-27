@@ -692,7 +692,9 @@ export class EvotorService {
         return { storeId, products };
       }),
     );
-    const receivedProducts = productsByStore.flatMap(({ products }) => products);
+    const receivedProducts = productsByStore.flatMap(
+      ({ products }) => products,
+    );
     this.logger.warn({
       message: 'CORE_IMPORT_PRODUCTS_RESPONSE',
       receivedTotal: receivedProducts.length,
