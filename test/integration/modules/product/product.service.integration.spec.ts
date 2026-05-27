@@ -118,6 +118,7 @@ describe('ProductService Integration', () => {
       quantity: 10,
       shopId,
       externalSource: 'evotor',
+      metadata: { storefront: { publicationStatus: 'PUBLISHED' } },
       ...overrides,
     });
   };

@@ -113,7 +113,7 @@ describe('ProductRepository Integration', () => {
         barcode: null,
         images: [],
         externalSource: 'evotor',
-        metadata: null,
+        metadata: { storefront: { publicationStatus: 'PUBLISHED' } },
         ...overrides,
       }),
     );

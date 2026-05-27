@@ -4,6 +4,8 @@ import { ProductService } from '@/modules/product/product.service';
 import { ProductRepository } from '@/modules/product/repositories';
 import { EvotorApiService } from './evotor-api.service';
 import { EvotorService } from './evotor.service';
+import { OrderRepository } from '@/modules/order/repositories/order.repository';
+import { ShopService } from '@/modules/shop/shop.service';
 import { EvotorIntegrationRepository } from './repositories';
 import { EvotorIntegration } from './entities';
 
