@@ -195,8 +195,6 @@ export class EvotorService {
   ): Promise<SyncApprovedIntegrationResult> {
     await this.shopService.findById(shopId);
     const trigger = options.trigger ?? 'APPROVE';
-    const existingIntegration = await this.repository.findByShopId(shopId);
-
     const { integration, storeIds } = await this.ensureBridgeIntegrations(
       shopId,
       evotorUserId,

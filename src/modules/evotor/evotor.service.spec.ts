@@ -1,9 +1,7 @@
 import { CacheService } from '@/core/cache/cache.service';
-import { OrderRepository } from '@/modules/order/repositories';
 import { CatalogIndexService } from '@/modules/product/catalog-index.service';
 import { ProductService } from '@/modules/product/product.service';
 import { ProductRepository } from '@/modules/product/repositories';
-import { ShopService } from '@/modules/shop/shop.service';
 import { EvotorApiService } from './evotor-api.service';
 import { EvotorService } from './evotor.service';
 import { EvotorIntegrationRepository } from './repositories';
@@ -14,8 +12,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 describe('EvotorService', () => {
   let service: EvotorService;
-  let shopService: DeepMocked<ShopService>;
-  let orderRepository: DeepMocked<OrderRepository>;
   let evotorApiService: DeepMocked<EvotorApiService>;
   let cacheService: DeepMocked<CacheService>;
   let integrationRepository: DeepMocked<EvotorIntegrationRepository>;
@@ -57,8 +53,6 @@ describe('EvotorService', () => {
     }).compile();
 
     service = module.get(EvotorService);
-    shopService = module.get(ShopService);
-    orderRepository = module.get(OrderRepository);
     evotorApiService = module.get(EvotorApiService);
     cacheService = module.get(CacheService);
     integrationRepository = module.get(EvotorIntegrationRepository);

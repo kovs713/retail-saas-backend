@@ -149,7 +149,7 @@ export class ProductController {
       return tenantContext.shopId;
     }
 
-    if (req.user.role === Role.ADMIN) {
+    if ((req.user.role as Role) === Role.ADMIN) {
       await this.shopService.findById(requestedShopId);
       return requestedShopId;
     }

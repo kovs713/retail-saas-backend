@@ -123,7 +123,7 @@ export class ShopStorageController {
     tenantContext: TenantContext,
     req: Request,
   ): void {
-    if (req.user.role === Role.ADMIN) {
+    if ((req.user.role as Role) === Role.ADMIN) {
       return;
     }
 
