@@ -246,6 +246,10 @@ export class RagService {
     return this.productService.rebuildCatalogIndex(shopId);
   }
 
+  async reindexPublishedDemoProducts(shopId: string): Promise<number> {
+    return this.productService.reindexPublishedDemoProducts(shopId);
+  }
+
   async clearDocuments(shopId: string): Promise<void> {
     await this.vectorStoreService.deleteDocuments(shopId);
     this.logger.log(`Cleared all documents for organization: ${shopId}`);
@@ -475,21 +479,6 @@ export class RagService {
     return typeof value === 'string' && value.trim() ? value : undefined;
   }
 
-  private mergeProducts(
-    searchProducts: Product[],
-    availableProducts: Product[],
-  ): Product[] {
-    const mergedProducts = new Map<string, Product>();
-
-    for (const product of [...searchProducts, ...availableProducts]) {
-      if (!mergedProducts.has(product.id)) {
-        mergedProducts.set(product.id, product);
-      }
-    }
-
-    return [...mergedProducts.values()];
-  }
-
   private deduplicateVectorDocs(documents: Document[]): Document[] {
     const uniqueDocuments = new Map<string, Document>();
 
@@ -666,10 +655,6 @@ export class RagService {
         : [];
     }
 
-    const catalogProducts = this.mergeProducts(
-      matchedProducts,
-      availableProducts,
-    );
     const vectorSearchQueries = this.buildVectorSearchQueries(
       query,
       normalizedQuery,
@@ -712,7 +697,14 @@ export class RagService {
       });
     }
 
-    for (const product of catalogProducts) {
+    const matchedIds = new Set(matchedProducts.map((p) => p.id));
+    const detailLimit = 15;
+    const detailProducts = [
+      ...matchedProducts,
+      ...availableProducts.filter((p) => !matchedIds.has(p.id)),
+    ].slice(0, detailLimit);
+
+    for (const product of detailProducts) {
       const productInfo = this.buildProductContext(product);
       productContextParts.push(productInfo);
       sources.push({

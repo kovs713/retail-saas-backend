@@ -108,6 +108,7 @@ describe('PublicMedia Integration', () => {
       quantity: 10,
       externalSource: 'evotor',
       shopId: shop.id,
+      metadata: { storefront: { publicationStatus: 'PUBLISHED' } },
     });
     productId = product.id;
 

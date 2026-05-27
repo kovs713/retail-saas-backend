@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -11,6 +12,12 @@ import {
 import { OrderStatus } from '../dto';
 
 @Entity('orders')
+@Index(['shopId', 'externalSource', 'createdAt'])
+@Index(['externalSource', 'externalId', 'externalStoreId'], {
+  unique: true,
+  where:
+    '"externalSource" IS NOT NULL AND "externalId" IS NOT NULL AND "externalStoreId" IS NOT NULL',
+})
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -35,6 +42,15 @@ export class Order {
 
   @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
   status: OrderStatus;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  externalSource: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  externalId: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  externalStoreId: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

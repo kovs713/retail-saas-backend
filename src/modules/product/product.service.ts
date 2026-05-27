@@ -11,6 +11,8 @@ import {
   ProductRepository,
 } from './repositories';
 
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   BadRequestException,
   ConflictException,
@@ -18,6 +20,38 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { FindOptionsWhere, QueryDeepPartialEntity } from 'typeorm';
+
+interface DemoSeedRow {
+  sku: string;
+  storeUuid: string;
+  externalId?: string;
+  articleNumber?: string;
+  barcode?: string;
+  name: string;
+  description?: string;
+  price?: number;
+  quantity?: number;
+}
+
+interface DemoSeedParseStats {
+  rowsTotal: number;
+  parsedRows: number;
+  skippedNoIdentity: number;
+  skippedNoName: number;
+  skippedNotAllowed: number;
+  skippedGroup: number;
+}
+
+export interface DemoCatalogSeedResult {
+  seedPath: string;
+  dryRun: boolean;
+  csvProducts: number;
+  publishedCount: number;
+  hiddenCount: number;
+  skippedManualOverrideCount: number;
+  updatedQuantityCount: number;
+  updatedPriceCount: number;
+}
 
 @Injectable()
 export class ProductService {
@@ -259,6 +293,7 @@ export class ProductService {
       query.minPrice ?? 'min-all',
       query.maxPrice ?? 'max-all',
       query.inStock === undefined ? 'stock-all' : String(query.inStock),
+      query.visibility ?? 'PUBLISHED',
       query.sortBy || 'sort-default',
       query.sortOrder || 'order-default',
     );
@@ -296,7 +331,9 @@ export class ProductService {
       },
     };
 
-    await this.cacheService.set(cacheKey, result, 300);
+    if (total > 0) {
+      await this.cacheService.set(cacheKey, result, 300);
+    }
 
     return result;
   }
@@ -401,6 +438,21 @@ export class ProductService {
     return count;
   }
 
+  async getStats(shopId: string): Promise<{
+    published: number;
+    hidden: number;
+    inStock: number;
+    outOfStock: number;
+  }> {
+    const [published, hidden, inStock, outOfStock] = await Promise.all([
+      this.productRepository.countPublishedByShop(shopId),
+      this.productRepository.countHiddenByShop(shopId),
+      this.productRepository.countInStockByShop(shopId),
+      this.productRepository.countOutOfStockByShop(shopId),
+    ]);
+    return { published, hidden, inStock, outOfStock };
+  }
+
   async countByCategory(categoryId: string, shopId: string): Promise<number> {
     const count = await this.productRepository.countSyncedByCategory(
       shopId,
@@ -494,6 +546,362 @@ export class ProductService {
     }
 
     return products.length;
+  }
+
+  async reindexPublishedDemoProducts(shopId: string): Promise<number> {
+    const products =
+      await this.productRepository.findSyncedPublishedDemoByShop(shopId);
+
+    await this.catalogIndexService.clearCatalog(shopId);
+    for (const product of products) {
+      await this.catalogIndexService.upsertProduct(product);
+    }
+
+    return products.length;
+  }
+
+  async applyDemoCatalogSeed(
+    shopId: string,
+    dryRun = false,
+    failIfMissing = true,
+  ): Promise<DemoCatalogSeedResult> {
+    const seedPath = this.resolveDemoCatalogSeedPath();
+    this.logger.log(
+      `Applying demo catalog seed: path=${seedPath}, dryRun=${dryRun}`,
+    );
+
+    if (!existsSync(seedPath)) {
+      if (!failIfMissing) {
+        return {
+          seedPath,
+          dryRun,
+          csvProducts: 0,
+          publishedCount: 0,
+          hiddenCount: 0,
+          skippedManualOverrideCount: 0,
+          updatedQuantityCount: 0,
+          updatedPriceCount: 0,
+        };
+      }
+
+      throw new BadRequestException(
+        `Demo catalog seed file not found: ${seedPath}`,
+      );
+    }
+
+    const seedRows = this.parseDemoCatalogSeed(seedPath);
+    const seedBySku = new Map(seedRows.map((row) => [row.sku, row]));
+    const result: DemoCatalogSeedResult = {
+      seedPath,
+      dryRun,
+      csvProducts: seedRows.length,
+      publishedCount: 0,
+      hiddenCount: 0,
+      skippedManualOverrideCount: 0,
+      updatedQuantityCount: 0,
+      updatedPriceCount: 0,
+    };
+
+    if (seedRows.length === 0) {
+      return result;
+    }
+
+    const products = await this.productRepository.findSyncedByShop(
+      shopId,
+      true,
+    );
+
+    for (const product of products) {
+      const metadata = this.cloneMetadata(product.metadata);
+      const storefront = this.getStorefrontMetadata(metadata);
+      if (storefront.manualVisibilityOverride === true) {
+        result.skippedManualOverrideCount += 1;
+        continue;
+      }
+
+      const seedRow = seedBySku.get(product.sku);
+      storefront.publicationStatus = seedRow ? 'PUBLISHED' : 'HIDDEN';
+      metadata.storefront = storefront;
+      metadata.demoSeed = Boolean(seedRow);
+
+      const updatePayload: QueryDeepPartialEntity<Product> = {
+        metadata,
+      } as unknown as QueryDeepPartialEntity<Product>;
+
+      if (seedRow) {
+        result.publishedCount += 1;
+        if (
+          seedRow.quantity !== undefined &&
+          Number(product.quantity) !== seedRow.quantity
+        ) {
+          updatePayload.quantity = seedRow.quantity;
+          result.updatedQuantityCount += 1;
+        }
+        if (
+          seedRow.price !== undefined &&
+          Number(product.price) !== seedRow.price
+        ) {
+          updatePayload.price = seedRow.price;
+          result.updatedPriceCount += 1;
+        }
+      } else {
+        result.hiddenCount += 1;
+      }
+
+      if (!dryRun) {
+        await this.productRepository.update(product.id, updatePayload);
+      }
+    }
+
+    if (!dryRun) {
+      await this.invalidateProductCache(shopId);
+    }
+
+    return result;
+  }
+
+  private resolveDemoCatalogSeedPath(): string {
+    return resolve(
+      process.cwd(),
+      process.env.DEMO_CATALOG_SEED_PATH || 'data/demo-seed.csv',
+    );
+  }
+
+  private parseDemoCatalogSeed(seedPath: string): DemoSeedRow[] {
+    const content = readFileSync(seedPath, 'utf8').replace(/^\uFEFF/, '');
+    const [headerLine, ...lines] = content.split(/\r?\n/);
+    const columns = this.parseCsvLine(headerLine).map((header) =>
+      header.trim().replace(/^\uFEFF/, ''),
+    );
+    const normalizedColumns = columns.map((column) =>
+      this.normalizeCsvColumn(column),
+    );
+    this.logger.log({
+      message: 'DEMO_SEED_CSV_COLUMNS',
+      columns,
+    });
+
+    const indexes = {
+      storeUuid: this.findCsvColumnIndex(normalizedColumns, [
+        'store_uuid',
+        'storeuuid',
+        'externalstoreid',
+        'store_id',
+      ]),
+      externalId: this.findCsvColumnIndex(normalizedColumns, [
+        'uuid',
+        'id',
+        'productid',
+        'product_uuid',
+      ]),
+      code: this.findCsvColumnIndex(normalizedColumns, ['sku', 'код', 'code']),
+      articleNumber: this.findCsvColumnIndex(normalizedColumns, [
+        'артикул',
+        'articlenumber',
+        'article_number',
+      ]),
+      barcode: this.findCsvColumnIndex(normalizedColumns, [
+        'штрих-код',
+        'barcode',
+        'barcode',
+        'barcodes',
+      ]),
+      name: this.findCsvColumnIndex(normalizedColumns, [
+        'наименование',
+        'name',
+        'title',
+      ]),
+      price: this.findCsvColumnIndex(normalizedColumns, ['цена', 'price']),
+      quantity: this.findCsvColumnIndex(normalizedColumns, [
+        'остаток',
+        'quantity',
+        'stock',
+        'stockquantity',
+      ]),
+      allowToSell: this.findCsvColumnIndex(normalizedColumns, [
+        'в продаже',
+        'allow_to_sell',
+        'allowtosell',
+      ]),
+      group: this.findCsvColumnIndex(normalizedColumns, [
+        'признак группы',
+        'group',
+        'isgroup',
+      ]),
+      type: this.findCsvColumnIndex(normalizedColumns, ['тип', 'type']),
+      description: this.findCsvColumnIndex(normalizedColumns, [
+        'описание',
+        'description',
+      ]),
+    };
+
+    if (indexes.storeUuid === -1) {
+      throw new BadRequestException(
+        'Demo catalog seed CSV must include store_uuid/storeUuid column',
+      );
+    }
+
+    const rows: DemoSeedRow[] = [];
+    const stats: DemoSeedParseStats = {
+      rowsTotal: 0,
+      parsedRows: 0,
+      skippedNoIdentity: 0,
+      skippedNoName: 0,
+      skippedNotAllowed: 0,
+      skippedGroup: 0,
+    };
+
+    for (const line of lines.map((value) => value.trim()).filter(Boolean)) {
+      stats.rowsTotal += 1;
+      const cells = this.parseCsvLine(line).map((cell) => cell.trim());
+      const row = this.normalizeDemoSeedRow(cells, indexes, stats);
+      if (!row) continue;
+      rows.push(row);
+      stats.parsedRows += 1;
+    }
+
+    this.logger.log({
+      message: 'DEMO_SEED_CSV_PARSED',
+      ...stats,
+      sample: rows.slice(0, 3),
+    });
+
+    return rows;
+  }
+
+  private normalizeDemoSeedRow(
+    cells: string[],
+    indexes: Record<string, number>,
+    stats: DemoSeedParseStats,
+  ): DemoSeedRow | null {
+    const get = (key: string) =>
+      indexes[key] === -1 ? '' : (cells[indexes[key]] ?? '').trim();
+    const storeUuid = get('storeUuid');
+    const externalId = get('externalId');
+    const code = get('code');
+    const articleNumber = get('articleNumber');
+    const barcode = get('barcode');
+    const name = get('name');
+    const allowToSell = this.parseCsvBoolean(get('allowToSell'));
+    const group = this.parseCsvBoolean(get('group'));
+
+    if (allowToSell === false) {
+      stats.skippedNotAllowed += 1;
+      return null;
+    }
+    if (group === true) {
+      stats.skippedGroup += 1;
+      return null;
+    }
+    if (!name) {
+      stats.skippedNoName += 1;
+      return null;
+    }
+    if (!externalId && !code && !articleNumber && !barcode) {
+      stats.skippedNoIdentity += 1;
+      return null;
+    }
+    if (!storeUuid) {
+      stats.skippedNoIdentity += 1;
+      return null;
+    }
+
+    const sku = code || articleNumber || barcode || externalId;
+    const row: DemoSeedRow = {
+      sku,
+      storeUuid,
+      name,
+      ...(externalId ? { externalId } : {}),
+      ...(articleNumber ? { articleNumber } : {}),
+      ...(barcode ? { barcode } : {}),
+      ...(get('type') ? { type: get('type') } : {}),
+      ...(get('description') ? { description: get('description') } : {}),
+    } as DemoSeedRow;
+    const price = this.parseCsvNumber(get('price'));
+    if (price !== null) row.price = price;
+    const quantity = this.parseCsvNumber(get('quantity'));
+    if (quantity !== null) row.quantity = quantity;
+
+    return row;
+  }
+
+  private parseCsvLine(line: string): string[] {
+    const cells: string[] = [];
+    let current = '';
+    let quoted = false;
+
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      const next = line[index + 1];
+      if (char === '"' && quoted && next === '"') {
+        current += '"';
+        index += 1;
+        continue;
+      }
+      if (char === '"') {
+        quoted = !quoted;
+        continue;
+      }
+      if (char === ';' && !quoted) {
+        cells.push(current);
+        current = '';
+        continue;
+      }
+      current += char;
+    }
+
+    cells.push(current);
+    return cells;
+  }
+
+  private normalizeCsvColumn(value: string): string {
+    return value
+      .trim()
+      .replace(/^\uFEFF/, '')
+      .toLowerCase();
+  }
+
+  private findCsvColumnIndex(columns: string[], aliases: string[]): number {
+    const normalizedAliases = aliases.map((alias) =>
+      this.normalizeCsvColumn(alias),
+    );
+    return columns.findIndex((column) => normalizedAliases.includes(column));
+  }
+
+  private parseCsvBoolean(value: string): boolean | null {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return null;
+    if (['true', '1', 'yes', 'да'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'нет'].includes(normalized)) return false;
+    return null;
+  }
+
+  private parseCsvNumber(value: string): number | null {
+    const normalized = value.trim().replace(/\s/g, '').replace(',', '.');
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private cloneMetadata(
+    metadata: Product['metadata'],
+  ): Record<string, unknown> {
+    return { ...(metadata ?? {}) };
+  }
+
+  private getStorefrontMetadata(
+    metadata: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const storefront = metadata.storefront;
+    if (
+      !storefront ||
+      typeof storefront !== 'object' ||
+      Array.isArray(storefront)
+    ) {
+      return {};
+    }
+
+    return { ...(storefront as Record<string, unknown>) };
   }
 
   async syncCatalogProducts(

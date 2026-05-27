@@ -91,6 +91,106 @@ describe('EvotorApiService', () => {
     expect(headers.get('X-Authorization')).toBeNull();
   });
 
+  it('filters out products with allow_to_sell=false', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          items: [
+            {
+              uuid: 'product-1',
+              name: 'Not for sale',
+              price: 100,
+              quantity: 5,
+              allow_to_sell: false,
+            },
+          ],
+        },
+        paging: {},
+      }),
+    );
+
+    const result = await service.getProducts('store/1', 'evotor-user-1');
+
+    expect(result).toEqual([]);
+  });
+
+  it('filters out product groups (group=true)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          items: [
+            {
+              uuid: 'group-1',
+              name: 'Category Group',
+              price: 0,
+              quantity: 0,
+              group: true,
+            },
+          ],
+        },
+        paging: {},
+      }),
+    );
+
+    const result = await service.getProducts('store/1', 'evotor-user-1');
+
+    expect(result).toEqual([]);
+  });
+
+  it('keeps product with quantity=0 and allow_to_sell=true', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          items: [
+            {
+              uuid: 'product-1',
+              articleNumber: 'SKU-001',
+              name: 'Out of Stock Product',
+              price: 1000,
+              quantity: 0,
+            },
+          ],
+        },
+        paging: {},
+      }),
+    );
+
+    const result = await service.getProducts('store/1', 'evotor-user-1');
+
+    expect(result).toEqual([
+      {
+        id: 'product-1',
+        article_number: 'SKU-001',
+        name: 'Out of Stock Product',
+        price: 1000,
+        quantity: 0,
+      },
+    ]);
+  });
+
+  it('filters out products with source=sell_document', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          items: [
+            {
+              uuid: 'product-1',
+              name: 'Sell Document Item',
+              price: 200,
+              quantity: 1,
+              source: 'sell_document',
+            },
+          ],
+        },
+        paging: {},
+      }),
+    );
+
+    const result = await service.getProducts('store/1', 'evotor-user-1');
+
+    expect(result).toEqual([]);
+  });
+
   it('reads documents through the bridge proxy with pagination', async () => {
     fetchMock
       .mockResolvedValueOnce(
@@ -398,10 +498,10 @@ describe('EvotorApiService', () => {
       }),
     );
 
-    const result = await service.getAdminProducts(
-      'evotor-user-1',
-      'store-uuid-1',
-    );
+    const result = await service.getAdminProducts({
+      evotorUserId: '01-000000001892466',
+      storeUuid: 'store-uuid-1',
+    });
 
     expect(result).toEqual([
       {
@@ -413,8 +513,50 @@ describe('EvotorApiService', () => {
       },
     ]);
     const url = (fetchMock.mock.calls[0][0] as URL | string).toString();
-    expect(url).toContain('evotorUserId=evotor-user-1');
-    expect(url).toContain('storeId=store-uuid-1');
+    expect(url).toContain('evotorUserId=01-000000001892466');
+    expect(url).not.toContain('accountId=01-000000001892466');
+    expect(url).not.toContain('evotorAccountId=01-000000001892466');
+    expect(url).toContain('storeUuid=store-uuid-1');
+    expect(url).not.toContain('storeId=store-uuid-1');
+  });
+
+  it('sends account aliases only for UUID evotorAccountId', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ items: [], total: 0, skip: 0, take: 100 }),
+    );
+
+    await service.getAdminProducts({
+      evotorUserId: '01-000000001892466',
+      evotorAccountId: 'fd0db97c-3cca-4ad2-b2e0-e943afb1f2fe',
+      storeUuid: 'store-uuid-1',
+      storefrontOnly: true,
+    });
+
+    const url = (fetchMock.mock.calls[0][0] as URL | string).toString();
+    expect(url).toContain('evotorUserId=01-000000001892466');
+    expect(url).toContain('accountId=fd0db97c-3cca-4ad2-b2e0-e943afb1f2fe');
+    expect(url).toContain(
+      'evotorAccountId=fd0db97c-3cca-4ad2-b2e0-e943afb1f2fe',
+    );
+    expect(url).toContain('storeUuid=store-uuid-1');
+    expect(url).toContain('storefrontOnly=true');
+  });
+
+  it('never sends non-UUID evotorAccountId as account filters', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ items: [], total: 0, skip: 0, take: 100 }),
+    );
+
+    await service.getAdminProducts({
+      evotorUserId: '01-000000001892466',
+      evotorAccountId: '01-000000001892466',
+      storeUuid: 'store-uuid-1',
+    });
+
+    const url = (fetchMock.mock.calls[0][0] as URL | string).toString();
+    expect(url).toContain('evotorUserId=01-000000001892466');
+    expect(url).not.toContain('accountId=01-000000001892466');
+    expect(url).not.toContain('evotorAccountId=01-000000001892466');
   });
 
   it('prefers raw payload quantity for admin products', async () => {
@@ -439,10 +581,10 @@ describe('EvotorApiService', () => {
       }),
     );
 
-    const result = await service.getAdminProducts(
-      'evotor-user-1',
-      'store-uuid-1',
-    );
+    const result = await service.getAdminProducts({
+      evotorUserId: 'evotor-user-1',
+      storeUuid: 'store-uuid-1',
+    });
 
     expect(result).toEqual([
       {

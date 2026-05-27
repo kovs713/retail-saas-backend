@@ -6,11 +6,13 @@ import {
 } from '@/common/dto';
 import { Role } from '@/common/enums';
 import { AuthGuard, RolesGuard } from '@/common/guards';
-import { TenantContext } from '@/common/types';
+import { Request, TenantContext } from '@/common/types';
 import { LoggerService } from '@/core/logger/logger.service';
+import { ShopService } from '@/modules/shop/shop.service';
 import {
   CategoryDto,
   CreateCategoryDto,
+  DemoCatalogSeedResultDto,
   ProductDto,
   ProductImageDto,
   ProductImageUploadResponseDto,
@@ -25,11 +27,13 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -66,7 +70,10 @@ export class ProductController {
   ]);
   private static readonly maxUploadSizeBytes = 10 * 1024 * 1024;
 
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly shopService: ShopService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -79,14 +86,13 @@ export class ProductController {
   async findAll(
     @Query() query: Pagination,
     @Tenant() tenantContext: TenantContext,
+    @Req() req: Request,
   ): Promise<PaginationResponse<ProductDto>> {
+    const shopId = await this.resolveShopId(query.shopId, tenantContext, req);
     this.logger.log(
       `Finding products with query: page=${query.page}, limit=${query.limit}`,
     );
-    const result = await this.productService.findAll(
-      query,
-      tenantContext.shopId,
-    );
+    const result = await this.productService.findAll(query, shopId);
     this.logger.log(
       `Found ${result.data?.length || 0} products (total: ${result.pagination?.total})`,
     );
@@ -95,6 +101,65 @@ export class ProductController {
       data: result.data?.map((product) => ProductDto.fromEntity(product)) ?? [],
       pagination: result.pagination,
     };
+  }
+
+  @Post('demo-seed')
+  @Roles(Role.OWNER, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Apply demo catalog CSV publication whitelist',
+  })
+  @ApiQuery({
+    name: 'dryRun',
+    required: false,
+    type: Boolean,
+    description: 'Preview changes without writing updates',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Demo catalog seed applied successfully',
+    type: DemoCatalogSeedResultDto,
+  })
+  async applyDemoSeed(
+    @Query('dryRun') dryRun: string | boolean | undefined,
+    @Tenant() tenantContext: TenantContext,
+  ): Promise<AppApiResponse<DemoCatalogSeedResultDto>> {
+    const isDryRun =
+      dryRun === true ||
+      (typeof dryRun === 'string' && dryRun.toLowerCase() === 'true');
+    const result = await this.productService.applyDemoCatalogSeed(
+      tenantContext.shopId,
+      isDryRun,
+    );
+
+    return {
+      success: true,
+      data: result,
+      message: isDryRun
+        ? 'Demo catalog seed dry run completed'
+        : 'Demo catalog seed applied successfully',
+    };
+  }
+
+  private async resolveShopId(
+    requestedShopId: string | undefined,
+    tenantContext: TenantContext,
+    req: Request,
+  ): Promise<string> {
+    if (!requestedShopId || requestedShopId === tenantContext.shopId) {
+      return tenantContext.shopId;
+    }
+
+    if ((req.user.role as Role) === Role.ADMIN) {
+      await this.shopService.findById(requestedShopId);
+      return requestedShopId;
+    }
+
+    const shop = await this.shopService.findById(requestedShopId);
+    if (shop.ownerId !== req.user.sub) {
+      throw new ForbiddenException('You do not have access to this shop');
+    }
+
+    return requestedShopId;
   }
 
   @Get('stats')
@@ -108,20 +173,18 @@ export class ProductController {
   async getStats(
     @Tenant()
     tenantContext: TenantContext,
-  ): Promise<AppApiResponse<{ totalProducts: number; lowStockCount: number }>> {
+  ): Promise<
+    AppApiResponse<{
+      published: number;
+      hidden: number;
+      inStock: number;
+      outOfStock: number;
+    }>
+  > {
     this.logger.log('Getting product statistics');
-    const totalProducts = await this.productService.count(tenantContext.shopId);
-    const lowStockProducts = await this.productService.findLowStock(
-      10,
-      tenantContext.shopId,
-    );
-    this.logger.log(
-      `Statistics: ${totalProducts} total, ${lowStockProducts.length} low stock`,
-    );
-    return {
-      success: true,
-      data: { totalProducts, lowStockCount: lowStockProducts.length },
-    };
+    const stats = await this.productService.getStats(tenantContext.shopId);
+    this.logger.log(`Statistics: ${JSON.stringify(stats)}`);
+    return { success: true, data: stats };
   }
 
   @Get('low-stock')

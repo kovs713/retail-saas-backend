@@ -1,6 +1,7 @@
 import { AuthGuard, RolesGuard } from '@/common/guards';
 import { createMockTenantContext, mockAuthGuard } from '@/common/utils';
 import { createProduct } from '@/core/database/factories';
+import { ShopService } from '@/modules/shop/shop.service';
 import { ProductImageDto } from './dto';
 import { ProductController } from './product.controller';
 import { ProductService } from './product.service';
@@ -26,6 +27,10 @@ describe('ProductController', () => {
         {
           provide: ProductService,
           useValue: createMock<ProductService>(),
+        },
+        {
+          provide: ShopService,
+          useValue: createMock<ShopService>(),
         },
       ],
       controllers: [ProductController],
@@ -63,7 +68,14 @@ describe('ProductController', () => {
           totalPages: 1,
         },
       });
-      const result = await controller.findAll({}, tenantContext);
+      const result = await controller.findAll({}, tenantContext, {
+        user: {
+          sub: 'user-123',
+          email: 'test@example.com',
+          shopId: 'shop-456',
+          role: 'owner',
+        },
+      } as any);
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
       expect(result.pagination?.total).toBe(1);
@@ -276,13 +288,20 @@ describe('ProductController', () => {
 
   describe('getStats', () => {
     it('should return statistics', async () => {
-      service.count.mockResolvedValue(100);
-      service.findLowStock.mockResolvedValue([mockProduct]);
+      const mockStats = {
+        published: 50,
+        hidden: 30,
+        inStock: 40,
+        outOfStock: 60,
+      };
+      service.getStats.mockResolvedValue(mockStats);
       const result = await controller.getStats(tenantContext);
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data!.totalProducts).toBe(100);
-      expect(result.data!.lowStockCount).toBe(1);
+      expect(result.data!.published).toBe(50);
+      expect(result.data!.hidden).toBe(30);
+      expect(result.data!.inStock).toBe(40);
+      expect(result.data!.outOfStock).toBe(60);
     });
   });
 

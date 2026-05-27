@@ -78,6 +78,7 @@ export class OrderService {
           items,
           totalAmount,
           status: OrderStatus.PENDING,
+          externalSource: 'manual',
         });
 
         const savedOrder = await transactionOrderRepository.save(order);

@@ -283,6 +283,25 @@ describe('ShopController', () => {
       expect(result).toEqual(expectedResult);
     });
 
+    it('should clear media URLs with null values', async () => {
+      const updatedShop = { ...mockShop, logoUrl: null, bannerUrl: null };
+      jest.spyOn(service, 'updateMediaUrls').mockResolvedValue(updatedShop);
+
+      await controller.updateMedia(
+        'shop-1',
+        ownerTenantContext,
+        ownerRequest,
+        null,
+        null,
+      );
+
+      expect(service.updateMediaUrls).toHaveBeenCalledWith(
+        'shop-1',
+        null,
+        null,
+      );
+    });
+
     it('should reject owner updating media for another shop', async () => {
       await expect(
         controller.updateMedia(

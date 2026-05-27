@@ -185,9 +185,9 @@ export class ShopController {
     @Req()
     req: Request,
     @Body('logoUrl')
-    logoUrl?: string,
+    logoUrl?: string | null,
     @Body('bannerUrl')
-    bannerUrl?: string,
+    bannerUrl?: string | null,
   ): Promise<AppApiResponse<ShopDto>> {
     this.assertShopAccess(id, tenantContext, req);
     const shop = await this.shopService.updateMediaUrls(id, logoUrl, bannerUrl);

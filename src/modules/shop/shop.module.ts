@@ -1,17 +1,27 @@
 import { ProductModule } from '@/modules/product/product.module';
 import { Location, Shop } from './entities';
+import { PublicShopMediaController } from './public-shop-media.controller';
 import { PublicShopController } from './public-shop.controller';
 import { LocationRepository, ShopRepository } from './repositories';
 import { ShopController } from './shop.controller';
+import { ShopStorageController } from './shop-storage.controller';
 import { ShopService } from './shop.service';
 
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Shop, Location]), ProductModule],
+  imports: [
+    TypeOrmModule.forFeature([Shop, Location]),
+    forwardRef(() => ProductModule),
+  ],
   providers: [ShopService, ShopRepository, LocationRepository],
   exports: [ShopService, ShopRepository],
-  controllers: [ShopController, PublicShopController],
+  controllers: [
+    ShopController,
+    PublicShopController,
+    PublicShopMediaController,
+    ShopStorageController,
+  ],
 })
 export class ShopModule {}

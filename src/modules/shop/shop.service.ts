@@ -129,16 +129,16 @@ export class ShopService {
 
   async updateMediaUrls(
     id: string,
-    logoUrl?: string,
-    bannerUrl?: string,
+    logoUrl?: string | null,
+    bannerUrl?: string | null,
   ): Promise<Shop> {
     const shop = await this.findById(id);
 
-    if (logoUrl) {
+    if (logoUrl !== undefined) {
       shop.logoUrl = logoUrl;
     }
 
-    if (bannerUrl) {
+    if (bannerUrl !== undefined) {
       shop.bannerUrl = bannerUrl;
     }
 

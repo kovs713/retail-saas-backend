@@ -354,6 +354,30 @@ export class RagController {
     };
   }
 
+  @Post('catalog/reindex-demo')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reindex published demo seed catalog products for current tenant',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Published demo catalog index rebuilt successfully',
+  })
+  async reindexPublishedDemoProducts(
+    @Tenant()
+    tenantContext: TenantContext,
+  ): Promise<AppApiResponse<{ indexedProducts: number }>> {
+    const indexedProducts = await this.ragService.reindexPublishedDemoProducts(
+      tenantContext.shopId,
+    );
+
+    return {
+      success: true,
+      data: { indexedProducts },
+      message: 'Published demo catalog index rebuilt successfully',
+    };
+  }
+
   @Post('documents')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({

@@ -5,7 +5,6 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  IsUrl,
 } from 'class-validator';
 
 export class CreateShopDto {
@@ -50,7 +49,7 @@ export class CreateShopDto {
     example: 'https://example.com/logo.png',
   })
   @IsOptional()
-  @IsUrl()
+  @IsString()
   logoUrl?: string;
 
   @ApiPropertyOptional({
@@ -58,7 +57,7 @@ export class CreateShopDto {
     example: 'https://example.com/banner.jpg',
   })
   @IsOptional()
-  @IsUrl()
+  @IsString()
   bannerUrl?: string;
 
   @ApiPropertyOptional({ description: 'Is shop active', example: true })

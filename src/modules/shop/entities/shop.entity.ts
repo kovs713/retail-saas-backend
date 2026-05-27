@@ -9,8 +9,8 @@ import {
   Entity,
   Index,
   JoinColumn,
+  ManyToOne,
   OneToMany,
-  OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -22,10 +22,10 @@ export class Shop {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid', unique: true, nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   ownerId: string | null;
 
-  @OneToOne(() => User, { eager: false })
+  @ManyToOne(() => User, { eager: false, nullable: true })
   @JoinColumn({ name: 'ownerId' })
   owner: User | null;
 

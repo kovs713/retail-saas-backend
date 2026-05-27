@@ -66,6 +66,31 @@ export class OrderRepository extends Repository<Order> {
       .getCount();
   }
 
+  async countByExternalSource(
+    shopId: string,
+    externalSource: string,
+    from?: Date,
+    to?: Date,
+  ): Promise<number> {
+    const query = this.repository
+      .createQueryBuilder('order')
+      .where('order.shopId = :shopId', { shopId })
+      .andWhere(
+        '(order.externalSource = :externalSource OR order.externalSource IS NULL)',
+        { externalSource },
+      );
+
+    if (from) {
+      query.andWhere('order.createdAt >= :from', { from });
+    }
+
+    if (to) {
+      query.andWhere('order.createdAt <= :to', { to });
+    }
+
+    return query.getCount();
+  }
+
   async getRevenueByDay(
     shopId: string,
     from: Date,

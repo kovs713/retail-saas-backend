@@ -18,6 +18,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { UpdateResult } from 'typeorm';
 
 describe('ProductService', () => {
@@ -81,6 +83,247 @@ describe('ProductService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('applyDemoCatalogSeed', () => {
+    const seedDir = '/tmp/opencode/retail-saas-seed-tests';
+    const seedPath = join(seedDir, 'demo-seed.csv');
+    let previousSeedPath: string | undefined;
+
+    beforeEach(() => {
+      previousSeedPath = process.env.DEMO_CATALOG_SEED_PATH;
+      mkdirSync(seedDir, { recursive: true });
+      process.env.DEMO_CATALOG_SEED_PATH = seedPath;
+    });
+
+    afterEach(() => {
+      if (previousSeedPath === undefined) {
+        delete process.env.DEMO_CATALOG_SEED_PATH;
+      } else {
+        process.env.DEMO_CATALOG_SEED_PATH = previousSeedPath;
+      }
+      if (existsSync(seedDir)) {
+        rmSync(seedDir, { recursive: true, force: true });
+      }
+    });
+
+    it('marks CSV products as PUBLISHED and non-CSV products as HIDDEN', async () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Цена;Остаток\nstore-1;uuid-1;One;SKU-1;1500;7\n',
+      );
+      productRepository.findSyncedByShop.mockResolvedValue([
+        createProduct({
+          id: 'product-1',
+          shopId: 'shop-1',
+          sku: 'SKU-1',
+          price: 1000,
+          quantity: 1,
+        }),
+        createProduct({
+          id: 'product-2',
+          shopId: 'shop-1',
+          sku: 'SKU-2',
+          price: 2000,
+          quantity: 2,
+        }),
+      ]);
+
+      const result = await service.applyDemoCatalogSeed('shop-1');
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          csvProducts: 1,
+          publishedCount: 1,
+          hiddenCount: 1,
+          updatedPriceCount: 1,
+          updatedQuantityCount: 1,
+        }),
+      );
+      expect(productRepository.update).toHaveBeenCalledWith(
+        'product-1',
+        expect.objectContaining({
+          price: 1500,
+          quantity: 7,
+          metadata: expect.objectContaining({
+            demoSeed: true,
+            storefront: expect.objectContaining({
+              publicationStatus: 'PUBLISHED',
+            }),
+          }),
+        }),
+      );
+      expect(productRepository.update).toHaveBeenCalledWith(
+        'product-2',
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            demoSeed: false,
+            storefront: expect.objectContaining({
+              publicationStatus: 'HIDDEN',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('does not overwrite manual visibility overrides', async () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код\nstore-1;uuid-1;One;SKU-1\n',
+      );
+      productRepository.findSyncedByShop.mockResolvedValue([
+        createProduct({
+          id: 'product-1',
+          shopId: 'shop-1',
+          sku: 'SKU-1',
+          metadata: {
+            storefront: {
+              manualVisibilityOverride: true,
+              publicationStatus: 'DRAFT',
+            },
+          },
+        }),
+      ]);
+
+      const result = await service.applyDemoCatalogSeed('shop-1');
+
+      expect(result.skippedManualOverrideCount).toBe(1);
+      expect(productRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('dry run reports changes without writing', async () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код\nstore-1;uuid-1;One;SKU-1\n',
+      );
+      productRepository.findSyncedByShop.mockResolvedValue([
+        createProduct({ id: 'product-1', shopId: 'shop-1', sku: 'SKU-1' }),
+      ]);
+
+      const result = await service.applyDemoCatalogSeed('shop-1', true);
+
+      expect(result.dryRun).toBe(true);
+      expect(result.publishedCount).toBe(1);
+      expect(productRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('fails clearly when seed file is missing', async () => {
+      await expect(service.applyDemoCatalogSeed('shop-1')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('parses CSV with Russian columns successfully', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Артикул;В продаже;Признак группы;Цена;Остаток\nstore-1;uuid-1;Товар;ART-1;TRUE;FALSE;10,5;3\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+
+      expect(rows).toEqual([
+        expect.objectContaining({
+          storeUuid: 'store-1',
+          externalId: 'uuid-1',
+          name: 'Товар',
+          sku: 'ART-1',
+          price: 10.5,
+          quantity: 3,
+        }),
+      ]);
+    });
+
+    it('uses Код as sku when sku column is missing', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код\nstore-1;uuid-1;Товар;CODE-1\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+
+      expect(rows[0].sku).toBe('CODE-1');
+    });
+
+    it('uses Артикул as sku when Код is missing', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Артикул\nstore-1;uuid-1;Товар;ART-1\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+
+      expect(rows[0].sku).toBe('ART-1');
+    });
+
+    it('uses Штрих-код as sku when Код and Артикул are missing', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Штрих-код\nstore-1;uuid-1;Товар;460123\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows[0].sku).toBe('460123');
+    });
+
+    it('parses quantity from Остаток as number', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Остаток\nstore-1;uuid-1;Товар;CODE-1;12,5\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows[0].quantity).toBe(12.5);
+    });
+
+    it('parses price from Цена as number', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Цена\nstore-1;uuid-1;Товар;CODE-1;99,9\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows[0].price).toBe(99.9);
+    });
+
+    it('skips rows where В продаже is FALSE', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;В продаже\nstore-1;uuid-1;Товар;CODE-1;FALSE\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows).toHaveLength(0);
+    });
+
+    it('skips rows where Признак группы is TRUE', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Признак группы\nstore-1;uuid-1;Товар;CODE-1;TRUE\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows).toHaveLength(0);
+    });
+
+    it('accepts quantity=0 row', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Остаток\nstore-1;uuid-1;Товар;CODE-1;0\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows[0].quantity).toBe(0);
+    });
+
+    it('accepts negative quantity row', () => {
+      writeFileSync(
+        seedPath,
+        'store_uuid;uuid;Наименование;Код;Остаток\nstore-1;uuid-1;Товар;CODE-1;-4\n',
+      );
+
+      const rows = (service as any).parseDemoCatalogSeed(seedPath);
+      expect(rows[0].quantity).toBe(-4);
+    });
   });
 
   describe('findOne', () => {
@@ -270,6 +513,22 @@ describe('ProductService', () => {
         secondProduct,
       );
       expect(result).toBe(2);
+    });
+
+    it('should clear catalog docs and reindex only published demo products', async () => {
+      const product = createProduct({ id: 'prod_demo', shopId: 'shop-1' });
+      productRepository.findSyncedPublishedDemoByShop.mockResolvedValue([
+        product,
+      ]);
+
+      const result = await service.reindexPublishedDemoProducts('shop-1');
+
+      expect(
+        productRepository.findSyncedPublishedDemoByShop,
+      ).toHaveBeenCalledWith('shop-1');
+      expect(catalogIndexService.clearCatalog).toHaveBeenCalledWith('shop-1');
+      expect(catalogIndexService.upsertProduct).toHaveBeenCalledWith(product);
+      expect(result).toBe(1);
     });
   });
 

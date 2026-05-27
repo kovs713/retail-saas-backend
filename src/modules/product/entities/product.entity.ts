@@ -13,7 +13,14 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  ValueTransformer,
 } from 'typeorm';
+
+const numericTransformer: ValueTransformer = {
+  to: (value: number | null): number | null => value,
+  from: (value: string | number | null): number | null =>
+    value === null ? null : Number(value),
+};
 
 @Entity('products')
 @Index(['shopId', 'sku'], { unique: true })
@@ -49,7 +56,7 @@ export class Product {
   @Column({ type: 'int', nullable: true })
   cost: number | null;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: 'numeric', default: 0, transformer: numericTransformer })
   quantity: number;
 
   @Column({ type: 'uuid', nullable: true })

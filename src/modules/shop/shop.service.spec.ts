@@ -263,6 +263,28 @@ describe('ShopService', () => {
       expect(result.bannerUrl).toBe('https://example.com/banner.png');
     });
 
+    it('should clear media URLs when null is provided', async () => {
+      const shopWithMedia = {
+        ...mockShop,
+        logoUrl: 'https://example.com/logo.png',
+        bannerUrl: 'https://example.com/banner.png',
+      };
+      repository.findById.mockResolvedValue(shopWithMedia);
+      repository.save.mockResolvedValue({
+        ...shopWithMedia,
+        logoUrl: null,
+        bannerUrl: null,
+      });
+
+      const result = await service.updateMediaUrls('shop_001', null, null);
+
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ logoUrl: null, bannerUrl: null }),
+      );
+      expect(result.logoUrl).toBeNull();
+      expect(result.bannerUrl).toBeNull();
+    });
+
     it('should throw NotFoundException for non-existent shop', async () => {
       repository.findById.mockResolvedValue(null);
 
