@@ -1,128 +1,84 @@
 # Retail SaaS Backend
 
-Multi-tenant SaaS backend for micro-business storefronts with RAG-powered AI chatbot, order management, and file storage.
+Multi-tenant retail SaaS backend with Evotor POS integration, RAG AI chatbot, order management, and file storage.
 
-## Overview
-
-A platform enabling small retail businesses (pet shops, garden centers, etc.) to quickly launch a public storefront with a product catalog, order processing, analytics, and an AI chatbot trained on their business documents.
-
-### Key Features
+## Features
 
 - **Public Storefront** — product catalog at `platform/shop/:slug`
-- **RAG Chatbot** — AI assistant answering customer questions based on uploaded documents
-- **Admin Panel API** — shop management, analytics, and knowledge base administration
-- **Order Management** — create, track, and manage orders (admin + public endpoints)
-- **Analytics** — storefront views and chat event tracking
-- **File Storage** — MinIO S3-based document and media storage
-- **Multi-tenant Architecture** — isolated data per tenant/organization
+- **Evotor POS Integration** — bidirectional product/order sync via API bridge
+- **RAG Chatbot** — AI assistant answering customer questions based on catalog + uploaded docs (LangChain + ChromaDB + Groq/Ollama)
+- **Self-Service Registration** — shop registration with admin approval workflow
+- **Admin Panel API** — cross-tenant metrics, user management, registration approvals
+- **Order Management** — create, track, manage orders with inventory tracking
+- **Analytics** — storefront views, chat events, revenue, shop growth metrics
+- **File Storage** — MinIO S3-based image and document storage
+- **Real-time** — WebSocket-based streaming chat
+- **Multi-tenant** — isolated data per shop
 
-## Technology Stack
+## Stack
 
-- **Framework**: NestJS (Node.js) + TypeScript
-- **Database**: PostgreSQL with TypeORM
-- **Cache**: Redis
-- **Vector Database**: ChromaDB
-- **Object Storage**: MinIO S3
-- **AI/ML**: LangChain, Ollama Embeddings, Groq API
-- **Auth**: JWT + bcryptjs
-- **Real-time**: Socket.IO for WebSocket support
-- **Rate Limiting**: Redis-backed throttling
+| Layer | Technology |
+|-------|-----------|
+| Framework | NestJS + TypeScript |
+| Database | PostgreSQL + TypeORM |
+| Cache | Redis |
+| Vector DB | ChromaDB |
+| Object Storage | MinIO S3 |
+| AI | LangChain, Groq, Ollama |
+| Auth | JWT + bcryptjs |
+| Real-time | Socket.IO |
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm package manager
-- Docker and Docker Compose
-- Groq API key (for AI features)
-
-### Installation
+## Quick Start
 
 ```bash
-# Clone repository
-git clone https://github.com/kovs713/retail-saas-backend.git
-cd retail-saas-backend
-
-# Install dependencies
 pnpm install
-
-# Copy environment configuration
 cp .env.example .env
-```
-
-### Database Setup
-
-```bash
-# Start infrastructure services
-# Includes: postgres, redis, chromadb, minio, ollama, doc-preprocessor
-docker-compose up -d
-
-# Verify services are running
-docker-compose ps
-
-# Seed database (optional)
-pnpm run seed:fake       # Seed fake data for testing
-```
-
-### Running the Application
-
-```bash
-# Development mode
+docker-compose up -d          # postgres, redis, chromadb, minio, ollama
 pnpm run start:dev
-
-# Production build
-pnpm run build
-pnpm run start:prod
 ```
 
-### API Documentation
+Swagger UI at `http://localhost:3000/api`.
 
-Swagger UI available at `http://localhost:3000/api` when the application is running.
-
-### Testing
+## Testing
 
 ```bash
-# Unit tests
-pnpm run test
-
-# Integration tests (uses testcontainers)
-pnpm run test:integration
-
-# E2E tests
-pnpm run test:e2e
-
-# Test coverage
-pnpm run test:cov
+pnpm run test                 # unit tests
+pnpm run test:integration     # integration (testcontainers)
+pnpm run test:e2e             # end-to-end
+pnpm run test:cov             # coverage
 ```
 
-### Configuration
+## Project Structure
 
 ```
 src/
 ├── modules/
-│   ├── analytics/        # Storefront views and chat event tracking
-│   ├── order/            # Order management (admin + public)
-│   ├── product/          # Product catalog and categories
-│   ├── rag/              # RAG system (embeddings, LLM, vector store)
-│   ├── shop/             # Shop profile management
-│   ├── storage/          # MinIO S3 file storage
-│   └── user/             # User management
+│   ├── admin/                # Admin dashboard + user management
+│   ├── analytics/            # Views, chat events, revenue tracking
+│   ├── doc-preprocessor/     # External doc preprocessing proxy
+│   ├── evotor/               # Evotor POS integration bridge
+│   ├── order/                # Order lifecycle + inventory
+│   ├── product/              # Catalog, categories, images
+│   ├── rag/                  # RAG engine (embeddings, LLM, vector store)
+│   ├── registration-application/  # Self-service registration + approval
+│   ├── shop/                 # Tenant/shop management + storefront
+│   └── user/                 # Identity and auth CRUD
 ├── core/
-│   ├── auth/             # JWT authentication and authorization
-│   ├── cache/            # Redis caching
-│   ├── database/         # TypeORM config, migrations, seeds
-│   └── logger/           # Logging service
-├── common/               # Shared decorators, DTOs, guards, pipes, types, utils
-├── app.module.ts         # Root application module
-└── main.ts               # Entry point (Swagger, CORS, ValidationPipe)
+│   ├── auth/                 # JWT authentication + guards
+│   ├── cache/                # Redis caching service
+│   ├── database/             # TypeORM config, migrations, seeds
+│   ├── logger/               # Logging service
+│   └── object-storage/       # S3-compatible storage abstraction
+├── common/                   # Shared decorators, DTOs, guards, pipes, types, utils
+├── app.module.ts
+└── main.ts
 
 test/
-├── e2e/                  # End-to-end tests
-└── integration/          # Integration tests
-    └── modules/          # Module-specific integration tests
+├── e2e/
+└── integration/
+    └── modules/
 ```
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0.
+GNU General Public License v3.0
