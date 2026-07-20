@@ -1,6 +1,6 @@
-# Retail SaaS Backend
+# Retail Rag Chatbot Backend
 
-Multi-tenant retail SaaS backend with Evotor POS integration, RAG AI chatbot, order management, and file storage.
+Multi-tenant retail rag chatbot SaaS backend with Evotor POS integration, RAG AI chatbot, order management, and file storage.
 
 ## Features
 
